@@ -1,14 +1,20 @@
-import { AdminSidebar } from "@/components/admin/sidebar";
+"use client";
 
-export const metadata = {
-  title: "Admin Dashboard",
-};
+import { usePathname } from "next/navigation";
+import { AdminSidebar } from "@/components/admin/sidebar";
 
 export default function AdminLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const pathname = usePathname();
+
+  // Admin login page renders without sidebar
+  if (pathname === "/admin/login") {
+    return <>{children}</>;
+  }
+
   return (
     <div className="flex min-h-screen">
       <AdminSidebar />

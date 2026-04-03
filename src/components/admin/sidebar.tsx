@@ -10,14 +10,20 @@ import {
   ShoppingBag,
   Menu,
   X,
+  LogOut,
+  Store,
+  LayoutDashboard,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { APP_NAME } from "@/lib/constants";
 import { useState } from "react";
+import { adminSignOut } from "@/app/admin/auth/actions";
 
 const sidebarItems = [
-  { href: "/admin/inventory", label: "Inventory", icon: Package },
+  { href: "/admin/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/admin/wholesalers", label: "Wholesalers", icon: Store },
+  { href: "/admin/products", label: "Products", icon: Package },
   { href: "/admin/orders", label: "Orders", icon: ClipboardList },
   { href: "/admin/insights", label: "Insights", icon: BarChart3 },
 ];
@@ -98,8 +104,8 @@ export function AdminSidebar() {
           })}
         </nav>
 
-        {/* Bottom settings */}
-        <div className="absolute bottom-0 left-0 right-0 border-t border-border p-3">
+        {/* Bottom actions */}
+        <div className="absolute bottom-0 left-0 right-0 space-y-1 border-t border-border p-3">
           <Link
             href="/admin/inventory"
             className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground"
@@ -107,6 +113,15 @@ export function AdminSidebar() {
             <Settings className="h-4 w-4" />
             Settings
           </Link>
+          <form action={adminSignOut}>
+            <button
+              type="submit"
+              className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-destructive hover:bg-destructive/10"
+            >
+              <LogOut className="h-4 w-4" />
+              Sign Out
+            </button>
+          </form>
         </div>
       </aside>
     </>
