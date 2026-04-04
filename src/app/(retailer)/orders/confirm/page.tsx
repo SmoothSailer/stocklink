@@ -1,15 +1,15 @@
 "use client";
 
 import { useState } from "react";
-import { CheckCircle2, MapPin, CreditCard } from "lucide-react";
+import { CheckCircle2, MapPin, CreditCard, UserCheck, MessageCircle } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { WhatsAppButton } from "@/components/shared/whatsapp-button";
 import { PAYMENT_METHODS } from "@/lib/constants";
-import { cn, formatPrice } from "@/lib/utils";
-import { mockProducts } from "@/lib/mock-data";
+import { cn, formatPrice, buildWhatsAppLink } from "@/lib/utils";
+import { mockProducts, mockWholesalers, mockSalesReps } from "@/lib/mock-data";
 
 export default function OrderConfirmPage() {
   const [selectedPayment, setSelectedPayment] = useState("mpesa");
@@ -17,11 +17,16 @@ export default function OrderConfirmPage() {
 
   // Demo order: first product with MOQ
   const product = mockProducts[0];
+  const wholesaler = mockWholesalers.find((w) => w.id === product.wholesaler_id);
+  const salesRep = wholesaler?.sales_rep_id
+    ? mockSalesReps.find((r) => r.id === wholesaler.sales_rep_id)
+    : undefined;
   const moq = product.min_order_qty ?? 1;
   const quantity = moq * 2; // demo: double the minimum order
   const totalPrice = product.price * quantity;
 
-  const orderMessage = `🛒 *Bulk Order Confirmation — StockLink*\n\n📦 ${product.name} × ${quantity} ${product.unit}s\n💰 Unit Price: KSh ${product.price.toLocaleString()} per ${product.unit}\n💵 Total: KSh ${totalPrice.toLocaleString()}\n💳 Payment: ${PAYMENT_METHODS.find((m) => m.value === selectedPayment)?.label}\n📍 Delivery: Shop 12, Gikomba Market, Nairobi\n\nPlease confirm order.`;
+  const repName = salesRep?.name ?? "StockLink";
+  const orderMessage = `🛒 *Bulk Order Confirmation — StockLink*\n\nHi ${repName}! 👋\n\n📦 ${product.name} × ${quantity} ${product.unit}s\n💰 Unit Price: KSh ${product.price.toLocaleString()} per ${product.unit}\n💵 Total: KSh ${totalPrice.toLocaleString()}\n💳 Payment: ${PAYMENT_METHODS.find((m) => m.value === selectedPayment)?.label}\n📍 Delivery: Shop 12, Gikomba Market, Nairobi\n🏬 Supplier: ${wholesaler?.name ?? "StockLink Wholesale"}\n\nPlease confirm order.`;
 
   if (confirmed) {
     return (
@@ -164,9 +169,37 @@ export default function OrderConfirmPage() {
 
       {/* Confirm CTA */}
       <div className="space-y-2 pt-2">
+        {/* Sales rep card */}
+        {salesRep && (
+          <Card className="border-primary/20 bg-primary/5">
+            <CardContent className="flex items-center gap-3 p-3">
+              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
+                {salesRep.name.split(" ").map((n) => n[0]).join("")}
+              </div>
+              <div className="flex-1">
+                <div className="flex items-center gap-1">
+                  <UserCheck className="h-3 w-3 text-primary" />
+                  <p className="text-[10px] font-semibold text-primary">Your Sales Rep</p>
+                </div>
+                <p className="text-sm font-medium">{salesRep.name}</p>
+              </div>
+              <a
+                href={buildWhatsAppLink(`Hi ${salesRep.name}! 👋 I have a question about my order.`, salesRep.whatsapp_phone)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex h-8 w-8 items-center justify-center rounded-full bg-[#25D366] text-white hover:bg-[#128C7E] transition-colors"
+                aria-label={`Chat with ${salesRep.name}`}
+              >
+                <MessageCircle className="h-3.5 w-3.5" />
+              </a>
+            </CardContent>
+          </Card>
+        )}
+
         <WhatsAppButton
           message={orderMessage}
-          label={`Confirm & Pay ${formatPrice(totalPrice)}`}
+          phone={salesRep?.whatsapp_phone}
+          label={salesRep ? `Confirm with ${salesRep.name.split(" ")[0]} — ${formatPrice(totalPrice)}` : `Confirm & Pay ${formatPrice(totalPrice)}`}
           className="w-full"
         />
         <Button

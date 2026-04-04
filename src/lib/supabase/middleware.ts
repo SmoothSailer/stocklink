@@ -1,8 +1,14 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-// Routes that require authentication (ordering & management)
-const PROTECTED_ROUTES = ["/orders", "/admin", "/affiliate/dashboard"];
+// Routes that require regular auth (ordering & affiliate)
+const PROTECTED_ROUTES = ["/orders", "/affiliate/dashboard"];
+
+// Admin emails allowed to access /admin
+const ADMIN_EMAILS = [
+  "admin@stocklink.co",
+  "farhan@stocklink.co",
+];
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
@@ -34,11 +40,36 @@ export async function updateSession(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   const { pathname } = request.nextUrl;
+
+  // ─── Admin routes ───
+  const isAdminRoute = pathname.startsWith("/admin") && !pathname.startsWith("/admin/login");
+  if (isAdminRoute) {
+    // Not signed in → admin login
+    if (!user) {
+      const loginUrl = request.nextUrl.clone();
+      loginUrl.pathname = "/admin/login";
+      return NextResponse.redirect(loginUrl);
+    }
+    // Signed in but not an admin → forbidden
+    if (!user.email || !ADMIN_EMAILS.includes(user.email.toLowerCase())) {
+      const loginUrl = request.nextUrl.clone();
+      loginUrl.pathname = "/admin/login";
+      return NextResponse.redirect(loginUrl);
+    }
+  }
+
+  // Redirect authenticated admin away from admin login page
+  if (pathname === "/admin/login" && user?.email && ADMIN_EMAILS.includes(user.email.toLowerCase())) {
+    const adminUrl = request.nextUrl.clone();
+    adminUrl.pathname = "/admin/inventory";
+    return NextResponse.redirect(adminUrl);
+  }
+
+  // ─── Regular protected routes ───
   const isProtectedRoute = PROTECTED_ROUTES.some((route) =>
     pathname.startsWith(route)
   );
 
-  // Only require login for protected routes (orders, admin)
   if (!user && isProtectedRoute) {
     const loginUrl = request.nextUrl.clone();
     loginUrl.pathname = "/login";
@@ -54,6 +85,12 @@ export async function updateSession(request: NextRequest) {
     homeUrl.searchParams.delete("next");
     return NextResponse.redirect(homeUrl);
   }
+
+  // ─── Security headers ───
+  supabaseResponse.headers.set("X-Frame-Options", "DENY");
+  supabaseResponse.headers.set("X-Content-Type-Options", "nosniff");
+  supabaseResponse.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
+  supabaseResponse.headers.set("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
 
   return supabaseResponse;
 }

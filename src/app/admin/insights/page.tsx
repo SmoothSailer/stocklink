@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect, useCallback } from "react";
 import {
   BarChart3,
   TrendingUp,
@@ -10,40 +11,90 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { mockProducts, mockOrders } from "@/lib/mock-data";
+import { getDashboardStats } from "@/app/admin/actions";
 import { formatPrice } from "@/lib/utils";
+import { PRODUCT_CATEGORIES } from "@/lib/constants";
+
+interface Stats {
+  products: {
+    id: string;
+    stock: number;
+    price: number;
+    is_trending: boolean;
+    category: string;
+  }[];
+  orders: { id: string; status: string; total: number; created_at: string }[];
+  wholesalers: { id: string }[];
+  demandRequests: {
+    id: string;
+    product_name: string;
+    category: string | null;
+    quantity: number | null;
+    created_at: string;
+  }[];
+}
 
 export default function InsightsPage() {
-  const totalRevenue = mockOrders
+  const [stats, setStats] = useState<Stats | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  const load = useCallback(async () => {
+    try {
+      const data = await getDashboardStats();
+      setStats(data as Stats);
+    } catch {
+      // Show empty
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-24">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+      </div>
+    );
+  }
+
+  const products = stats?.products ?? [];
+  const orders = stats?.orders ?? [];
+  const demandRequests = stats?.demandRequests ?? [];
+
+  const totalRevenue = orders
     .filter((o) => o.status !== "cancelled")
     .reduce((acc, o) => acc + o.total, 0);
-  const totalOrders = mockOrders.length;
-  const avgOrderValue = totalRevenue / totalOrders;
-  const trendingProducts = mockProducts.filter((p) => p.is_trending);
-  const lowStockProducts = mockProducts.filter(
-    (p) => p.stock > 0 && p.stock <= 10
+  const totalOrders = orders.length;
+  const avgOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
+  const trendingProducts = products.filter((p) => p.is_trending);
+  const lowStockProducts = products.filter(
+    (p) => p.stock > 0 && p.stock <= 20
   );
-  const outOfStockProducts = mockProducts.filter((p) => p.stock === 0);
+  const outOfStockProducts = products.filter((p) => p.stock === 0);
 
-  // Simulated demand requests
-  const demandRequests = [
-    { product: "Brown Rice 25kg", category: "rice", requests: 15 },
-    { product: "Sunflower Oil 5L", category: "oil", requests: 12 },
-    { product: "Atta Flour 10kg", category: "flour", requests: 8 },
-    { product: "Baking Powder 500g", category: "flour", requests: 5 },
-  ];
+  // Category breakdown from actual products
+  const categoryMap = products.reduce(
+    (acc, p) => {
+      acc[p.category] = (acc[p.category] || 0) + 1;
+      return acc;
+    },
+    {} as Record<string, number>
+  );
 
-  // Category sales data (simulated)
-  const categorySales = [
-    { category: "Rice", sales: 45, percentage: 85 },
-    { category: "Oil", sales: 30, percentage: 65 },
-    { category: "Sugar", sales: 12, percentage: 30 },
-    { category: "Flour", sales: 80, percentage: 95 },
-    { category: "LPG", sales: 5, percentage: 15 },
-    { category: "Beverages", sales: 60, percentage: 78 },
-    { category: "Dairy", sales: 20, percentage: 45 },
-    { category: "Cleaning", sales: 0, percentage: 0 },
-  ];
+  const maxCategoryCount = Math.max(...Object.values(categoryMap), 1);
+
+  const categorySales = PRODUCT_CATEGORIES.map((cat) => ({
+    category: cat.label,
+    icon: cat.icon,
+    count: categoryMap[cat.value] ?? 0,
+    percentage: Math.round(
+      ((categoryMap[cat.value] ?? 0) / maxCategoryCount) * 100
+    ),
+  }));
 
   return (
     <div className="space-y-6">
@@ -117,48 +168,61 @@ export default function InsightsPage() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            {trendingProducts.map((product) => (
-              <div
-                key={product.id}
-                className="flex items-center justify-between rounded-lg border border-border/60 p-3"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-muted text-lg">
-                    {product.category === "rice" && "🍚"}
-                    {product.category === "oil" && "🫒"}
-                    {product.category === "flour" && "🌾"}
-                    {product.category === "beverages" && "🥤"}
+            {trendingProducts.length === 0 ? (
+              <p className="text-sm text-muted-foreground py-4 text-center">
+                No trending products. Mark products as trending in the Products
+                page.
+              </p>
+            ) : (
+              trendingProducts.map((product) => {
+                const cat = PRODUCT_CATEGORIES.find(
+                  (c) => c.value === product.category
+                );
+                return (
+                  <div
+                    key={product.id}
+                    className="flex items-center justify-between rounded-lg border border-border/60 p-3"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-muted text-lg">
+                        {cat?.icon ?? "📦"}
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium">
+                          {product.category}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {product.stock} in stock
+                        </p>
+                      </div>
+                    </div>
+                    <Badge className="bg-primary/10 text-primary">
+                      🔥 Trending
+                    </Badge>
                   </div>
-                  <div>
-                    <p className="text-sm font-medium">{product.name}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {product.stock} in stock
-                    </p>
-                  </div>
-                </div>
-                <Badge className="bg-primary/10 text-primary">
-                  🔥 Trending
-                </Badge>
-              </div>
-            ))}
+                );
+              })
+            )}
           </CardContent>
         </Card>
 
-        {/* Category Performance */}
+        {/* Category breakdown */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
               <BarChart3 className="h-4 w-4 text-primary" />
-              Sales by Category
+              Products by Category
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             {categorySales.map((cat) => (
               <div key={cat.category} className="space-y-1.5">
                 <div className="flex items-center justify-between text-sm">
-                  <span className="font-medium">{cat.category}</span>
+                  <span className="font-medium">
+                    {cat.icon} {cat.category}
+                  </span>
                   <span className="text-muted-foreground">
-                    {cat.sales} units
+                    {cat.count} product{cat.count !== 1 ? "s" : ""}
                   </span>
                 </div>
                 <Progress value={cat.percentage} className="h-2" />
@@ -176,22 +240,30 @@ export default function InsightsPage() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            {demandRequests.map((req, i) => (
-              <div
-                key={i}
-                className="flex items-center justify-between rounded-lg border border-border/60 p-3"
-              >
-                <div>
-                  <p className="text-sm font-medium">{req.product}</p>
-                  <p className="text-xs capitalize text-muted-foreground">
-                    {req.category}
-                  </p>
+            {demandRequests.length === 0 ? (
+              <p className="text-sm text-muted-foreground py-4 text-center">
+                No demand requests yet
+              </p>
+            ) : (
+              demandRequests.map((req) => (
+                <div
+                  key={req.id}
+                  className="flex items-center justify-between rounded-lg border border-border/60 p-3"
+                >
+                  <div>
+                    <p className="text-sm font-medium">{req.product_name}</p>
+                    <p className="text-xs capitalize text-muted-foreground">
+                      {req.category ?? "General"}
+                    </p>
+                  </div>
+                  {req.quantity && (
+                    <Badge variant="secondary" className="text-xs">
+                      {req.quantity} units
+                    </Badge>
+                  )}
                 </div>
-                <Badge variant="secondary" className="text-xs">
-                  {req.requests} requests
-                </Badge>
-              </div>
-            ))}
+              ))
+            )}
           </CardContent>
         </Card>
 
@@ -204,41 +276,70 @@ export default function InsightsPage() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            {outOfStockProducts.map((product) => (
-              <div
-                key={product.id}
-                className="flex items-center justify-between rounded-lg border border-destructive/30 bg-red-50/50 p-3"
-              >
-                <div>
-                  <p className="text-sm font-medium">{product.name}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {formatPrice(product.price)} per {product.unit}
-                  </p>
-                </div>
-                <Badge variant="destructive" className="text-xs">
-                  Out of Stock
-                </Badge>
-              </div>
-            ))}
-            {lowStockProducts.map((product) => (
-              <div
-                key={product.id}
-                className="flex items-center justify-between rounded-lg border border-orange-200 bg-orange-50/50 p-3"
-              >
-                <div>
-                  <p className="text-sm font-medium">{product.name}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {product.stock} remaining
-                  </p>
-                </div>
-                <Badge
-                  variant="secondary"
-                  className="bg-orange-100 text-orange-800 text-xs"
-                >
-                  Low Stock
-                </Badge>
-              </div>
-            ))}
+            {outOfStockProducts.length === 0 &&
+            lowStockProducts.length === 0 ? (
+              <p className="text-sm text-muted-foreground py-4 text-center">
+                No stock issues — all products are well-stocked
+              </p>
+            ) : (
+              <>
+                {outOfStockProducts.map((product) => {
+                  const cat = PRODUCT_CATEGORIES.find(
+                    (c) => c.value === product.category
+                  );
+                  return (
+                    <div
+                      key={product.id}
+                      className="flex items-center justify-between rounded-lg border border-destructive/30 bg-red-50/50 p-3"
+                    >
+                      <div className="flex items-center gap-2">
+                        <span>{cat?.icon ?? "📦"}</span>
+                        <div>
+                          <p className="text-sm font-medium">
+                            {product.category}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {formatPrice(product.price)}
+                          </p>
+                        </div>
+                      </div>
+                      <Badge variant="destructive" className="text-xs">
+                        Out of Stock
+                      </Badge>
+                    </div>
+                  );
+                })}
+                {lowStockProducts.map((product) => {
+                  const cat = PRODUCT_CATEGORIES.find(
+                    (c) => c.value === product.category
+                  );
+                  return (
+                    <div
+                      key={product.id}
+                      className="flex items-center justify-between rounded-lg border border-orange-200 bg-orange-50/50 p-3"
+                    >
+                      <div className="flex items-center gap-2">
+                        <span>{cat?.icon ?? "📦"}</span>
+                        <div>
+                          <p className="text-sm font-medium">
+                            {product.category}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {product.stock} remaining
+                          </p>
+                        </div>
+                      </div>
+                      <Badge
+                        variant="secondary"
+                        className="bg-orange-100 text-orange-800 text-xs"
+                      >
+                        Low Stock
+                      </Badge>
+                    </div>
+                  );
+                })}
+              </>
+            )}
           </CardContent>
         </Card>
       </div>

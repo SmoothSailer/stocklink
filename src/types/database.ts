@@ -1,15 +1,52 @@
-// Auto-generated types placeholder — regenerate with: npx supabase gen types typescript
-// This file provides the shape for the Supabase client.
+// Supabase Database types
+// Regenerate with: npx supabase gen types typescript
 
 export interface Database {
   public: {
     Tables: {
+      sales_reps: {
+        Row: {
+          id: string;
+          name: string;
+          phone: string;
+          whatsapp_phone: string;
+          email: string | null;
+          avatar_url: string | null;
+          bio: string | null;
+          is_active: boolean;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          name: string;
+          phone: string;
+          whatsapp_phone: string;
+          email?: string | null;
+          avatar_url?: string | null;
+          bio?: string | null;
+          is_active?: boolean;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          name?: string;
+          phone?: string;
+          whatsapp_phone?: string;
+          email?: string | null;
+          avatar_url?: string | null;
+          bio?: string | null;
+          is_active?: boolean;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
       wholesalers: {
         Row: {
           id: string;
           name: string;
           location: string | null;
           phone: string | null;
+          sales_rep_id: string | null;
           created_at: string;
         };
         Insert: {
@@ -17,6 +54,7 @@ export interface Database {
           name: string;
           location?: string | null;
           phone?: string | null;
+          sales_rep_id?: string | null;
           created_at?: string;
         };
         Update: {
@@ -24,8 +62,18 @@ export interface Database {
           name?: string;
           location?: string | null;
           phone?: string | null;
+          sales_rep_id?: string | null;
           created_at?: string;
         };
+        Relationships: [
+          {
+            foreignKeyName: "wholesalers_sales_rep_id_fkey";
+            columns: ["sales_rep_id"];
+            isOneToOne: false;
+            referencedRelation: "sales_reps";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       products: {
         Row: {
@@ -85,6 +133,15 @@ export interface Database {
           created_at?: string;
           updated_at?: string;
         };
+        Relationships: [
+          {
+            foreignKeyName: "products_wholesaler_id_fkey";
+            columns: ["wholesaler_id"];
+            isOneToOne: false;
+            referencedRelation: "wholesalers";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       retailers: {
         Row: {
@@ -108,6 +165,7 @@ export interface Database {
           location?: string | null;
           created_at?: string;
         };
+        Relationships: [];
       };
       orders: {
         Row: {
@@ -143,6 +201,15 @@ export interface Database {
           created_at?: string;
           updated_at?: string;
         };
+        Relationships: [
+          {
+            foreignKeyName: "orders_retailer_id_fkey";
+            columns: ["retailer_id"];
+            isOneToOne: false;
+            referencedRelation: "retailers";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       order_items: {
         Row: {
@@ -169,6 +236,22 @@ export interface Database {
           unit_price?: number;
           total_price?: number;
         };
+        Relationships: [
+          {
+            foreignKeyName: "order_items_order_id_fkey";
+            columns: ["order_id"];
+            isOneToOne: false;
+            referencedRelation: "orders";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "order_items_product_id_fkey";
+            columns: ["product_id"];
+            isOneToOne: false;
+            referencedRelation: "products";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       demand_requests: {
         Row: {
@@ -195,6 +278,7 @@ export interface Database {
           quantity?: number | null;
           created_at?: string;
         };
+        Relationships: [];
       };
       affiliates: {
         Row: {
@@ -239,6 +323,7 @@ export interface Database {
           status?: "active" | "inactive" | "pending";
           created_at?: string;
         };
+        Relationships: [];
       };
       referrals: {
         Row: {
@@ -271,12 +356,34 @@ export interface Database {
           status?: "pending" | "approved" | "paid" | "rejected";
           created_at?: string;
         };
+        Relationships: [
+          {
+            foreignKeyName: "referrals_affiliate_id_fkey";
+            columns: ["affiliate_id"];
+            isOneToOne: false;
+            referencedRelation: "affiliates";
+            referencedColumns: ["id"];
+          },
+        ];
       };
+    };
+    Views: {
+      [_ in never]: never;
+    };
+    Functions: {
+      [_ in never]: never;
+    };
+    Enums: {
+      [_ in never]: never;
+    };
+    CompositeTypes: {
+      [_ in never]: never;
     };
   };
 }
 
 // Convenience type aliases
+export type SalesRep = Database["public"]["Tables"]["sales_reps"]["Row"];
 export type Wholesaler = Database["public"]["Tables"]["wholesalers"]["Row"];
 export type Product = Database["public"]["Tables"]["products"]["Row"];
 export type Retailer = Database["public"]["Tables"]["retailers"]["Row"];

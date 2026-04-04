@@ -52,3 +52,10 @@ export const CURRENCY_LOCALE = "en-KE";
 export const AFFILIATE_COMMISSION_RATE = 0.02; // 2% commission
 export const AFFILIATE_COOKIE_NAME = "sl_ref";
 export const AFFILIATE_COOKIE_DAYS = 30; // referral attribution window
+
+// Admin
+export const ADMIN_EMAILS: string[] = [
+  "admin@stocklink.co",
+  "farhan@stocklink.co",
+  // Add authorized admin emails here
+];
