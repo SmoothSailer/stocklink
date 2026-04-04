@@ -80,8 +80,11 @@ create table if not exists public.products (
 -- Retailers
 create table if not exists public.retailers (
   id uuid primary key default uuid_generate_v4(),
+  user_id uuid unique references auth.users(id) on delete cascade,
   name text not null,
+  business_name text,
   phone text not null,
+  email text,
   location text,
   created_at timestamptz default now()
 );

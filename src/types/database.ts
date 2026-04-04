@@ -209,22 +209,31 @@ export interface Database {
       retailers: {
         Row: {
           id: string;
+          user_id: string | null;
           name: string;
+          business_name: string | null;
           phone: string;
+          email: string | null;
           location: string | null;
           created_at: string;
         };
         Insert: {
           id?: string;
+          user_id?: string | null;
           name: string;
+          business_name?: string | null;
           phone: string;
+          email?: string | null;
           location?: string | null;
           created_at?: string;
         };
         Update: {
           id?: string;
+          user_id?: string | null;
           name?: string;
+          business_name?: string | null;
           phone?: string;
+          email?: string | null;
           location?: string | null;
           created_at?: string;
         };
