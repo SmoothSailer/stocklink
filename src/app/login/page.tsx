@@ -44,8 +44,10 @@ function LoginForm() {
       return;
     }
 
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || window.location.origin;
+
     startTransition(async () => {
-      const redirectTo = `${window.location.origin}/auth/callback?next=${encodeURIComponent(nextUrl)}`;
+      const redirectTo = `${baseUrl}/auth/callback?next=${encodeURIComponent(nextUrl)}`;
 
       const { error: signInError } = await supabase.auth.signInWithOtp({
         email: trimmed,
@@ -66,8 +68,10 @@ function LoginForm() {
 
   const handleResend = () => {
     setError(null);
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || window.location.origin;
+
     startTransition(async () => {
-      const redirectTo = `${window.location.origin}/auth/callback?next=${encodeURIComponent(nextUrl)}`;
+      const redirectTo = `${baseUrl}/auth/callback?next=${encodeURIComponent(nextUrl)}`;
 
       const { error: resendError } = await supabase.auth.signInWithOtp({
         email,
