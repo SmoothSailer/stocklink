@@ -9,9 +9,12 @@ import {
   Store,
   Phone,
   MapPin,
+  UserCheck,
+  MessageCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   Table,
@@ -26,48 +29,63 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import {
   getWholesalers,
+  getSalesReps,
   createWholesaler,
   updateWholesaler,
   deleteWholesaler,
 } from "@/app/admin/actions";
-import type { Wholesaler } from "@/types/database";
+import type { SalesRep } from "@/types/database";
+
+interface WholesalerWithRep {
+  id: string;
+  name: string;
+  location: string | null;
+  phone: string | null;
+  sales_rep_id: string | null;
+  created_at: string;
+  sales_reps: { id: string; name: string; whatsapp_phone: string } | null;
+}
 
 export default function WholesalersPage() {
-  const [wholesalers, setWholesalers] = useState<Wholesaler[]>([]);
+  const [wholesalers, setWholesalers] = useState<WholesalerWithRep[]>([]);
+  const [salesReps, setSalesReps] = useState<SalesRep[]>([]);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [editingWholesaler, setEditingWholesaler] = useState<Wholesaler | null>(
-    null
-  );
+  const [editingWholesaler, setEditingWholesaler] =
+    useState<WholesalerWithRep | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
-  const loadWholesalers = useCallback(async () => {
+  const loadData = useCallback(async () => {
     try {
-      const data = await getWholesalers();
-      setWholesalers(data);
+      const [whs, reps] = await Promise.all([
+        getWholesalers(),
+        getSalesReps(),
+      ]);
+      setWholesalers(whs as WholesalerWithRep[]);
+      setSalesReps(reps);
     } catch {
-      // Silently handle — empty state shown
+      // Empty state
     } finally {
       setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    loadWholesalers();
-  }, [loadWholesalers]);
+    loadData();
+  }, [loadData]);
 
   const filtered = wholesalers.filter(
     (w) =>
       !search ||
       w.name.toLowerCase().includes(search.toLowerCase()) ||
-      w.location?.toLowerCase().includes(search.toLowerCase())
+      w.location?.toLowerCase().includes(search.toLowerCase()) ||
+      w.sales_reps?.name.toLowerCase().includes(search.toLowerCase())
   );
 
   async function handleSubmit(formData: FormData) {
@@ -87,7 +105,7 @@ export default function WholesalersPage() {
 
       setDialogOpen(false);
       setEditingWholesaler(null);
-      await loadWholesalers();
+      await loadData();
     } catch {
       setFormError("An unexpected error occurred");
     } finally {
@@ -99,11 +117,11 @@ export default function WholesalersPage() {
     const result = await deleteWholesaler(id);
     if (!result.error) {
       setDeleteConfirmId(null);
-      await loadWholesalers();
+      await loadData();
     }
   }
 
-  function openEdit(wholesaler: Wholesaler) {
+  function openEdit(wholesaler: WholesalerWithRep) {
     setEditingWholesaler(wholesaler);
     setFormError(null);
     setDialogOpen(true);
@@ -115,90 +133,26 @@ export default function WholesalersPage() {
     setDialogOpen(true);
   }
 
+  const assignedCount = wholesalers.filter((w) => w.sales_rep_id).length;
+
   return (
     <div className="space-y-6">
-      {/* Page header */}
+      {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold">Wholesalers</h1>
           <p className="text-sm text-muted-foreground">
-            Manage wholesaler partners and their details
+            Manage wholesaler partners and assign sales representatives
           </p>
         </div>
-        <Dialog
-          open={dialogOpen}
-          onOpenChange={(open) => {
-            setDialogOpen(open);
-            if (!open) {
-              setEditingWholesaler(null);
-              setFormError(null);
-            }
-          }}
-        >
-          <DialogTrigger render={<Button className="gap-2" onClick={openAdd} />}>
-            <Plus className="h-4 w-4" />
-            Add Wholesaler
-          </DialogTrigger>
-          <DialogContent className="max-w-md">
-            <DialogHeader>
-              <DialogTitle>
-                {editingWholesaler ? "Edit Wholesaler" : "Add Wholesaler"}
-              </DialogTitle>
-            </DialogHeader>
-            <form action={handleSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium">
-                  Name <span className="text-destructive">*</span>
-                </label>
-                <Input
-                  name="name"
-                  placeholder="e.g. Nairobi Wholesale Co."
-                  defaultValue={editingWholesaler?.name ?? ""}
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Location</label>
-                <Input
-                  name="location"
-                  placeholder="e.g. Industrial Area, Nairobi"
-                  defaultValue={editingWholesaler?.location ?? ""}
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Phone</label>
-                <Input
-                  name="phone"
-                  placeholder="e.g. +254 712 345 678"
-                  defaultValue={editingWholesaler?.phone ?? ""}
-                />
-              </div>
-              {formError && (
-                <p className="text-sm text-destructive">{formError}</p>
-              )}
-              <div className="flex justify-end gap-2 pt-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setDialogOpen(false)}
-                >
-                  Cancel
-                </Button>
-                <Button type="submit" disabled={saving}>
-                  {saving
-                    ? "Saving..."
-                    : editingWholesaler
-                      ? "Update"
-                      : "Add Wholesaler"}
-                </Button>
-              </div>
-            </form>
-          </DialogContent>
-        </Dialog>
+        <Button className="gap-2" onClick={openAdd}>
+          <Plus className="h-4 w-4" />
+          Add Wholesaler
+        </Button>
       </div>
 
       {/* Stats */}
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardContent className="flex items-center gap-3 p-4">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-100">
@@ -215,11 +169,26 @@ export default function WholesalersPage() {
         <Card>
           <CardContent className="flex items-center gap-3 p-4">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-green-100">
+              <UserCheck className="h-5 w-5 text-green-600" />
+            </div>
+            <div>
+              <p className="text-2xl font-bold">{assignedCount}</p>
+              <p className="text-xs text-muted-foreground">With Sales Rep</p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="flex items-center gap-3 p-4">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
               <MapPin className="h-5 w-5 text-primary" />
             </div>
             <div>
               <p className="text-2xl font-bold">
-                {new Set(wholesalers.map((w) => w.location).filter(Boolean)).size}
+                {
+                  new Set(
+                    wholesalers.map((w) => w.location).filter(Boolean)
+                  ).size
+                }
               </p>
               <p className="text-xs text-muted-foreground">Locations</p>
             </div>
@@ -244,7 +213,7 @@ export default function WholesalersPage() {
       <div className="relative max-w-sm">
         <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
         <Input
-          placeholder="Search wholesalers..."
+          placeholder="Search wholesalers or reps..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="pl-10"
@@ -264,7 +233,7 @@ export default function WholesalersPage() {
               <p className="text-sm font-medium text-muted-foreground">
                 {search ? "No wholesalers found" : "No wholesalers yet"}
               </p>
-              <p className="text-xs text-muted-foreground mt-1">
+              <p className="mt-1 text-xs text-muted-foreground">
                 {search
                   ? "Try a different search term"
                   : "Add your first wholesaler to get started"}
@@ -277,6 +246,7 @@ export default function WholesalersPage() {
                   <TableHead>Name</TableHead>
                   <TableHead>Location</TableHead>
                   <TableHead>Phone</TableHead>
+                  <TableHead>Sales Rep</TableHead>
                   <TableHead>Added</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
@@ -289,7 +259,9 @@ export default function WholesalersPage() {
                         <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-100">
                           <Store className="h-4 w-4 text-blue-600" />
                         </div>
-                        <p className="text-sm font-medium">{wholesaler.name}</p>
+                        <p className="text-sm font-medium">
+                          {wholesaler.name}
+                        </p>
                       </div>
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">
@@ -298,13 +270,44 @@ export default function WholesalersPage() {
                     <TableCell className="text-sm text-muted-foreground">
                       {wholesaler.phone ?? "—"}
                     </TableCell>
+                    <TableCell>
+                      {wholesaler.sales_reps ? (
+                        <div className="flex items-center gap-2">
+                          <div className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-[10px] font-bold text-primary">
+                            {wholesaler.sales_reps.name
+                              .split(" ")
+                              .map((n) => n[0])
+                              .join("")
+                              .slice(0, 2)}
+                          </div>
+                          <div>
+                            <p className="text-xs font-medium">
+                              {wholesaler.sales_reps.name}
+                            </p>
+                            <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                              <MessageCircle className="h-2.5 w-2.5 text-[#25D366]" />
+                              {wholesaler.sales_reps.whatsapp_phone}
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <Badge
+                          variant="secondary"
+                          className="text-[10px] text-orange-600 bg-orange-50"
+                        >
+                          Unassigned
+                        </Badge>
+                      )}
+                    </TableCell>
                     <TableCell className="text-xs text-muted-foreground">
                       {new Date(wholesaler.created_at).toLocaleDateString()}
                     </TableCell>
                     <TableCell className="text-right">
                       {deleteConfirmId === wholesaler.id ? (
                         <div className="flex items-center justify-end gap-2">
-                          <span className="text-xs text-destructive">Delete?</span>
+                          <span className="text-xs text-destructive">
+                            Delete?
+                          </span>
                           <Button
                             variant="ghost"
                             size="sm"
@@ -350,6 +353,97 @@ export default function WholesalersPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Add/Edit Dialog */}
+      <Dialog
+        open={dialogOpen}
+        onOpenChange={(open) => {
+          setDialogOpen(open);
+          if (!open) {
+            setEditingWholesaler(null);
+            setFormError(null);
+          }
+        }}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {editingWholesaler ? "Edit Wholesaler" : "Add Wholesaler"}
+            </DialogTitle>
+          </DialogHeader>
+          <form action={handleSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">
+                Name <span className="text-destructive">*</span>
+              </label>
+              <Input
+                name="name"
+                placeholder="e.g. Nairobi Wholesale Co."
+                defaultValue={editingWholesaler?.name ?? ""}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Location</label>
+              <Input
+                name="location"
+                placeholder="e.g. Industrial Area, Nairobi"
+                defaultValue={editingWholesaler?.location ?? ""}
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Phone</label>
+              <Input
+                name="phone"
+                placeholder="e.g. +254 712 345 678"
+                defaultValue={editingWholesaler?.phone ?? ""}
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">
+                Assigned Sales Rep
+              </label>
+              <select
+                name="sales_rep_id"
+                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                defaultValue={editingWholesaler?.sales_rep_id ?? ""}
+              >
+                <option value="">No sales rep assigned</option>
+                {salesReps
+                  .filter((r) => r.is_active)
+                  .map((rep) => (
+                    <option key={rep.id} value={rep.id}>
+                      {rep.name} — {rep.whatsapp_phone}
+                    </option>
+                  ))}
+              </select>
+              <p className="text-[10px] text-muted-foreground">
+                The assigned rep&apos;s WhatsApp will receive all orders for
+                this wholesaler&apos;s products
+              </p>
+            </div>
+            {formError && (
+              <p className="text-sm text-destructive">{formError}</p>
+            )}
+            <div className="flex justify-end gap-2 pt-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setDialogOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" disabled={saving}>
+                {saving
+                  ? "Saving..."
+                  : editingWholesaler
+                    ? "Update"
+                    : "Add Wholesaler"}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

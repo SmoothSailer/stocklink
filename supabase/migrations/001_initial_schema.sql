@@ -10,12 +10,26 @@ create extension if not exists "uuid-ossp";
 -- 2. TABLES
 -- ============================================
 
+-- Sales Representatives
+create table if not exists public.sales_reps (
+  id uuid primary key default uuid_generate_v4(),
+  name text not null,
+  phone text not null,
+  whatsapp_phone text not null,
+  email text,
+  avatar_url text,
+  bio text,
+  is_active boolean not null default true,
+  created_at timestamptz default now()
+);
+
 -- Wholesalers
 create table if not exists public.wholesalers (
   id uuid primary key default uuid_generate_v4(),
   name text not null,
   location text,
   phone text,
+  sales_rep_id uuid references public.sales_reps(id) on delete set null,
   created_at timestamptz default now()
 );
 
@@ -117,6 +131,8 @@ create table if not exists public.referrals (
 -- ============================================
 -- 3. INDEXES
 -- ============================================
+create index if not exists idx_sales_reps_active on public.sales_reps(is_active) where is_active = true;
+create index if not exists idx_wholesalers_sales_rep on public.wholesalers(sales_rep_id);
 create index if not exists idx_products_category on public.products(category);
 create index if not exists idx_products_wholesaler on public.products(wholesaler_id);
 create index if not exists idx_products_trending on public.products(is_trending) where is_trending = true;
@@ -152,6 +168,7 @@ create trigger orders_updated_at
 -- ============================================
 
 -- Enable RLS on all tables
+alter table public.sales_reps enable row level security;
 alter table public.wholesalers enable row level security;
 alter table public.products enable row level security;
 alter table public.retailers enable row level security;
@@ -160,6 +177,13 @@ alter table public.order_items enable row level security;
 alter table public.demand_requests enable row level security;
 alter table public.affiliates enable row level security;
 alter table public.referrals enable row level security;
+
+-- Sales Reps: anyone can read (retailers need rep info), authenticated can manage
+create policy "Sales reps are viewable by everyone"
+  on public.sales_reps for select using (true);
+
+create policy "Authenticated users can manage sales reps"
+  on public.sales_reps for all using (auth.role() = 'authenticated');
 
 -- Products: anyone can read, only authenticated can insert/update
 create policy "Products are viewable by everyone"
@@ -253,8 +277,16 @@ create policy "Authenticated users can delete product images"
 -- ============================================
 -- 7. SEED DATA (sample wholesalers)
 -- ============================================
-insert into public.wholesalers (name, location, phone) values
-  ('Nairobi Premium Supplies', 'Industrial Area, Nairobi', '+254700111111'),
-  ('Mombasa Coast Trading', 'Changamwe, Mombasa', '+254700222222'),
-  ('Kisumu Lake Distributors', 'Kibuye, Kisumu', '+254700333333')
+-- Seed sales reps
+insert into public.sales_reps (id, name, phone, whatsapp_phone, email, bio) values
+  ('00000000-0000-0000-0000-000000000001', 'Amina Hassan', '+254712345001', '254712345001', 'amina@stocklink.co', 'Nairobi region specialist. 5+ years in wholesale distribution.'),
+  ('00000000-0000-0000-0000-000000000002', 'Brian Kipchoge', '+254712345002', '254712345002', 'brian@stocklink.co', 'Coast & Mombasa rep. Expert in bulk food supplies.'),
+  ('00000000-0000-0000-0000-000000000003', 'Grace Akinyi', '+254712345003', '254712345003', 'grace@stocklink.co', 'Western Kenya rep. Covers Kisumu and surrounding areas.')
+on conflict do nothing;
+
+-- Seed wholesalers (with sales rep assignments)
+insert into public.wholesalers (name, location, phone, sales_rep_id) values
+  ('Nairobi Premium Supplies', 'Industrial Area, Nairobi', '+254700111111', '00000000-0000-0000-0000-000000000001'),
+  ('Mombasa Coast Trading', 'Changamwe, Mombasa', '+254700222222', '00000000-0000-0000-0000-000000000002'),
+  ('Kisumu Lake Distributors', 'Kibuye, Kisumu', '+254700333333', '00000000-0000-0000-0000-000000000003')
 on conflict do nothing;

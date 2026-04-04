@@ -13,6 +13,7 @@ import {
   LogOut,
   Store,
   LayoutDashboard,
+  UserCheck,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -22,6 +23,7 @@ import { adminSignOut } from "@/app/admin/auth/actions";
 
 const sidebarItems = [
   { href: "/admin/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/admin/sales-reps", label: "Sales Reps", icon: UserCheck },
   { href: "/admin/wholesalers", label: "Wholesalers", icon: Store },
   { href: "/admin/products", label: "Products", icon: Package },
   { href: "/admin/orders", label: "Orders", icon: ClipboardList },

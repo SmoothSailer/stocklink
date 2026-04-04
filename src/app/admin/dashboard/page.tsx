@@ -11,6 +11,7 @@ import {
   ArrowRight,
   ShoppingCart,
   DollarSign,
+  UserCheck,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -35,6 +36,7 @@ interface Stats {
     created_at: string;
   }[];
   wholesalers: { id: string }[];
+  salesReps: { id: string }[];
   demandRequests: {
     id: string;
     product_name: string;
@@ -74,6 +76,7 @@ export default function AdminDashboard() {
   const products = stats?.products ?? [];
   const orders = stats?.orders ?? [];
   const wholesalers = stats?.wholesalers ?? [];
+  const salesReps = stats?.salesReps ?? [];
   const demandRequests = stats?.demandRequests ?? [];
 
   const totalRevenue = orders
@@ -106,7 +109,7 @@ export default function AdminDashboard() {
       </div>
 
       {/* Key metrics */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <Card>
           <CardContent className="flex items-center gap-3 p-4">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-green-100">
@@ -148,6 +151,17 @@ export default function AdminDashboard() {
             <div>
               <p className="text-2xl font-bold">{wholesalers.length}</p>
               <p className="text-xs text-muted-foreground">Wholesalers</p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="flex items-center gap-3 p-4">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-teal-100">
+              <UserCheck className="h-5 w-5 text-teal-600" />
+            </div>
+            <div>
+              <p className="text-2xl font-bold">{salesReps.length}</p>
+              <p className="text-xs text-muted-foreground">Sales Reps</p>
             </div>
           </CardContent>
         </Card>
@@ -342,7 +356,16 @@ export default function AdminDashboard() {
           <CardTitle className="text-base">Quick Actions</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+            <Link href="/admin/sales-reps">
+              <Button
+                variant="outline"
+                className="w-full gap-2 justify-start"
+              >
+                <UserCheck className="h-4 w-4" />
+                Sales Reps
+              </Button>
+            </Link>
             <Link href="/admin/wholesalers">
               <Button
                 variant="outline"

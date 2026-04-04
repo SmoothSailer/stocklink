@@ -4,12 +4,49 @@
 export interface Database {
   public: {
     Tables: {
+      sales_reps: {
+        Row: {
+          id: string;
+          name: string;
+          phone: string;
+          whatsapp_phone: string;
+          email: string | null;
+          avatar_url: string | null;
+          bio: string | null;
+          is_active: boolean;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          name: string;
+          phone: string;
+          whatsapp_phone: string;
+          email?: string | null;
+          avatar_url?: string | null;
+          bio?: string | null;
+          is_active?: boolean;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          name?: string;
+          phone?: string;
+          whatsapp_phone?: string;
+          email?: string | null;
+          avatar_url?: string | null;
+          bio?: string | null;
+          is_active?: boolean;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
       wholesalers: {
         Row: {
           id: string;
           name: string;
           location: string | null;
           phone: string | null;
+          sales_rep_id: string | null;
           created_at: string;
         };
         Insert: {
@@ -17,6 +54,7 @@ export interface Database {
           name: string;
           location?: string | null;
           phone?: string | null;
+          sales_rep_id?: string | null;
           created_at?: string;
         };
         Update: {
@@ -24,9 +62,18 @@ export interface Database {
           name?: string;
           location?: string | null;
           phone?: string | null;
+          sales_rep_id?: string | null;
           created_at?: string;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "wholesalers_sales_rep_id_fkey";
+            columns: ["sales_rep_id"];
+            isOneToOne: false;
+            referencedRelation: "sales_reps";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       products: {
         Row: {
@@ -336,6 +383,7 @@ export interface Database {
 }
 
 // Convenience type aliases
+export type SalesRep = Database["public"]["Tables"]["sales_reps"]["Row"];
 export type Wholesaler = Database["public"]["Tables"]["wholesalers"]["Row"];
 export type Product = Database["public"]["Tables"]["products"]["Row"];
 export type Retailer = Database["public"]["Tables"]["retailers"]["Row"];

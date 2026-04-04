@@ -1,4 +1,41 @@
-import type { Product, Order, OrderItem, Wholesaler, Affiliate, Referral } from "@/types/database";
+import type { Product, Order, OrderItem, Wholesaler, Affiliate, Referral, SalesRep } from "@/types/database";
+
+// Mock sales representatives
+export const mockSalesReps: SalesRep[] = [
+  {
+    id: "sr1",
+    name: "Amina Hassan",
+    phone: "+254712345001",
+    whatsapp_phone: "254712345001",
+    email: "amina@stocklink.co",
+    avatar_url: null,
+    bio: "Nairobi region specialist. 5+ years in wholesale distribution.",
+    is_active: true,
+    created_at: "2025-01-01T08:00:00Z",
+  },
+  {
+    id: "sr2",
+    name: "Brian Kipchoge",
+    phone: "+254712345002",
+    whatsapp_phone: "254712345002",
+    email: "brian@stocklink.co",
+    avatar_url: null,
+    bio: "Coast & Mombasa rep. Expert in bulk food supplies.",
+    is_active: true,
+    created_at: "2025-01-01T08:00:00Z",
+  },
+  {
+    id: "sr3",
+    name: "Grace Akinyi",
+    phone: "+254712345003",
+    whatsapp_phone: "254712345003",
+    email: "grace@stocklink.co",
+    avatar_url: null,
+    bio: "Western Kenya rep. Covers Kisumu and surrounding areas.",
+    is_active: true,
+    created_at: "2025-01-01T08:00:00Z",
+  },
+];
 
 // Mock wholesalers
 export const mockWholesalers: Wholesaler[] = [
@@ -7,6 +44,7 @@ export const mockWholesalers: Wholesaler[] = [
     name: "Nairobi Premium Supplies",
     location: "Industrial Area, Nairobi",
     phone: "+254700111111",
+    sales_rep_id: "sr1",
     created_at: "2025-01-15T08:00:00Z",
   },
   {
@@ -14,6 +52,7 @@ export const mockWholesalers: Wholesaler[] = [
     name: "Mombasa Coast Trading",
     location: "Changamwe, Mombasa",
     phone: "+254700222222",
+    sales_rep_id: "sr2",
     created_at: "2025-02-10T08:00:00Z",
   },
   {
@@ -21,6 +60,7 @@ export const mockWholesalers: Wholesaler[] = [
     name: "Kisumu Lake Distributors",
     location: "Kibuye, Kisumu",
     phone: "+254700333333",
+    sales_rep_id: "sr3",
     created_at: "2025-03-05T08:00:00Z",
   },
 ];

@@ -10,6 +10,8 @@ import {
   Shield,
   Share2,
   Package,
+  MessageCircle,
+  UserCheck,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -17,7 +19,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { WhatsAppButton } from "@/components/shared/whatsapp-button";
 import { QuantitySelector } from "@/components/retailer/quantity-selector";
-import { mockProducts, mockWholesalers } from "@/lib/mock-data";
+import { mockProducts, mockWholesalers, mockSalesReps } from "@/lib/mock-data";
 import { formatPrice, getStockInfo, buildWhatsAppLink } from "@/lib/utils";
 
 export default function ProductDetailPage() {
@@ -41,6 +43,9 @@ export default function ProductDetailPage() {
   const wholesaler = mockWholesalers.find(
     (w) => w.id === product.wholesaler_id
   );
+  const salesRep = wholesaler?.sales_rep_id
+    ? mockSalesReps.find((r) => r.id === wholesaler.sales_rep_id)
+    : undefined;
   const stockInfo = getStockInfo(product.stock, product.unit);
   const displayPrice =
     product.is_flash_deal && product.flash_deal_price
@@ -48,7 +53,8 @@ export default function ProductDetailPage() {
       : product.price;
   const totalPrice = displayPrice * quantity;
 
-  const orderMessage = `🛒 *Bulk Order from StockLink*\n\n📦 Product: ${product.name}\n📊 Quantity: ${quantity} ${product.unit}s\n💰 Unit Price: KSh ${displayPrice.toLocaleString()} per ${product.unit}\n💵 Total: KSh ${totalPrice.toLocaleString()}\n📦 Min Order: ${moq} ${product.unit}s\n\nPlease confirm availability and delivery.`;
+  const repName = salesRep?.name ?? "StockLink";
+  const orderMessage = `🛒 *Bulk Order from StockLink*\n\nHi ${repName}! 👋\n\n📦 Product: ${product.name}\n📊 Quantity: ${quantity} ${product.unit}s\n💰 Unit Price: KSh ${displayPrice.toLocaleString()} per ${product.unit}\n💵 Total: KSh ${totalPrice.toLocaleString()}\n📦 Min Order: ${moq} ${product.unit}s\n🏬 Supplier: ${wholesaler?.name ?? "StockLink Wholesale"}\n\nPlease confirm availability and delivery.`;
 
   const shareMessage = `Check out ${product.name} on StockLink!\n\nWholesale Price: KSh ${displayPrice.toLocaleString()} per ${product.unit}\nMin Order: ${moq} ${product.unit}s\n${product.stock > 0 ? "✅ In Stock" : "❌ Out of Stock"}`;
 
@@ -144,6 +150,36 @@ export default function ProductDetailPage() {
 
         <Separator />
 
+        {/* Sales rep card */}
+        {salesRep && (
+          <Card className="border-primary/20 bg-primary/5">
+            <CardContent className="flex items-center gap-3 p-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-sm font-bold text-primary">
+                {salesRep.name.split(" ").map((n) => n[0]).join("")}
+              </div>
+              <div className="flex-1">
+                <div className="flex items-center gap-1">
+                  <UserCheck className="h-3.5 w-3.5 text-primary" />
+                  <p className="text-xs font-semibold text-primary">Your Sales Rep</p>
+                </div>
+                <p className="text-sm font-medium">{salesRep.name}</p>
+                {salesRep.bio && (
+                  <p className="text-[10px] text-muted-foreground line-clamp-1">{salesRep.bio}</p>
+                )}
+              </div>
+              <a
+                href={buildWhatsAppLink(`Hi ${salesRep.name}! 👋 I have a question about ${product.name}.`, salesRep.whatsapp_phone)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex h-9 w-9 items-center justify-center rounded-full bg-[#25D366] text-white shadow-sm hover:bg-[#128C7E] transition-colors"
+                aria-label={`Chat with ${salesRep.name}`}
+              >
+                <MessageCircle className="h-4 w-4" />
+              </a>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Trust indicators */}
         <div className="grid grid-cols-2 gap-3">
           <Card className="border-border/60">
@@ -202,7 +238,8 @@ export default function ProductDetailPage() {
             </div>
             <WhatsAppButton
               message={orderMessage}
-              label="Order via WhatsApp"
+              phone={salesRep?.whatsapp_phone}
+              label={salesRep ? `Order with ${salesRep.name.split(" ")[0]}` : "Order via WhatsApp"}
               size="lg"
               className="flex-1"
             />
