@@ -20,7 +20,7 @@ import { Separator } from "@/components/ui/separator";
 import { WhatsAppButton } from "@/components/shared/whatsapp-button";
 import { QuantitySelector } from "@/components/retailer/quantity-selector";
 import { mockProducts, mockWholesalers, mockSalesReps } from "@/lib/mock-data";
-import { formatPrice, getStockInfo, buildWhatsAppLink } from "@/lib/utils";
+import { formatPrice, getStockInfo, buildWhatsAppLink, getCategoryIcon } from "@/lib/utils";
 
 export default function ProductDetailPage() {
   const params = useParams();
@@ -74,14 +74,7 @@ export default function ProductDetailPage() {
       {/* Product image */}
       <div className="relative flex h-64 items-center justify-center bg-gradient-to-br from-muted to-muted/60 sm:h-80">
         <span className="text-7xl">
-          {product.category === "rice" && "🍚"}
-          {product.category === "oil" && "🫒"}
-          {product.category === "sugar" && "🍬"}
-          {product.category === "flour" && "🌾"}
-          {product.category === "lpg" && "🔥"}
-          {product.category === "beverages" && "🥤"}
-          {product.category === "dairy" && "🥛"}
-          {product.category === "cleaning" && "🧴"}
+          {getCategoryIcon(product.category)}
         </span>
 
         {product.is_flash_deal && (

@@ -41,14 +41,15 @@ import {
 import {
   getProducts,
   getWholesalers,
+  getCategories,
+  getProductUnits,
   createProduct,
   updateProduct,
   deleteProduct,
 } from "@/app/admin/actions";
 import { uploadProductImage } from "@/lib/supabase/storage";
 import { formatPrice, getStockInfo } from "@/lib/utils";
-import { PRODUCT_CATEGORIES } from "@/lib/constants";
-import type { Wholesaler } from "@/types/database";
+import type { Wholesaler, Category, ProductUnit } from "@/types/database";
 
 interface ProductWithWholesaler {
   id: string;
@@ -74,6 +75,8 @@ interface ProductWithWholesaler {
 export default function ProductsPage() {
   const [products, setProducts] = useState<ProductWithWholesaler[]>([]);
   const [wholesalers, setWholesalers] = useState<Wholesaler[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [units, setUnits] = useState<ProductUnit[]>([]);
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [loading, setLoading] = useState(true);
@@ -89,9 +92,16 @@ export default function ProductsPage() {
 
   const loadData = useCallback(async () => {
     try {
-      const [prods, whs] = await Promise.all([getProducts(), getWholesalers()]);
+      const [prods, whs, cats, uns] = await Promise.all([
+        getProducts(),
+        getWholesalers(),
+        getCategories(),
+        getProductUnits(),
+      ]);
       setProducts(prods as ProductWithWholesaler[]);
       setWholesalers(whs);
+      setCategories(cats);
+      setUnits(uns);
     } catch {
       // Empty state shown on error
     } finally {
@@ -233,7 +243,7 @@ export default function ProductsPage() {
 
   const getCategoryIcon = (category: string) => {
     return (
-      PRODUCT_CATEGORIES.find((c) => c.value === category)?.icon ?? "📦"
+      categories.find((c) => c.slug === category)?.icon ?? "📦"
     );
   };
 
@@ -321,9 +331,9 @@ export default function ProductsPage() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Categories</SelectItem>
-            {PRODUCT_CATEGORIES.map((cat) => (
-              <SelectItem key={cat.value} value={cat.value}>
-                {cat.icon} {cat.label}
+            {categories.filter((c) => c.is_active).map((cat) => (
+              <SelectItem key={cat.slug} value={cat.slug}>
+                {cat.icon} {cat.name}
               </SelectItem>
             ))}
           </SelectContent>
@@ -591,23 +601,30 @@ export default function ProductsPage() {
                 <select
                   name="category"
                   className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                  defaultValue={editingProduct?.category ?? "rice"}
+                  defaultValue={editingProduct?.category ?? ""}
                   required
                 >
-                  {PRODUCT_CATEGORIES.map((cat) => (
-                    <option key={cat.value} value={cat.value}>
-                      {cat.icon} {cat.label}
+                  <option value="">Select category...</option>
+                  {categories.filter((c) => c.is_active).map((cat) => (
+                    <option key={cat.slug} value={cat.slug}>
+                      {cat.icon} {cat.name}
                     </option>
                   ))}
                 </select>
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-medium">Unit</label>
-                <Input
+                <select
                   name="unit"
-                  placeholder="e.g. bag, carton, box"
+                  className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                   defaultValue={editingProduct?.unit ?? "bag"}
-                />
+                >
+                  {units.filter((u) => u.is_active).map((u) => (
+                    <option key={u.slug} value={u.slug}>
+                      {u.name} ({u.plural_name})
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
 

@@ -15,7 +15,7 @@ import {
   mockOrders,
   mockOrderItems,
 } from "@/lib/mock-data";
-import { formatPrice, getStockInfo } from "@/lib/utils";
+import { formatPrice, getStockInfo, getCategoryIcon } from "@/lib/utils";
 import { APP_NAME } from "@/lib/constants";
 
 interface WholesalerPageProps {
@@ -135,14 +135,7 @@ export default async function WholesalerPage({ params }: WholesalerPageProps) {
                       <TableCell>
                         <div className="flex items-center gap-2">
                           <span className="text-lg">
-                            {product.category === "rice" && "🍚"}
-                            {product.category === "oil" && "🫒"}
-                            {product.category === "sugar" && "🍬"}
-                            {product.category === "flour" && "🌾"}
-                            {product.category === "lpg" && "🔥"}
-                            {product.category === "beverages" && "🥤"}
-                            {product.category === "dairy" && "🥛"}
-                            {product.category === "cleaning" && "🧴"}
+                            {getCategoryIcon(product.category)}
                           </span>
                           <span className="text-sm font-medium">
                             {product.name}

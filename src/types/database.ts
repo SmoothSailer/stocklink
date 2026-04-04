@@ -4,6 +4,69 @@
 export interface Database {
   public: {
     Tables: {
+      categories: {
+        Row: {
+          id: string;
+          name: string;
+          slug: string;
+          icon: string;
+          sort_order: number;
+          is_active: boolean;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          name: string;
+          slug: string;
+          icon?: string;
+          sort_order?: number;
+          is_active?: boolean;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          name?: string;
+          slug?: string;
+          icon?: string;
+          sort_order?: number;
+          is_active?: boolean;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      product_units: {
+        Row: {
+          id: string;
+          name: string;
+          slug: string;
+          plural_name: string;
+          abbreviation: string | null;
+          sort_order: number;
+          is_active: boolean;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          name: string;
+          slug: string;
+          plural_name: string;
+          abbreviation?: string | null;
+          sort_order?: number;
+          is_active?: boolean;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          name?: string;
+          slug?: string;
+          plural_name?: string;
+          abbreviation?: string | null;
+          sort_order?: number;
+          is_active?: boolean;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
       sales_reps: {
         Row: {
           id: string;
@@ -383,6 +446,8 @@ export interface Database {
 }
 
 // Convenience type aliases
+export type Category = Database["public"]["Tables"]["categories"]["Row"];
+export type ProductUnit = Database["public"]["Tables"]["product_units"]["Row"];
 export type SalesRep = Database["public"]["Tables"]["sales_reps"]["Row"];
 export type Wholesaler = Database["public"]["Tables"]["wholesalers"]["Row"];
 export type Product = Database["public"]["Tables"]["products"]["Row"];

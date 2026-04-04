@@ -5,7 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import type { Product } from "@/types/database";
-import { formatPrice, getCountdown, buildWhatsAppLink } from "@/lib/utils";
+import { formatPrice, getCountdown, buildWhatsAppLink, getCategoryIcon } from "@/lib/utils";
 import Link from "next/link";
 
 interface FlashDealCardProps {
@@ -31,14 +31,7 @@ export function FlashDealCard({ product }: FlashDealCardProps) {
       <Link href={`/products/${product.id}`}>
         <div className="relative flex h-28 items-center justify-center bg-gradient-to-br from-accent/10 to-accent/5">
           <span className="text-5xl">
-            {product.category === "rice" && "🍚"}
-            {product.category === "oil" && "🫒"}
-            {product.category === "sugar" && "🍬"}
-            {product.category === "flour" && "🌾"}
-            {product.category === "lpg" && "🔥"}
-            {product.category === "beverages" && "🥤"}
-            {product.category === "dairy" && "🥛"}
-            {product.category === "cleaning" && "🧴"}
+            {getCategoryIcon(product.category)}
           </span>
           {countdown && (
             <Badge className="absolute right-2 top-2 bg-accent text-accent-foreground animate-pulse">

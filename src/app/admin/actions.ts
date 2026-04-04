@@ -3,6 +3,152 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 
+// ── Category Actions ────────────────────────────────────────────
+
+export async function getCategories() {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("categories")
+    .select("*")
+    .order("sort_order", { ascending: true });
+  if (error) throw new Error(error.message);
+  return data;
+}
+
+export async function createCategory(formData: FormData) {
+  const supabase = await createClient();
+  const name = formData.get("name") as string;
+  const icon = formData.get("icon") as string;
+  const sort_order = parseInt(formData.get("sort_order") as string) || 0;
+
+  if (!name?.trim()) return { error: "Name is required" };
+
+  const slug = name.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+
+  const { error } = await supabase.from("categories").insert({
+    name: name.trim(),
+    slug,
+    icon: icon?.trim() || "📦",
+    sort_order,
+  });
+
+  if (error) return { error: error.message };
+  revalidatePath("/admin/categories");
+  return { error: null };
+}
+
+export async function updateCategory(id: string, formData: FormData) {
+  const supabase = await createClient();
+  const name = formData.get("name") as string;
+  const icon = formData.get("icon") as string;
+  const sort_order = parseInt(formData.get("sort_order") as string) || 0;
+  const is_active = formData.get("is_active") === "true";
+
+  if (!name?.trim()) return { error: "Name is required" };
+
+  const slug = name.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+
+  const { error } = await supabase
+    .from("categories")
+    .update({
+      name: name.trim(),
+      slug,
+      icon: icon?.trim() || "📦",
+      sort_order,
+      is_active,
+    })
+    .eq("id", id);
+
+  if (error) return { error: error.message };
+  revalidatePath("/admin/categories");
+  return { error: null };
+}
+
+export async function deleteCategory(id: string) {
+  const supabase = await createClient();
+  const { error } = await supabase.from("categories").delete().eq("id", id);
+  if (error) return { error: error.message };
+  revalidatePath("/admin/categories");
+  return { error: null };
+}
+
+// ── Product Unit Actions ────────────────────────────────────────
+
+export async function getProductUnits() {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("product_units")
+    .select("*")
+    .order("sort_order", { ascending: true });
+  if (error) throw new Error(error.message);
+  return data;
+}
+
+export async function createProductUnit(formData: FormData) {
+  const supabase = await createClient();
+  const name = formData.get("name") as string;
+  const plural_name = formData.get("plural_name") as string;
+  const abbreviation = formData.get("abbreviation") as string | null;
+  const sort_order = parseInt(formData.get("sort_order") as string) || 0;
+
+  if (!name?.trim() || !plural_name?.trim()) {
+    return { error: "Name and plural name are required" };
+  }
+
+  const slug = name.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+
+  const { error } = await supabase.from("product_units").insert({
+    name: name.trim(),
+    slug,
+    plural_name: plural_name.trim(),
+    abbreviation: abbreviation?.trim() || null,
+    sort_order,
+  });
+
+  if (error) return { error: error.message };
+  revalidatePath("/admin/units");
+  return { error: null };
+}
+
+export async function updateProductUnit(id: string, formData: FormData) {
+  const supabase = await createClient();
+  const name = formData.get("name") as string;
+  const plural_name = formData.get("plural_name") as string;
+  const abbreviation = formData.get("abbreviation") as string | null;
+  const sort_order = parseInt(formData.get("sort_order") as string) || 0;
+  const is_active = formData.get("is_active") === "true";
+
+  if (!name?.trim() || !plural_name?.trim()) {
+    return { error: "Name and plural name are required" };
+  }
+
+  const slug = name.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+
+  const { error } = await supabase
+    .from("product_units")
+    .update({
+      name: name.trim(),
+      slug,
+      plural_name: plural_name.trim(),
+      abbreviation: abbreviation?.trim() || null,
+      sort_order,
+      is_active,
+    })
+    .eq("id", id);
+
+  if (error) return { error: error.message };
+  revalidatePath("/admin/units");
+  return { error: null };
+}
+
+export async function deleteProductUnit(id: string) {
+  const supabase = await createClient();
+  const { error } = await supabase.from("product_units").delete().eq("id", id);
+  if (error) return { error: error.message };
+  revalidatePath("/admin/units");
+  return { error: null };
+}
+
 // ── Sales Rep Actions ───────────────────────────────────────────
 
 export async function getSalesReps() {

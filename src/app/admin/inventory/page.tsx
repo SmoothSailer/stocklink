@@ -29,7 +29,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { mockProducts, mockWholesalers } from "@/lib/mock-data";
-import { formatPrice, getStockInfo } from "@/lib/utils";
+import { formatPrice, getStockInfo, getCategoryIcon } from "@/lib/utils";
 
 export default function InventoryPage() {
   const [search, setSearch] = useState("");
@@ -212,14 +212,7 @@ export default function InventoryPage() {
                     <TableCell>
                       <div className="flex items-center gap-3">
                         <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-muted text-lg">
-                          {product.category === "rice" && "🍚"}
-                          {product.category === "oil" && "🫒"}
-                          {product.category === "sugar" && "🍬"}
-                          {product.category === "flour" && "🌾"}
-                          {product.category === "lpg" && "🔥"}
-                          {product.category === "beverages" && "🥤"}
-                          {product.category === "dairy" && "🥛"}
-                          {product.category === "cleaning" && "🧴"}
+                          {getCategoryIcon(product.category)}
                         </div>
                         <div>
                           <p className="text-sm font-medium">{product.name}</p>

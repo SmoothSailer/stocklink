@@ -14,6 +14,8 @@ import {
   Store,
   LayoutDashboard,
   UserCheck,
+  Tag,
+  Ruler,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -25,6 +27,8 @@ const sidebarItems = [
   { href: "/admin/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/admin/sales-reps", label: "Sales Reps", icon: UserCheck },
   { href: "/admin/wholesalers", label: "Wholesalers", icon: Store },
+  { href: "/admin/categories", label: "Categories", icon: Tag },
+  { href: "/admin/units", label: "Units", icon: Ruler },
   { href: "/admin/products", label: "Products", icon: Package },
   { href: "/admin/orders", label: "Orders", icon: ClipboardList },
   { href: "/admin/insights", label: "Insights", icon: BarChart3 },

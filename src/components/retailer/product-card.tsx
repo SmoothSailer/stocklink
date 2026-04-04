@@ -3,7 +3,7 @@ import { MapPin, Package } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import type { Product } from "@/types/database";
-import { formatPrice, getStockInfo } from "@/lib/utils";
+import { formatPrice, getStockInfo, getCategoryIcon } from "@/lib/utils";
 
 interface ProductCardProps {
   product: Product;
@@ -22,14 +22,7 @@ export function ProductCard({ product }: ProductCardProps) {
         <div className="relative aspect-square overflow-hidden bg-muted">
           <div className="flex h-full items-center justify-center bg-gradient-to-br from-muted to-muted/60">
             <span className="text-4xl">
-              {product.category === "rice" && "🍚"}
-              {product.category === "oil" && "🫒"}
-              {product.category === "sugar" && "🍬"}
-              {product.category === "flour" && "🌾"}
-              {product.category === "lpg" && "🔥"}
-              {product.category === "beverages" && "🥤"}
-              {product.category === "dairy" && "🥛"}
-              {product.category === "cleaning" && "🧴"}
+              {getCategoryIcon(product.category)}
             </span>
           </div>
 

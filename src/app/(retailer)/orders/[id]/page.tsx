@@ -5,7 +5,7 @@ import { Separator } from "@/components/ui/separator";
 import { OrderTimeline } from "@/components/retailer/order-timeline";
 import { WhatsAppButton } from "@/components/shared/whatsapp-button";
 import { mockOrders, mockOrderItems, mockProducts } from "@/lib/mock-data";
-import { formatPrice } from "@/lib/utils";
+import { formatPrice, getCategoryIcon } from "@/lib/utils";
 import { ORDER_STATUSES } from "@/lib/constants";
 
 interface OrderDetailPageProps {
@@ -108,14 +108,7 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
               <div key={item.id} className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted text-lg">
-                    {product?.category === "rice" && "🍚"}
-                    {product?.category === "oil" && "🫒"}
-                    {product?.category === "sugar" && "🍬"}
-                    {product?.category === "flour" && "🌾"}
-                    {product?.category === "lpg" && "🔥"}
-                    {product?.category === "beverages" && "🥤"}
-                    {product?.category === "dairy" && "🥛"}
-                    {product?.category === "cleaning" && "🧴"}
+                    {getCategoryIcon(product?.category ?? "")}
                   </div>
                   <div>
                     <p className="text-sm font-medium">
