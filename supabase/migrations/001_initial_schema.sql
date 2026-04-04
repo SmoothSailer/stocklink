@@ -10,6 +10,29 @@ create extension if not exists "uuid-ossp";
 -- 2. TABLES
 -- ============================================
 
+-- Categories
+create table if not exists public.categories (
+  id uuid primary key default uuid_generate_v4(),
+  name text not null unique,
+  slug text not null unique,
+  icon text not null default '📦',
+  sort_order integer not null default 0,
+  is_active boolean not null default true,
+  created_at timestamptz default now()
+);
+
+-- Product Units
+create table if not exists public.product_units (
+  id uuid primary key default uuid_generate_v4(),
+  name text not null unique,
+  slug text not null unique,
+  plural_name text not null,
+  abbreviation text,
+  sort_order integer not null default 0,
+  is_active boolean not null default true,
+  created_at timestamptz default now()
+);
+
 -- Sales Representatives
 create table if not exists public.sales_reps (
   id uuid primary key default uuid_generate_v4(),
@@ -131,6 +154,10 @@ create table if not exists public.referrals (
 -- ============================================
 -- 3. INDEXES
 -- ============================================
+create index if not exists idx_categories_active on public.categories(is_active) where is_active = true;
+create index if not exists idx_categories_sort on public.categories(sort_order);
+create index if not exists idx_product_units_active on public.product_units(is_active) where is_active = true;
+create index if not exists idx_product_units_sort on public.product_units(sort_order);
 create index if not exists idx_sales_reps_active on public.sales_reps(is_active) where is_active = true;
 create index if not exists idx_wholesalers_sales_rep on public.wholesalers(sales_rep_id);
 create index if not exists idx_products_category on public.products(category);
@@ -155,10 +182,12 @@ begin
 end;
 $$ language plpgsql;
 
+drop trigger if exists products_updated_at on public.products;
 create trigger products_updated_at
   before update on public.products
   for each row execute function public.handle_updated_at();
 
+drop trigger if exists orders_updated_at on public.orders;
 create trigger orders_updated_at
   before update on public.orders
   for each row execute function public.handle_updated_at();
@@ -168,6 +197,8 @@ create trigger orders_updated_at
 -- ============================================
 
 -- Enable RLS on all tables
+alter table public.categories enable row level security;
+alter table public.product_units enable row level security;
 alter table public.sales_reps enable row level security;
 alter table public.wholesalers enable row level security;
 alter table public.products enable row level security;
@@ -178,68 +209,104 @@ alter table public.demand_requests enable row level security;
 alter table public.affiliates enable row level security;
 alter table public.referrals enable row level security;
 
+-- Categories: anyone can read, authenticated can manage
+drop policy if exists "Categories are viewable by everyone" on public.categories;
+create policy "Categories are viewable by everyone"
+  on public.categories for select using (true);
+
+drop policy if exists "Authenticated users can manage categories" on public.categories;
+create policy "Authenticated users can manage categories"
+  on public.categories for all using (auth.role() = 'authenticated');
+
+-- Product Units: anyone can read, authenticated can manage
+drop policy if exists "Product units are viewable by everyone" on public.product_units;
+create policy "Product units are viewable by everyone"
+  on public.product_units for select using (true);
+
+drop policy if exists "Authenticated users can manage product units" on public.product_units;
+create policy "Authenticated users can manage product units"
+  on public.product_units for all using (auth.role() = 'authenticated');
+
 -- Sales Reps: anyone can read (retailers need rep info), authenticated can manage
+drop policy if exists "Sales reps are viewable by everyone" on public.sales_reps;
 create policy "Sales reps are viewable by everyone"
   on public.sales_reps for select using (true);
 
+drop policy if exists "Authenticated users can manage sales reps" on public.sales_reps;
 create policy "Authenticated users can manage sales reps"
   on public.sales_reps for all using (auth.role() = 'authenticated');
 
 -- Products: anyone can read, only authenticated can insert/update
+drop policy if exists "Products are viewable by everyone" on public.products;
 create policy "Products are viewable by everyone"
   on public.products for select using (true);
 
+drop policy if exists "Authenticated users can manage products" on public.products;
 create policy "Authenticated users can manage products"
   on public.products for all using (auth.role() = 'authenticated');
 
 -- Wholesalers: anyone can read
+drop policy if exists "Wholesalers are viewable by everyone" on public.wholesalers;
 create policy "Wholesalers are viewable by everyone"
   on public.wholesalers for select using (true);
 
+drop policy if exists "Authenticated users can manage wholesalers" on public.wholesalers;
 create policy "Authenticated users can manage wholesalers"
   on public.wholesalers for all using (auth.role() = 'authenticated');
 
 -- Orders: users see their own, authenticated can manage all
+drop policy if exists "Orders viewable by authenticated" on public.orders;
 create policy "Orders viewable by authenticated"
   on public.orders for select using (auth.role() = 'authenticated');
 
+drop policy if exists "Authenticated users can manage orders" on public.orders;
 create policy "Authenticated users can manage orders"
   on public.orders for all using (auth.role() = 'authenticated');
 
 -- Order Items: authenticated access
+drop policy if exists "Order items viewable by authenticated" on public.order_items;
 create policy "Order items viewable by authenticated"
   on public.order_items for select using (auth.role() = 'authenticated');
 
+drop policy if exists "Authenticated users can manage order items" on public.order_items;
 create policy "Authenticated users can manage order items"
   on public.order_items for all using (auth.role() = 'authenticated');
 
 -- Retailers: authenticated access
+drop policy if exists "Retailers viewable by authenticated" on public.retailers;
 create policy "Retailers viewable by authenticated"
   on public.retailers for select using (auth.role() = 'authenticated');
 
+drop policy if exists "Authenticated users can manage retailers" on public.retailers;
 create policy "Authenticated users can manage retailers"
   on public.retailers for all using (auth.role() = 'authenticated');
 
 -- Demand Requests
+drop policy if exists "Demand requests viewable by authenticated" on public.demand_requests;
 create policy "Demand requests viewable by authenticated"
   on public.demand_requests for select using (auth.role() = 'authenticated');
 
+drop policy if exists "Authenticated users can manage demand requests" on public.demand_requests;
 create policy "Authenticated users can manage demand requests"
   on public.demand_requests for all using (auth.role() = 'authenticated');
 
 -- Affiliates: users see own, authenticated can manage
+drop policy if exists "Affiliates viewable by owner" on public.affiliates;
 create policy "Affiliates viewable by owner"
   on public.affiliates for select using (auth.uid() = user_id);
 
+drop policy if exists "Authenticated users can manage affiliates" on public.affiliates;
 create policy "Authenticated users can manage affiliates"
   on public.affiliates for all using (auth.role() = 'authenticated');
 
 -- Referrals
+drop policy if exists "Referrals viewable by affiliate owner" on public.referrals;
 create policy "Referrals viewable by affiliate owner"
   on public.referrals for select using (
     affiliate_id in (select id from public.affiliates where user_id = auth.uid())
   );
 
+drop policy if exists "Authenticated users can manage referrals" on public.referrals;
 create policy "Authenticated users can manage referrals"
   on public.referrals for all using (auth.role() = 'authenticated');
 
@@ -256,27 +323,63 @@ values (
 )
 on conflict (id) do nothing;
 
+-- Drop old policies (handles both old space-named and new snake_case names)
+drop policy if exists "Product images are publicly accessible" on storage.objects;
+drop policy if exists "Authenticated users can upload product images" on storage.objects;
+drop policy if exists "Authenticated users can update product images" on storage.objects;
+drop policy if exists "Authenticated users can delete product images" on storage.objects;
+drop policy if exists "product_images_public_read" on storage.objects;
+drop policy if exists "product_images_auth_insert" on storage.objects;
+drop policy if exists "product_images_auth_update" on storage.objects;
+drop policy if exists "product_images_auth_delete" on storage.objects;
+
 -- Allow public read access to product images
-create policy "Product images are publicly accessible"
+create policy "product_images_public_read"
   on storage.objects for select
   using (bucket_id = 'product-images');
 
 -- Allow authenticated users to upload/manage product images
-create policy "Authenticated users can upload product images"
+create policy "product_images_auth_insert"
   on storage.objects for insert
   with check (bucket_id = 'product-images' and auth.role() = 'authenticated');
 
-create policy "Authenticated users can update product images"
+create policy "product_images_auth_update"
   on storage.objects for update
   using (bucket_id = 'product-images' and auth.role() = 'authenticated');
 
-create policy "Authenticated users can delete product images"
+create policy "product_images_auth_delete"
   on storage.objects for delete
   using (bucket_id = 'product-images' and auth.role() = 'authenticated');
 
 -- ============================================
 -- 7. SEED DATA (sample wholesalers)
 -- ============================================
+-- Seed categories
+insert into public.categories (name, slug, icon, sort_order) values
+  ('Rice', 'rice', '🍚', 1),
+  ('Oil', 'oil', '🫒', 2),
+  ('Sugar', 'sugar', '🍬', 3),
+  ('Flour', 'flour', '🌾', 4),
+  ('LPG Gas', 'lpg', '🔥', 5),
+  ('Beverages', 'beverages', '🥤', 6),
+  ('Dairy', 'dairy', '🥛', 7),
+  ('Cleaning', 'cleaning', '🧴', 8)
+on conflict do nothing;
+
+-- Seed product units
+insert into public.product_units (name, slug, plural_name, abbreviation, sort_order) values
+  ('Bag', 'bag', 'Bags', 'bag', 1),
+  ('Carton', 'carton', 'Cartons', 'ctn', 2),
+  ('Box', 'box', 'Boxes', 'box', 3),
+  ('Crate', 'crate', 'Crates', 'crt', 4),
+  ('Jerrycan', 'jerrycan', 'Jerrycans', 'jcn', 5),
+  ('Cylinder', 'cylinder', 'Cylinders', 'cyl', 6),
+  ('Piece', 'piece', 'Pieces', 'pc', 7),
+  ('Dozen', 'dozen', 'Dozens', 'dz', 8),
+  ('Bale', 'bale', 'Bales', 'bale', 9),
+  ('Packet', 'packet', 'Packets', 'pkt', 10)
+on conflict do nothing;
+
 -- Seed sales reps
 insert into public.sales_reps (id, name, phone, whatsapp_phone, email, bio) values
   ('00000000-0000-0000-0000-000000000001', 'Amina Hassan', '+254712345001', '254712345001', 'amina@stocklink.co', 'Nairobi region specialist. 5+ years in wholesale distribution.'),

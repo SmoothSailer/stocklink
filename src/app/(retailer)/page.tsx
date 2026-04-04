@@ -4,7 +4,7 @@ import { CategoryGrid } from "@/components/retailer/category-grid";
 import { ProductCard } from "@/components/retailer/product-card";
 import { FlashDealCard } from "@/components/retailer/flash-deal-card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { mockProducts } from "@/lib/mock-data";
+import { getTrendingProducts, getFlashDeals, getBulkStockProducts } from "./actions";
 import { ChevronRight, Flame, Zap, MapPin } from "lucide-react";
 import Link from "next/link";
 
@@ -48,10 +48,12 @@ function ProductGridSkeleton() {
   );
 }
 
-export default function HomePage() {
-  const trendingProducts = mockProducts.filter((p) => p.is_trending);
-  const flashDeals = mockProducts.filter((p) => p.is_flash_deal);
-  const nearbyProducts = mockProducts.filter((p) => p.stock > 0).slice(0, 4);
+export default async function HomePage() {
+  const [trendingProducts, flashDeals, nearbyProducts] = await Promise.all([
+    getTrendingProducts(),
+    getFlashDeals(),
+    getBulkStockProducts(4),
+  ]);
 
   return (
     <div className="mx-auto max-w-7xl space-y-6 px-4 py-4">

@@ -1,6 +1,6 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
-import { CURRENCY, WHATSAPP_BASE_URL, WHATSAPP_PHONE } from "./constants";
+import { CURRENCY, WHATSAPP_BASE_URL, WHATSAPP_PHONE, PRODUCT_CATEGORIES } from "./constants";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -62,5 +62,10 @@ export function getStockInfo(stock: number, unit?: string): {
   if (stock <= 0) return { label: "Out of Stock", variant: "destructive" };
   if (stock <= 20) return { label: `Only ${stock}${u} left`, variant: "secondary" };
   return { label: `${stock}${u} available`, variant: "default" };
+}
+
+/** Get category emoji icon by slug, with fallback */
+export function getCategoryIcon(category: string): string {
+  return PRODUCT_CATEGORIES.find((c) => c.value === category)?.icon ?? "📦";
 }
 

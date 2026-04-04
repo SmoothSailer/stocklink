@@ -1,12 +1,158 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
+
+// ── Category Actions ────────────────────────────────────────────
+
+export async function getCategories() {
+  const supabase = createAdminClient();
+  const { data, error } = await supabase
+    .from("categories")
+    .select("*")
+    .order("sort_order", { ascending: true });
+  if (error) throw new Error(error.message);
+  return data;
+}
+
+export async function createCategory(formData: FormData) {
+  const supabase = createAdminClient();
+  const name = formData.get("name") as string;
+  const icon = formData.get("icon") as string;
+  const sort_order = parseInt(formData.get("sort_order") as string) || 0;
+
+  if (!name?.trim()) return { error: "Name is required" };
+
+  const slug = name.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+
+  const { error } = await supabase.from("categories").insert({
+    name: name.trim(),
+    slug,
+    icon: icon?.trim() || "📦",
+    sort_order,
+  });
+
+  if (error) return { error: error.message };
+  revalidatePath("/admin/categories");
+  return { error: null };
+}
+
+export async function updateCategory(id: string, formData: FormData) {
+  const supabase = createAdminClient();
+  const name = formData.get("name") as string;
+  const icon = formData.get("icon") as string;
+  const sort_order = parseInt(formData.get("sort_order") as string) || 0;
+  const is_active = formData.get("is_active") === "true";
+
+  if (!name?.trim()) return { error: "Name is required" };
+
+  const slug = name.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+
+  const { error } = await supabase
+    .from("categories")
+    .update({
+      name: name.trim(),
+      slug,
+      icon: icon?.trim() || "📦",
+      sort_order,
+      is_active,
+    })
+    .eq("id", id);
+
+  if (error) return { error: error.message };
+  revalidatePath("/admin/categories");
+  return { error: null };
+}
+
+export async function deleteCategory(id: string) {
+  const supabase = createAdminClient();
+  const { error } = await supabase.from("categories").delete().eq("id", id);
+  if (error) return { error: error.message };
+  revalidatePath("/admin/categories");
+  return { error: null };
+}
+
+// ── Product Unit Actions ────────────────────────────────────────
+
+export async function getProductUnits() {
+  const supabase = createAdminClient();
+  const { data, error } = await supabase
+    .from("product_units")
+    .select("*")
+    .order("sort_order", { ascending: true });
+  if (error) throw new Error(error.message);
+  return data;
+}
+
+export async function createProductUnit(formData: FormData) {
+  const supabase = createAdminClient();
+  const name = formData.get("name") as string;
+  const plural_name = formData.get("plural_name") as string;
+  const abbreviation = formData.get("abbreviation") as string | null;
+  const sort_order = parseInt(formData.get("sort_order") as string) || 0;
+
+  if (!name?.trim() || !plural_name?.trim()) {
+    return { error: "Name and plural name are required" };
+  }
+
+  const slug = name.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+
+  const { error } = await supabase.from("product_units").insert({
+    name: name.trim(),
+    slug,
+    plural_name: plural_name.trim(),
+    abbreviation: abbreviation?.trim() || null,
+    sort_order,
+  });
+
+  if (error) return { error: error.message };
+  revalidatePath("/admin/units");
+  return { error: null };
+}
+
+export async function updateProductUnit(id: string, formData: FormData) {
+  const supabase = createAdminClient();
+  const name = formData.get("name") as string;
+  const plural_name = formData.get("plural_name") as string;
+  const abbreviation = formData.get("abbreviation") as string | null;
+  const sort_order = parseInt(formData.get("sort_order") as string) || 0;
+  const is_active = formData.get("is_active") === "true";
+
+  if (!name?.trim() || !plural_name?.trim()) {
+    return { error: "Name and plural name are required" };
+  }
+
+  const slug = name.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+
+  const { error } = await supabase
+    .from("product_units")
+    .update({
+      name: name.trim(),
+      slug,
+      plural_name: plural_name.trim(),
+      abbreviation: abbreviation?.trim() || null,
+      sort_order,
+      is_active,
+    })
+    .eq("id", id);
+
+  if (error) return { error: error.message };
+  revalidatePath("/admin/units");
+  return { error: null };
+}
+
+export async function deleteProductUnit(id: string) {
+  const supabase = createAdminClient();
+  const { error } = await supabase.from("product_units").delete().eq("id", id);
+  if (error) return { error: error.message };
+  revalidatePath("/admin/units");
+  return { error: null };
+}
 
 // ── Sales Rep Actions ───────────────────────────────────────────
 
 export async function getSalesReps() {
-  const supabase = await createClient();
+  const supabase = createAdminClient();
   const { data, error } = await supabase
     .from("sales_reps")
     .select("*")
@@ -16,7 +162,7 @@ export async function getSalesReps() {
 }
 
 export async function createSalesRep(formData: FormData) {
-  const supabase = await createClient();
+  const supabase = createAdminClient();
   const name = formData.get("name") as string;
   const phone = formData.get("phone") as string;
   const whatsapp_phone = formData.get("whatsapp_phone") as string;
@@ -44,7 +190,7 @@ export async function createSalesRep(formData: FormData) {
 }
 
 export async function updateSalesRep(id: string, formData: FormData) {
-  const supabase = await createClient();
+  const supabase = createAdminClient();
   const name = formData.get("name") as string;
   const phone = formData.get("phone") as string;
   const whatsapp_phone = formData.get("whatsapp_phone") as string;
@@ -76,7 +222,7 @@ export async function updateSalesRep(id: string, formData: FormData) {
 }
 
 export async function deleteSalesRep(id: string) {
-  const supabase = await createClient();
+  const supabase = createAdminClient();
   const { error } = await supabase.from("sales_reps").delete().eq("id", id);
   if (error) return { error: error.message };
   revalidatePath("/admin/sales-reps");
@@ -86,7 +232,7 @@ export async function deleteSalesRep(id: string) {
 // ── Wholesaler Actions ──────────────────────────────────────────
 
 export async function getWholesalers() {
-  const supabase = await createClient();
+  const supabase = createAdminClient();
   const { data, error } = await supabase
     .from("wholesalers")
     .select("*, sales_reps(id, name, whatsapp_phone)")
@@ -96,7 +242,7 @@ export async function getWholesalers() {
 }
 
 export async function createWholesaler(formData: FormData) {
-  const supabase = await createClient();
+  const supabase = createAdminClient();
   const name = formData.get("name") as string;
   const location = formData.get("location") as string | null;
   const phone = formData.get("phone") as string | null;
@@ -119,7 +265,7 @@ export async function createWholesaler(formData: FormData) {
 }
 
 export async function updateWholesaler(id: string, formData: FormData) {
-  const supabase = await createClient();
+  const supabase = createAdminClient();
   const name = formData.get("name") as string;
   const location = formData.get("location") as string | null;
   const phone = formData.get("phone") as string | null;
@@ -143,7 +289,7 @@ export async function updateWholesaler(id: string, formData: FormData) {
 }
 
 export async function deleteWholesaler(id: string) {
-  const supabase = await createClient();
+  const supabase = createAdminClient();
   const { error } = await supabase.from("wholesalers").delete().eq("id", id);
   if (error) return { error: error.message };
   revalidatePath("/admin/wholesalers");
@@ -153,7 +299,7 @@ export async function deleteWholesaler(id: string) {
 // ── Product Actions ─────────────────────────────────────────────
 
 export async function getProducts() {
-  const supabase = await createClient();
+  const supabase = createAdminClient();
   const { data, error } = await supabase
     .from("products")
     .select("*, wholesalers(name, sales_rep_id, sales_reps(id, name, whatsapp_phone))")
@@ -177,7 +323,7 @@ export async function createProduct(data: {
   flash_deal_price?: number;
   flash_deal_expires_at?: string;
 }) {
-  const supabase = await createClient();
+  const supabase = createAdminClient();
 
   const { error } = await supabase.from("products").insert({
     name: data.name,
@@ -219,7 +365,7 @@ export async function updateProduct(
     flash_deal_expires_at?: string | null;
   }
 ) {
-  const supabase = await createClient();
+  const supabase = createAdminClient();
   const { error } = await supabase.from("products").update(data).eq("id", id);
 
   if (error) return { error: error.message };
@@ -229,7 +375,7 @@ export async function updateProduct(
 }
 
 export async function deleteProduct(id: string) {
-  const supabase = await createClient();
+  const supabase = createAdminClient();
   const { error } = await supabase.from("products").delete().eq("id", id);
   if (error) return { error: error.message };
   revalidatePath("/admin/products");
@@ -240,7 +386,7 @@ export async function deleteProduct(id: string) {
 // ── Order Actions ───────────────────────────────────────────────
 
 export async function getOrders() {
-  const supabase = await createClient();
+  const supabase = createAdminClient();
   const { data, error } = await supabase
     .from("orders")
     .select("*, order_items(*, products(name, unit))")
@@ -253,7 +399,7 @@ export async function updateOrderStatus(
   id: string,
   status: "placed" | "confirmed" | "out_for_delivery" | "delivered" | "cancelled"
 ) {
-  const supabase = await createClient();
+  const supabase = createAdminClient();
   const { error } = await supabase
     .from("orders")
     .update({ status })
@@ -267,7 +413,7 @@ export async function updateOrderStatus(
 // ── Dashboard Stats ─────────────────────────────────────────────
 
 export async function getDashboardStats() {
-  const supabase = await createClient();
+  const supabase = createAdminClient();
 
   const [productsRes, ordersRes, wholesalersRes, demandRes, salesRepsRes] = await Promise.all([
     supabase.from("products").select("id, stock, price, is_trending, category"),
