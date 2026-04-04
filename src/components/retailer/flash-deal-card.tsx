@@ -19,7 +19,7 @@ export function FlashDealCard({ product }: FlashDealCardProps) {
     ? getCountdown(product.flash_deal_expires_at)
     : null;
 
-  const shareMessage = `🔥 Bulk Deal on ${product.name}!\n\nWas: KSh ${product.price.toLocaleString()} per ${product.unit}\nNow: KSh ${dealPrice.toLocaleString()} per ${product.unit}\nSave: KSh ${savings.toLocaleString()} per unit\nMin Order: ${product.min_order_qty ?? 1} ${product.unit}s\n\nOrder in bulk on StockLink!`;
+  const shareMessage = `🔥 Bulk Deal on ${product.name}!\n\nWas: KSh ${product.price.toLocaleString()} per ${product.unit}\nNow: KSh ${dealPrice.toLocaleString()} per ${product.unit}\nSave: KSh ${savings.toLocaleString()} per unit\nMin Order: ${product.min_order_qty ?? 1} ${product.unit}s\n\nOrder in bulk on Ristoka!`;
 
   const handleShare = () => {
     const url = buildWhatsAppLink(shareMessage);

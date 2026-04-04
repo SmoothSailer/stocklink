@@ -42,8 +42,8 @@ export default function OrderConfirmClient({ product, quantity: initialQty }: Or
   const quantity = initialQty ?? moq * 2;
   const totalPrice = product.price * quantity;
 
-  const repName = salesRep?.name ?? "StockLink";
-  const orderMessage = `🛒 *Bulk Order Confirmation — StockLink*\n\nHi ${repName}! 👋\n\n📦 ${product.name} × ${quantity} ${product.unit}s\n💰 Unit Price: KSh ${product.price.toLocaleString()} per ${product.unit}\n💵 Total: KSh ${totalPrice.toLocaleString()}\n💳 Payment: ${PAYMENT_METHODS.find((m) => m.value === selectedPayment)?.label}\n📍 Delivery: Shop 12, Gikomba Market, Nairobi\n🏬 Supplier: ${wholesaler?.name ?? "StockLink Wholesale"}\n\nPlease confirm order.`;
+  const repName = salesRep?.name ?? "Ristoka";
+  const orderMessage = `🛒 *Bulk Order Confirmation — Ristoka*\n\nHi ${repName}! 👋\n\n📦 ${product.name} × ${quantity} ${product.unit}s\n💰 Unit Price: KSh ${product.price.toLocaleString()} per ${product.unit}\n💵 Total: KSh ${totalPrice.toLocaleString()}\n💳 Payment: ${PAYMENT_METHODS.find((m) => m.value === selectedPayment)?.label}\n📍 Delivery: Shop 12, Gikomba Market, Nairobi\n🏬 Supplier: ${wholesaler?.name ?? "Ristoka Wholesale"}\n\nPlease confirm order.`;
 
   if (confirmed) {
     return (
@@ -62,7 +62,7 @@ export default function OrderConfirmClient({ product, quantity: initialQty }: Or
         {/* WhatsApp-style confirmation bubble */}
         <div className="mx-auto mt-6 max-w-sm">
           <div className="rounded-2xl rounded-bl-sm bg-green-50 p-4 text-left shadow-sm">
-            <p className="text-xs font-semibold text-primary">StockLink</p>
+            <p className="text-xs font-semibold text-primary">Ristoka</p>
             <p className="mt-1 text-sm text-foreground">
               ✅ Order #{Math.random().toString(36).slice(2, 8).toUpperCase()}{" "}
               confirmed!

@@ -34,7 +34,7 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
   const { order, items } = result;
   const statusInfo = ORDER_STATUSES[order.status];
 
-  const updateMessage = `Hi StockLink, I have a question about order #${order.id.slice(0, 6).toUpperCase()}.`;
+  const updateMessage = `Hi Ristoka, I have a question about order #${order.id.slice(0, 6).toUpperCase()}.`;
 
   return (
     <div className="mx-auto max-w-lg space-y-4 px-4 py-4">
@@ -78,7 +78,7 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
 
       {/* WhatsApp-style status bubble */}
       <div className="rounded-2xl rounded-bl-sm bg-green-50 p-4 shadow-sm">
-        <p className="text-xs font-semibold text-primary">StockLink Update</p>
+        <p className="text-xs font-semibold text-primary">Ristoka Update</p>
         <p className="mt-1 text-sm text-foreground">
           {order.status === "placed" && "📦 Your order has been placed! We're processing it now."}
           {order.status === "confirmed" && "✅ Your order is confirmed! Preparing for dispatch."}

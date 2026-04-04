@@ -26,7 +26,7 @@ const PLATFORMS: SocialPlatform[] = [
     color: "bg-black hover:bg-gray-800",
     buildUrl: (url, _text) =>
       // TikTok doesn't have a direct share URL — copy link for bio, open TikTok
-      `https://www.tiktok.com/@stocklink?link=${encodeURIComponent(url)}`,
+      `https://www.tiktok.com/@ristoka?link=${encodeURIComponent(url)}`,
   },
   {
     name: "X / Twitter",
@@ -70,7 +70,7 @@ export function AffiliateShare({
 }: AffiliateShareProps) {
   const [copied, setCopied] = useState(false);
 
-  const shareText = `Shop wholesale prices on StockLink! Use my referral link to get started 👇`;
+  const shareText = `Shop wholesale prices on Ristoka! Use my referral link to get started 👇`;
 
   const handleCopy = async () => {
     await navigator.clipboard.writeText(referralUrl);
@@ -87,7 +87,7 @@ export function AffiliateShare({
     if (navigator.share) {
       try {
         await navigator.share({
-          title: "Join StockLink",
+          title: "Join Ristoka",
           text: shareText,
           url: referralUrl,
         });

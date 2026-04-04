@@ -40,7 +40,7 @@ export default function DealsClient({ flashDeals, trendingProducts }: DealsClien
   ];
 
   const handleShareFeed = () => {
-    const message = `🛒 Check out the latest deals on StockLink!\n\n${flashDeals.map((p) => `⚡ ${p.name} - KSh ${(p.flash_deal_price ?? p.price).toLocaleString()}`).join("\n")}\n\nOrder now on StockLink!`;
+    const message = `🛒 Check out the latest deals on Ristoka!\n\n${flashDeals.map((p) => `⚡ ${p.name} - KSh ${(p.flash_deal_price ?? p.price).toLocaleString()}`).join("\n")}\n\nOrder now on Ristoka!`;
     window.open(buildWhatsAppLink(message), "_blank");
   };
 
