@@ -220,8 +220,11 @@ export default function ProductsPage() {
 
   async function handleDelete(id: string) {
     const result = await deleteProduct(id);
-    if (!result.error) {
+    if (result.error) {
+      setFormError(result.error);
+    } else {
       setDeleteConfirmId(null);
+      setFormError(null);
       await loadData();
     }
   }
@@ -249,6 +252,16 @@ export default function ProductsPage() {
 
   return (
     <div className="space-y-6">
+      {/* Error banner */}
+      {formError && !dialogOpen && (
+        <div className="flex items-center justify-between rounded-lg border border-destructive/50 bg-destructive/10 px-4 py-3">
+          <p className="text-sm text-destructive">{formError}</p>
+          <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setFormError(null)}>
+            Dismiss
+          </Button>
+        </div>
+      )}
+
       {/* Page header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
