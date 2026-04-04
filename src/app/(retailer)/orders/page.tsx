@@ -1,13 +1,13 @@
 import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { mockOrders } from "@/lib/mock-data";
+import { getOrders } from "../actions";
 import { formatPrice, timeAgo } from "@/lib/utils";
 import { ORDER_STATUSES } from "@/lib/constants";
 import { ChevronRight, Package } from "lucide-react";
 
-export default function OrdersPage() {
-  const orders = mockOrders;
+export default async function OrdersPage() {
+  const orders = await getOrders();
 
   return (
     <div className="mx-auto max-w-lg space-y-4 px-4 py-4">

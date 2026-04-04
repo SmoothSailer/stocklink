@@ -10,11 +10,10 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
-  mockProducts,
-  mockWholesalers,
-  mockOrders,
-  mockOrderItems,
-} from "@/lib/mock-data";
+  getWholesalerById,
+  getWholesalerProducts,
+  getWholesalerPendingOrderCount,
+} from "@/app/(retailer)/actions";
 import { formatPrice, getStockInfo, getCategoryIcon } from "@/lib/utils";
 import { APP_NAME } from "@/lib/constants";
 
@@ -24,7 +23,7 @@ interface WholesalerPageProps {
 
 export default async function WholesalerPage({ params }: WholesalerPageProps) {
   const { id } = await params;
-  const wholesaler = mockWholesalers.find((w) => w.id === id);
+  const wholesaler = await getWholesalerById(id);
 
   if (!wholesaler) {
     return (
@@ -35,26 +34,12 @@ export default async function WholesalerPage({ params }: WholesalerPageProps) {
     );
   }
 
-  const products = mockProducts.filter(
-    (p) => p.wholesaler_id === wholesaler.id
-  );
-
-  // Find pending orders that contain this wholesaler's products
-  const productIds = new Set(products.map((p) => p.id));
-  const relevantOrderItems = mockOrderItems.filter(
-    (oi) => oi.product_id && productIds.has(oi.product_id)
-  );
-  const pendingOrderIds = new Set(
-    relevantOrderItems
-      .map((oi) => oi.order_id)
-      .filter((orderId) => {
-        const order = mockOrders.find((o) => o.id === orderId);
-        return order && order.status !== "delivered" && order.status !== "cancelled";
-      })
-  );
+  const [products, pendingOrderCount] = await Promise.all([
+    getWholesalerProducts(id),
+    getWholesalerPendingOrderCount(id),
+  ]);
 
   const totalStock = products.reduce((acc, p) => acc + p.stock, 0);
-  const totalValue = products.reduce((acc, p) => acc + p.price * p.stock, 0);
 
   return (
     <div className="min-h-screen bg-background">
@@ -98,7 +83,7 @@ export default async function WholesalerPage({ params }: WholesalerPageProps) {
           </Card>
           <Card>
             <CardContent className="p-4">
-              <p className="text-2xl font-bold">{pendingOrderIds.size}</p>
+              <p className="text-2xl font-bold">{pendingOrderCount}</p>
               <p className="text-xs text-muted-foreground">Pending Orders</p>
             </CardContent>
           </Card>
@@ -118,17 +103,11 @@ export default async function WholesalerPage({ params }: WholesalerPageProps) {
                   <TableHead className="text-right">Price</TableHead>
                   <TableHead className="text-right">MOQ</TableHead>
                   <TableHead className="text-right">Stock</TableHead>
-                  <TableHead className="text-right">Pending Orders</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {products.map((product) => {
                   const stockInfo = getStockInfo(product.stock, product.unit);
-                  const productPendingOrders = relevantOrderItems.filter(
-                    (oi) =>
-                      oi.product_id === product.id &&
-                      pendingOrderIds.has(oi.order_id!)
-                  ).length;
 
                   return (
                     <TableRow key={product.id}>
@@ -160,15 +139,6 @@ export default async function WholesalerPage({ params }: WholesalerPageProps) {
                         <Badge variant={stockInfo.variant} className="text-xs">
                           {product.stock}
                         </Badge>
-                      </TableCell>
-                      <TableCell className="text-right text-sm">
-                        {productPendingOrders > 0 ? (
-                          <Badge variant="secondary" className="text-xs">
-                            {productPendingOrders}
-                          </Badge>
-                        ) : (
-                          <span className="text-muted-foreground">—</span>
-                        )}
                       </TableCell>
                     </TableRow>
                   );

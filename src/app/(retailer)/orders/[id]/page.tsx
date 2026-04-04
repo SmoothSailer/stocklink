@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { OrderTimeline } from "@/components/retailer/order-timeline";
 import { WhatsAppButton } from "@/components/shared/whatsapp-button";
-import { mockOrders, mockOrderItems, mockProducts } from "@/lib/mock-data";
+import { getOrderById } from "../../actions";
 import { formatPrice, getCategoryIcon } from "@/lib/utils";
 import { ORDER_STATUSES } from "@/lib/constants";
 
@@ -14,9 +14,9 @@ interface OrderDetailPageProps {
 
 export default async function OrderDetailPage({ params }: OrderDetailPageProps) {
   const { id } = await params;
-  const order = mockOrders.find((o) => o.id === id);
+  const result = await getOrderById(id);
 
-  if (!order) {
+  if (!result) {
     return (
       <div className="flex flex-col items-center justify-center py-20">
         <span className="text-5xl">📋</span>
@@ -31,7 +31,7 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
     );
   }
 
-  const items = mockOrderItems.filter((oi) => oi.order_id === order.id);
+  const { order, items } = result;
   const statusInfo = ORDER_STATUSES[order.status];
 
   const updateMessage = `Hi StockLink, I have a question about order #${order.id.slice(0, 6).toUpperCase()}.`;
@@ -101,9 +101,7 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
         </CardHeader>
         <CardContent className="space-y-3">
           {items.map((item) => {
-            const product = mockProducts.find(
-              (p) => p.id === item.product_id
-            );
+            const product = item.products;
             return (
               <div key={item.id} className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
