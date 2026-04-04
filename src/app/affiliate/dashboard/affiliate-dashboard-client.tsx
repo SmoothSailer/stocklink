@@ -50,7 +50,7 @@ export default function AffiliateDashboardClient({ affiliate, referrals }: Affil
     .filter((r) => r.status === "pending" || r.status === "approved")
     .reduce((sum, r) => sum + r.commission, 0);
 
-  const referralUrl = `${typeof window !== "undefined" ? window.location.origin : "https://stocklink.co"}/?ref=${affiliate.code}`;
+  const referralUrl = `${typeof window !== "undefined" ? window.location.origin : "https://ristoka.co"}/?ref=${affiliate.code}`;
 
   const stats = [
     {

@@ -12,8 +12,8 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: {
-    default: "StockLink — Wholesale Brokerage Platform",
-    template: "%s | StockLink",
+    default: "Ristoka — Wholesale Brokerage Platform",
+    template: "%s | Ristoka",
   },
   description:
     "Connect with wholesalers, browse products, and order via WhatsApp. Real-time stock visibility and fast delivery.",

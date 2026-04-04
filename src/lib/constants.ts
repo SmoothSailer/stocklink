@@ -1,6 +1,6 @@
 // App-wide constants
 
-export const APP_NAME = "StockLink";
+export const APP_NAME = "Ristoka";
 export const APP_DESCRIPTION =
   "Wholesale Brokerage Platform connecting wholesalers and retailers";
 

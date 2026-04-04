@@ -54,10 +54,10 @@ export default function ProductDetailClient({ product }: ProductDetailClientProp
       : product.price;
   const totalPrice = displayPrice * quantity;
 
-  const repName = salesRep?.name ?? "StockLink";
-  const orderMessage = `🛒 *Bulk Order from StockLink*\n\nHi ${repName}! 👋\n\n📦 Product: ${product.name}\n📊 Quantity: ${quantity} ${product.unit}s\n💰 Unit Price: KSh ${displayPrice.toLocaleString()} per ${product.unit}\n💵 Total: KSh ${totalPrice.toLocaleString()}\n📦 Min Order: ${moq} ${product.unit}s\n🏬 Supplier: ${wholesaler?.name ?? "StockLink Wholesale"}\n\nPlease confirm availability and delivery.`;
+  const repName = salesRep?.name ?? "Ristoka";
+  const orderMessage = `🛒 *Bulk Order from Ristoka*\n\nHi ${repName}! 👋\n\n📦 Product: ${product.name}\n📊 Quantity: ${quantity} ${product.unit}s\n💰 Unit Price: KSh ${displayPrice.toLocaleString()} per ${product.unit}\n💵 Total: KSh ${totalPrice.toLocaleString()}\n📦 Min Order: ${moq} ${product.unit}s\n🏬 Supplier: ${wholesaler?.name ?? "Ristoka Wholesale"}\n\nPlease confirm availability and delivery.`;
 
-  const shareMessage = `Check out ${product.name} on StockLink!\n\nWholesale Price: KSh ${displayPrice.toLocaleString()} per ${product.unit}\nMin Order: ${moq} ${product.unit}s\n${product.stock > 0 ? "✅ In Stock" : "❌ Out of Stock"}`;
+  const shareMessage = `Check out ${product.name} on Ristoka!\n\nWholesale Price: KSh ${displayPrice.toLocaleString()} per ${product.unit}\nMin Order: ${moq} ${product.unit}s\n${product.stock > 0 ? "✅ In Stock" : "❌ Out of Stock"}`;
 
   return (
     <div className="mx-auto max-w-3xl">

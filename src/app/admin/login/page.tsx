@@ -47,7 +47,7 @@ export default function AdminLoginPage() {
                   id="email"
                   name="email"
                   type="email"
-                  placeholder="admin@stocklink.co"
+                  placeholder="admin@ristoka.co"
                   className="pl-10"
                   autoComplete="email"
                   required

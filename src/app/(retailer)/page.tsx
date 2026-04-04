@@ -60,7 +60,7 @@ export default async function HomePage() {
       {/* Hero search area */}
       <div className="space-y-1">
         <h1 className="text-xl font-bold text-foreground">
-          Welcome to <span className="text-primary">StockLink</span>
+          Welcome to <span className="text-primary">Ristoka</span>
         </h1>
         <p className="text-sm text-muted-foreground">
           Wholesale prices for retailers — buy in bulk, save more

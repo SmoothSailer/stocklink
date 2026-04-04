@@ -404,7 +404,7 @@ export default function SalesRepsPage() {
               <Input
                 name="email"
                 type="email"
-                placeholder="amina@stocklink.co"
+                placeholder="amina@ristoka.co"
                 defaultValue={editingRep?.email ?? ""}
               />
             </div>
