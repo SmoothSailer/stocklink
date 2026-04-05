@@ -16,15 +16,15 @@ const siteUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://ristoka.com";
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title: {
-    default: "Ristoka — Wholesale Brokerage Platform in Kenya",
+    default: "Ristoka — Wholesale Supply Made Easy",
     template: "%s | Ristoka",
   },
   description:
-    "Kenya's wholesale brokerage platform. Browse wholesale products, compare prices, and order via WhatsApp. Real-time stock visibility, fast delivery, and M-Pesa payments.",
+    "Kenya's wholesale supply platform. Browse products from wholesalers and manufacturers, compare prices, and order via WhatsApp. Real-time stock visibility, fast delivery, and M-Pesa payments.",
   keywords: [
     "wholesale",
     "retail",
-    "brokerage",
+    "supply chain",
     "wholesale Kenya",
     "wholesale products",
     "bulk buying",
@@ -50,7 +50,7 @@ export const metadata: Metadata = {
     locale: "en_KE",
     url: siteUrl,
     siteName: "Ristoka",
-    title: "Ristoka — Wholesale Brokerage Platform in Kenya",
+    title: "Ristoka — Wholesale Supply Made Easy",
     description:
       "Browse wholesale products, compare prices, and order via WhatsApp. Real-time stock visibility, fast delivery, and M-Pesa payments.",
     images: [
@@ -58,13 +58,13 @@ export const metadata: Metadata = {
         url: "/og-image.png",
         width: 1200,
         height: 630,
-        alt: "Ristoka — Wholesale Brokerage Platform",
+        alt: "Ristoka — Wholesale Supply Made Easy",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Ristoka — Wholesale Brokerage Platform in Kenya",
+    title: "Ristoka — Wholesale Supply Made Easy",
     description:
       "Browse wholesale products, compare prices, and order via WhatsApp. Real-time stock, fast delivery.",
     images: ["/og-image.png"],

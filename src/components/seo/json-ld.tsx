@@ -14,7 +14,7 @@ export function OrganizationJsonLd() {
     url: siteUrl,
     logo: `${siteUrl}/icon.svg`,
     description:
-      "Kenya's wholesale brokerage platform connecting wholesalers and retailers.",
+      "Kenya's wholesale supply platform connecting wholesalers, manufacturers, and retailers.",
     sameAs: [],
     contactPoint: {
       "@type": "ContactPoint",

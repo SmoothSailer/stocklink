@@ -104,7 +104,7 @@ export default function AdminDashboard() {
       <div>
         <h1 className="text-2xl font-bold">Dashboard</h1>
         <p className="text-sm text-muted-foreground">
-          Overview of your wholesale brokerage operations
+          Overview of your wholesale supply operations
         </p>
       </div>
 

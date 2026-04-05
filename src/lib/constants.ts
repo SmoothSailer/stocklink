@@ -2,7 +2,7 @@
 
 export const APP_NAME = "Ristoka";
 export const APP_DESCRIPTION =
-  "Wholesale Brokerage Platform connecting wholesalers and retailers";
+  "Wholesale supply made easy — connecting wholesalers and retailers";
 
 // WhatsApp
 export const WHATSAPP_BASE_URL = "https://wa.me";
