@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -5,6 +6,11 @@ import { getOrders } from "../actions";
 import { formatPrice, timeAgo } from "@/lib/utils";
 import { ORDER_STATUSES } from "@/lib/constants";
 import { ChevronRight, Package } from "lucide-react";
+
+export const metadata: Metadata = {
+  title: "My Orders",
+  robots: { index: false, follow: false },
+};
 
 export default async function OrdersPage() {
   const orders = await getOrders();

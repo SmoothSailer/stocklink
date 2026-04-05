@@ -1,6 +1,12 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { getProductById } from "../../actions";
 import OrderConfirmClient from "./order-confirm-client";
+
+export const metadata: Metadata = {
+  title: "Confirm Order",
+  robots: { index: false, follow: false },
+};
 
 interface OrderConfirmPageProps {
   searchParams: Promise<{ product?: string; qty?: string }>;

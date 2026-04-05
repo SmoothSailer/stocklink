@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { ShoppingBag } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -19,6 +20,26 @@ import { APP_NAME } from "@/lib/constants";
 
 interface WholesalerPageProps {
   params: Promise<{ id: string }>;
+}
+
+export async function generateMetadata({
+  params,
+}: WholesalerPageProps): Promise<Metadata> {
+  const { id } = await params;
+  const wholesaler = await getWholesalerById(id);
+
+  if (!wholesaler) {
+    return { title: "Wholesaler Not Found" };
+  }
+
+  const title = `${wholesaler.name} — Wholesale Supplier`;
+  const description = `Browse wholesale products from ${wholesaler.name}${wholesaler.location ? ` in ${wholesaler.location}` : ""}. Order via WhatsApp on ${APP_NAME}.`;
+
+  return {
+    title,
+    description,
+    openGraph: { title, description },
+  };
 }
 
 export default async function WholesalerPage({ params }: WholesalerPageProps) {
