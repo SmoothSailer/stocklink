@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -7,6 +8,11 @@ import { WhatsAppButton } from "@/components/shared/whatsapp-button";
 import { getOrderById } from "../../actions";
 import { formatPrice, getCategoryIcon } from "@/lib/utils";
 import { ORDER_STATUSES } from "@/lib/constants";
+
+export const metadata: Metadata = {
+  title: "Order Details",
+  robots: { index: false, follow: false },
+};
 
 interface OrderDetailPageProps {
   params: Promise<{ id: string }>;
