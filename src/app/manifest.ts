@@ -2,7 +2,7 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Ristoka — Wholesale Brokerage Platform",
+    name: "Ristoka — Wholesale Supply Made Easy",
     short_name: "Ristoka",
     description:
       "Browse wholesale products, compare prices, and order via WhatsApp.",
