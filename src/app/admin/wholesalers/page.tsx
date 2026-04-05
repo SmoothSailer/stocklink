@@ -11,6 +11,7 @@ import {
   MapPin,
   UserCheck,
   MessageCircle,
+  Send,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -37,6 +38,8 @@ import {
   updateWholesaler,
   deleteWholesaler,
 } from "@/app/admin/actions";
+import { buildWholesalerWelcome } from "@/lib/welcome-messages";
+import { buildWhatsAppLink } from "@/lib/utils";
 import type { SalesRep } from "@/types/database";
 
 interface WholesalerWithRep {
@@ -60,6 +63,8 @@ export default function WholesalersPage() {
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [welcomeWholesaler, setWelcomeWholesaler] =
+    useState<WholesalerWithRep | null>(null);
 
   const loadData = useCallback(async () => {
     try {
@@ -106,6 +111,11 @@ export default function WholesalersPage() {
       setDialogOpen(false);
       setEditingWholesaler(null);
       await loadData();
+
+      // Show welcome dialog for newly created wholesalers
+      if (!editingWholesaler && result.data) {
+        setWelcomeWholesaler(result.data as WholesalerWithRep);
+      }
     } catch {
       setFormError("An unexpected error occurred");
     } finally {
@@ -119,6 +129,18 @@ export default function WholesalersPage() {
       setDeleteConfirmId(null);
       await loadData();
     }
+  }
+
+  function sendWelcome(wholesaler: WholesalerWithRep) {
+    const message = buildWholesalerWelcome({
+      id: wholesaler.id,
+      name: wholesaler.name,
+      sales_reps: wholesaler.sales_reps,
+    });
+    const phone = wholesaler.phone?.replace(/[\s\-+]/g, "");
+    if (!phone) return;
+    const link = buildWhatsAppLink(message, phone);
+    window.open(link, "_blank", "noopener,noreferrer");
   }
 
   function openEdit(wholesaler: WholesalerWithRep) {
@@ -327,6 +349,17 @@ export default function WholesalersPage() {
                         </div>
                       ) : (
                         <div className="flex justify-end gap-1">
+                          {wholesaler.phone && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-[#25D366] hover:text-[#25D366]"
+                              title="Send Welcome via WhatsApp"
+                              onClick={() => sendWelcome(wholesaler)}
+                            >
+                              <Send className="h-3.5 w-3.5" />
+                            </Button>
+                          )}
                           <Button
                             variant="ghost"
                             size="icon"
@@ -442,6 +475,72 @@ export default function WholesalersPage() {
               </Button>
             </div>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Welcome Message Dialog */}
+      <Dialog
+        open={!!welcomeWholesaler}
+        onOpenChange={(open) => {
+          if (!open) setWelcomeWholesaler(null);
+        }}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <MessageCircle className="h-5 w-5 text-[#25D366]" />
+              Welcome {welcomeWholesaler?.name}!
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              {welcomeWholesaler?.name} has been added as a wholesaler
+              {welcomeWholesaler?.sales_reps
+                ? ` with ${welcomeWholesaler.sales_reps.name} as their sales rep`
+                : ""}
+              . Send them a welcome message via WhatsApp with their inventory
+              link and team info.
+            </p>
+            <div className="rounded-lg border bg-muted/50 p-3">
+              <p className="mb-1 text-xs font-medium text-muted-foreground">
+                Preview:
+              </p>
+              <p className="whitespace-pre-line text-xs">
+                {welcomeWholesaler &&
+                  buildWholesalerWelcome({
+                    id: welcomeWholesaler.id,
+                    name: welcomeWholesaler.name,
+                    sales_reps: welcomeWholesaler.sales_reps,
+                  }).slice(0, 250)}
+                ...
+              </p>
+            </div>
+            {!welcomeWholesaler?.phone && (
+              <p className="text-xs text-orange-600">
+                No phone number set for this wholesaler. Add one first to send
+                via WhatsApp.
+              </p>
+            )}
+            <div className="flex justify-end gap-2">
+              <Button
+                variant="outline"
+                onClick={() => setWelcomeWholesaler(null)}
+              >
+                Skip
+              </Button>
+              <Button
+                className="gap-2 bg-[#25D366] hover:bg-[#1da851] text-white"
+                disabled={!welcomeWholesaler?.phone}
+                onClick={() => {
+                  if (welcomeWholesaler) sendWelcome(welcomeWholesaler);
+                  setWelcomeWholesaler(null);
+                }}
+              >
+                <Send className="h-4 w-4" />
+                Send via WhatsApp
+              </Button>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

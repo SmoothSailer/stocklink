@@ -170,23 +170,23 @@ export async function createSalesRep(formData: FormData) {
   const bio = formData.get("bio") as string | null;
 
   if (!name?.trim() || !phone?.trim() || !whatsapp_phone?.trim()) {
-    return { error: "Name, phone, and WhatsApp phone are required" };
+    return { error: "Name, phone, and WhatsApp phone are required", data: null };
   }
 
   // Normalize WhatsApp phone: strip +, spaces, dashes
   const normalizedWhatsApp = whatsapp_phone.trim().replace(/[\s\-+]/g, "");
 
-  const { error } = await supabase.from("sales_reps").insert({
+  const { data, error } = await supabase.from("sales_reps").insert({
     name: name.trim(),
     phone: phone.trim(),
     whatsapp_phone: normalizedWhatsApp,
     email: email?.trim() || null,
     bio: bio?.trim() || null,
-  });
+  }).select().single();
 
-  if (error) return { error: error.message };
+  if (error) return { error: error.message, data: null };
   revalidatePath("/admin/sales-reps");
-  return { error: null };
+  return { error: null, data };
 }
 
 export async function updateSalesRep(id: string, formData: FormData) {
@@ -199,7 +199,7 @@ export async function updateSalesRep(id: string, formData: FormData) {
   const is_active = formData.get("is_active") === "true";
 
   if (!name?.trim() || !phone?.trim() || !whatsapp_phone?.trim()) {
-    return { error: "Name, phone, and WhatsApp phone are required" };
+    return { error: "Name, phone, and WhatsApp phone are required", data: null };
   }
 
   const normalizedWhatsApp = whatsapp_phone.trim().replace(/[\s\-+]/g, "");
@@ -216,9 +216,9 @@ export async function updateSalesRep(id: string, formData: FormData) {
     })
     .eq("id", id);
 
-  if (error) return { error: error.message };
+  if (error) return { error: error.message, data: null };
   revalidatePath("/admin/sales-reps");
-  return { error: null };
+  return { error: null, data: null };
 }
 
 export async function deleteSalesRep(id: string) {
@@ -248,20 +248,22 @@ export async function createWholesaler(formData: FormData) {
   const phone = formData.get("phone") as string | null;
   const sales_rep_id = formData.get("sales_rep_id") as string | null;
 
-  if (!name?.trim()) return { error: "Name is required" };
+  if (!name?.trim()) return { error: "Name is required", data: null };
 
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from("wholesalers")
     .insert({
       name: name.trim(),
       location: location?.trim() || null,
       phone: phone?.trim() || null,
       sales_rep_id: sales_rep_id || null,
-    });
+    })
+    .select("*, sales_reps(id, name, whatsapp_phone)")
+    .single();
 
-  if (error) return { error: error.message };
+  if (error) return { error: error.message, data: null };
   revalidatePath("/admin/wholesalers");
-  return { error: null };
+  return { error: null, data };
 }
 
 export async function updateWholesaler(id: string, formData: FormData) {
@@ -271,7 +273,7 @@ export async function updateWholesaler(id: string, formData: FormData) {
   const phone = formData.get("phone") as string | null;
   const sales_rep_id = formData.get("sales_rep_id") as string | null;
 
-  if (!name?.trim()) return { error: "Name is required" };
+  if (!name?.trim()) return { error: "Name is required", data: null };
 
   const { error } = await supabase
     .from("wholesalers")
@@ -283,9 +285,9 @@ export async function updateWholesaler(id: string, formData: FormData) {
     })
     .eq("id", id);
 
-  if (error) return { error: error.message };
+  if (error) return { error: error.message, data: null };
   revalidatePath("/admin/wholesalers");
-  return { error: null };
+  return { error: null, data: null };
 }
 
 export async function deleteWholesaler(id: string) {

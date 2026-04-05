@@ -11,6 +11,7 @@ import {
   MessageCircle,
   Mail,
   UserX,
+  Send,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -36,6 +37,8 @@ import {
   updateSalesRep,
   deleteSalesRep,
 } from "@/app/admin/actions";
+import { buildSalesRepWelcome } from "@/lib/welcome-messages";
+import { buildWhatsAppLink } from "@/lib/utils";
 import type { SalesRep } from "@/types/database";
 
 export default function SalesRepsPage() {
@@ -47,6 +50,7 @@ export default function SalesRepsPage() {
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [welcomeRep, setWelcomeRep] = useState<SalesRep | null>(null);
 
   const loadReps = useCallback(async () => {
     try {
@@ -96,6 +100,11 @@ export default function SalesRepsPage() {
       setDialogOpen(false);
       setEditingRep(null);
       await loadReps();
+
+      // Show welcome dialog for newly created reps
+      if (!editingRep && result.data) {
+        setWelcomeRep(result.data);
+      }
     } catch {
       setFormError("An unexpected error occurred");
     } finally {
@@ -109,6 +118,15 @@ export default function SalesRepsPage() {
       setDeleteConfirmId(null);
       await loadReps();
     }
+  }
+
+  function sendWelcome(rep: SalesRep) {
+    const message = buildSalesRepWelcome({
+      name: rep.name,
+      whatsapp_phone: rep.whatsapp_phone,
+    });
+    const link = buildWhatsAppLink(message, rep.whatsapp_phone);
+    window.open(link, "_blank", "noopener,noreferrer");
   }
 
   async function toggleActive(rep: SalesRep) {
@@ -319,6 +337,15 @@ export default function SalesRepsPage() {
                           <Button
                             variant="ghost"
                             size="icon"
+                            className="h-8 w-8 text-[#25D366] hover:text-[#25D366]"
+                            title="Send Welcome via WhatsApp"
+                            onClick={() => sendWelcome(rep)}
+                          >
+                            <Send className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
                             className="h-8 w-8"
                             onClick={() => openEdit(rep)}
                           >
@@ -436,6 +463,60 @@ export default function SalesRepsPage() {
               </Button>
             </div>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Welcome Message Dialog */}
+      <Dialog
+        open={!!welcomeRep}
+        onOpenChange={(open) => {
+          if (!open) setWelcomeRep(null);
+        }}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <MessageCircle className="h-5 w-5 text-[#25D366]" />
+              Welcome {welcomeRep?.name}!
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              {welcomeRep?.name} has been added as a sales rep. Send them a
+              welcome message via WhatsApp with their team details.
+            </p>
+            <div className="rounded-lg border bg-muted/50 p-3">
+              <p className="mb-1 text-xs font-medium text-muted-foreground">
+                Preview:
+              </p>
+              <p className="whitespace-pre-line text-xs">
+                {welcomeRep &&
+                  buildSalesRepWelcome({
+                    name: welcomeRep.name,
+                    whatsapp_phone: welcomeRep.whatsapp_phone,
+                  }).slice(0, 200)}
+                ...
+              </p>
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button
+                variant="outline"
+                onClick={() => setWelcomeRep(null)}
+              >
+                Skip
+              </Button>
+              <Button
+                className="gap-2 bg-[#25D366] hover:bg-[#1da851] text-white"
+                onClick={() => {
+                  if (welcomeRep) sendWelcome(welcomeRep);
+                  setWelcomeRep(null);
+                }}
+              >
+                <Send className="h-4 w-4" />
+                Send via WhatsApp
+              </Button>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
     </div>
