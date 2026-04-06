@@ -1,6 +1,6 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
-import { CURRENCY, WHATSAPP_BASE_URL, WHATSAPP_PHONE, PRODUCT_CATEGORIES } from "./constants";
+import { CURRENCY, WHATSAPP_PHONE, PRODUCT_CATEGORIES } from "./constants";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -17,8 +17,9 @@ export function formatPrice(price: number): string {
 /** Build a WhatsApp deep link with pre-filled message */
 export function buildWhatsAppLink(message: string, phone?: string): string {
   const encodedMessage = encodeURIComponent(message);
-  const target = phone ?? WHATSAPP_PHONE;
-  return `${WHATSAPP_BASE_URL}/${target}?text=${encodedMessage}`;
+  // Strip anything that isn't a digit so wa.me/api work correctly
+  const target = (phone ?? WHATSAPP_PHONE).replace(/\D/g, "");
+  return `https://api.whatsapp.com/send?phone=${target}&text=${encodedMessage}`;
 }
 
 /** Get a human-readable relative time string */
