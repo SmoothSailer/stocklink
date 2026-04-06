@@ -8,7 +8,22 @@ const siteUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://ristoka.com";
 export function buildSalesRepWelcome(rep: {
   name: string;
   whatsapp_phone: string;
+  email?: string;
+  password?: string;
 }): string {
+  const loginSection =
+    rep.email && rep.password
+      ? [
+          "",
+          "🔐 *Your Dashboard Login:*",
+          `${siteUrl}/sales-rep/login`,
+          `📧 *Email:* ${rep.email}`,
+          `🔑 *Password:* ${rep.password}`,
+          "",
+          "⚠️ Please change your password after your first login. Keep these credentials private.",
+        ]
+      : [];
+
   return [
     `Hi ${rep.name}! 👋`,
     "",
@@ -20,8 +35,10 @@ export function buildSalesRepWelcome(rep: {
     "• Receive and confirm orders from retailers via WhatsApp",
     "• Coordinate deliveries with the operations team",
     "• Maintain relationships with assigned wholesalers",
+    "• Onboard new wholesalers and manage their inventory",
     "",
     `📱 *Your WhatsApp:* ${rep.whatsapp_phone}`,
+    ...loginSection,
     "",
     `🔗 *Platform:* ${siteUrl}`,
     "",

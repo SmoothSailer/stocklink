@@ -168,6 +168,7 @@ export async function createSalesRep(formData: FormData) {
   const whatsapp_phone = formData.get("whatsapp_phone") as string;
   const email = formData.get("email") as string | null;
   const bio = formData.get("bio") as string | null;
+  const password = formData.get("password") as string | null;
 
   if (!name?.trim() || !phone?.trim() || !whatsapp_phone?.trim()) {
     return { error: "Name, phone, and WhatsApp phone are required", data: null };
@@ -176,12 +177,32 @@ export async function createSalesRep(formData: FormData) {
   // Normalize WhatsApp phone: strip +, spaces, dashes
   const normalizedWhatsApp = whatsapp_phone.trim().replace(/[\s\-+]/g, "");
 
+  // If email + password provided, create a Supabase Auth user for dashboard access
+  let userId: string | null = null;
+  if (email?.trim() && password?.trim()) {
+    if (password.trim().length < 6) {
+      return { error: "Password must be at least 6 characters", data: null };
+    }
+    const { data: authData, error: authError } =
+      await supabase.auth.admin.createUser({
+        email: email.trim().toLowerCase(),
+        password: password.trim(),
+        email_confirm: true,
+        user_metadata: { full_name: name.trim(), role: "sales_rep" },
+      });
+    if (authError) {
+      return { error: `Auth error: ${authError.message}`, data: null };
+    }
+    userId = authData.user.id;
+  }
+
   const { data, error } = await supabase.from("sales_reps").insert({
     name: name.trim(),
     phone: phone.trim(),
     whatsapp_phone: normalizedWhatsApp,
     email: email?.trim() || null,
     bio: bio?.trim() || null,
+    user_id: userId,
   }).select().single();
 
   if (error) return { error: error.message, data: null };
@@ -223,8 +244,71 @@ export async function updateSalesRep(id: string, formData: FormData) {
 
 export async function deleteSalesRep(id: string) {
   const supabase = createAdminClient();
+
+  // If the rep has a linked auth user, delete that user first
+  const { data: rep } = await supabase
+    .from("sales_reps")
+    .select("user_id")
+    .eq("id", id)
+    .single();
+
+  if (rep?.user_id) {
+    await supabase.auth.admin.deleteUser(rep.user_id, false);
+  }
+
   const { error } = await supabase.from("sales_reps").delete().eq("id", id);
   if (error) return { error: error.message };
+  revalidatePath("/admin/sales-reps");
+  return { error: null };
+}
+
+export async function resetSalesRepPassword(repId: string, newPassword: string) {
+  const supabase = createAdminClient();
+
+  if (!newPassword || newPassword.length < 6) {
+    return { error: "Password must be at least 6 characters" };
+  }
+
+  const { data: rep, error: fetchError } = await supabase
+    .from("sales_reps")
+    .select("user_id")
+    .eq("id", repId)
+    .single();
+
+  if (fetchError || !rep) return { error: "Sales rep not found" };
+  if (!rep.user_id) return { error: "This rep does not have dashboard access" };
+
+  const { error } = await supabase.auth.admin.updateUserById(rep.user_id, {
+    password: newPassword,
+  });
+
+  if (error) return { error: error.message };
+  return { error: null };
+}
+
+export async function revokeSalesRepAccess(repId: string) {
+  const supabase = createAdminClient();
+
+  const { data: rep, error: fetchError } = await supabase
+    .from("sales_reps")
+    .select("user_id")
+    .eq("id", repId)
+    .single();
+
+  if (fetchError || !rep) return { error: "Sales rep not found" };
+  if (!rep.user_id) return { error: "This rep does not have dashboard access" };
+
+  // Hard-delete the auth user so the email can be reused
+  const { error: authError } = await supabase.auth.admin.deleteUser(rep.user_id, false);
+  if (authError) return { error: authError.message };
+
+  // Clear user_id on the sales_reps record
+  const { error: updateError } = await supabase
+    .from("sales_reps")
+    .update({ user_id: null })
+    .eq("id", repId);
+
+  if (updateError) return { error: updateError.message };
   revalidatePath("/admin/sales-reps");
   return { error: null };
 }

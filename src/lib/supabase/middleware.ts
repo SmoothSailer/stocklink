@@ -65,6 +65,21 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(adminUrl);
   }
 
+  // ─── Sales rep protected routes ───
+  const isSalesRepDashboard = pathname.startsWith("/sales-rep/dashboard");
+  if (isSalesRepDashboard && !user) {
+    const loginUrl = request.nextUrl.clone();
+    loginUrl.pathname = "/sales-rep/login";
+    return NextResponse.redirect(loginUrl);
+  }
+
+  // Redirect authenticated user away from sales-rep login
+  if (pathname === "/sales-rep/login" && user) {
+    const dashUrl = request.nextUrl.clone();
+    dashUrl.pathname = "/sales-rep/dashboard";
+    return NextResponse.redirect(dashUrl);
+  }
+
   // ─── Regular protected routes ───
   const isProtectedRoute = PROTECTED_ROUTES.some((route) =>
     pathname.startsWith(route)
