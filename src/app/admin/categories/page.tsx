@@ -151,60 +151,60 @@ export default function CategoriesPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Page header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Categories</h1>
-          <p className="text-sm text-muted-foreground">
+          <h1 className="text-xl font-bold sm:text-2xl">Categories</h1>
+          <p className="text-xs text-muted-foreground sm:text-sm">
             Manage product categories displayed to retailers
           </p>
         </div>
-        <Button className="gap-2" onClick={openAdd}>
+        <Button className="w-full gap-2 sm:w-auto" onClick={openAdd}>
           <Plus className="h-4 w-4" />
           Add Category
         </Button>
       </div>
 
       {/* Stats cards */}
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid grid-cols-3 gap-2 sm:gap-4">
         <Card>
-          <CardContent className="flex items-center gap-3 p-4">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-              <Tag className="h-5 w-5 text-primary" />
+          <CardContent className="flex items-center gap-2 p-3 sm:gap-3 sm:p-4">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 sm:h-10 sm:w-10">
+              <Tag className="h-4 w-4 text-primary sm:h-5 sm:w-5" />
             </div>
-            <div>
-              <p className="text-2xl font-bold">{totalCategories}</p>
-              <p className="text-xs text-muted-foreground">Total Categories</p>
+            <div className="min-w-0">
+              <p className="text-lg font-bold sm:text-2xl">{totalCategories}</p>
+              <p className="truncate text-[10px] text-muted-foreground sm:text-xs">Total</p>
             </div>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="flex items-center gap-3 p-4">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-green-100">
-              <CheckCircle className="h-5 w-5 text-green-600" />
+          <CardContent className="flex items-center gap-2 p-3 sm:gap-3 sm:p-4">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-green-100 sm:h-10 sm:w-10">
+              <CheckCircle className="h-4 w-4 text-green-600 sm:h-5 sm:w-5" />
             </div>
-            <div>
-              <p className="text-2xl font-bold">{activeCategories}</p>
-              <p className="text-xs text-muted-foreground">Active</p>
+            <div className="min-w-0">
+              <p className="text-lg font-bold sm:text-2xl">{activeCategories}</p>
+              <p className="truncate text-[10px] text-muted-foreground sm:text-xs">Active</p>
             </div>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="flex items-center gap-3 p-4">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gray-100">
-              <XCircle className="h-5 w-5 text-gray-500" />
+          <CardContent className="flex items-center gap-2 p-3 sm:gap-3 sm:p-4">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gray-100 sm:h-10 sm:w-10">
+              <XCircle className="h-4 w-4 text-gray-500 sm:h-5 sm:w-5" />
             </div>
-            <div>
-              <p className="text-2xl font-bold">{inactiveCategories}</p>
-              <p className="text-xs text-muted-foreground">Inactive</p>
+            <div className="min-w-0">
+              <p className="text-lg font-bold sm:text-2xl">{inactiveCategories}</p>
+              <p className="truncate text-[10px] text-muted-foreground sm:text-xs">Inactive</p>
             </div>
           </CardContent>
         </Card>
       </div>
 
       {/* Search */}
-      <div className="relative max-w-sm">
+      <div className="relative sm:max-w-sm">
         <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
         <Input
           placeholder="Search categories..."
@@ -214,8 +214,65 @@ export default function CategoriesPage() {
         />
       </div>
 
-      {/* Table */}
-      <Card>
+      {/* ─── Mobile Card List ─── */}
+      <div className="space-y-3 lg:hidden">
+        {filtered.length === 0 ? (
+          <Card>
+            <CardContent className="flex flex-col items-center justify-center py-12 text-center">
+              <Tag className="mb-2 h-8 w-8 text-muted-foreground" />
+              <p className="font-medium">No categories found</p>
+              <p className="text-sm text-muted-foreground">
+                {search ? "Try a different search" : "Add your first category"}
+              </p>
+            </CardContent>
+          </Card>
+        ) : (
+          filtered.map((cat) => (
+            <Card key={cat.id} className={cat.is_active ? "" : "opacity-60"}>
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <span className="text-2xl">{cat.icon}</span>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <p className="truncate text-sm font-semibold">{cat.name}</p>
+                      <Badge
+                        variant={cat.is_active ? "default" : "secondary"}
+                        className="shrink-0 cursor-pointer text-[10px]"
+                        onClick={() => handleToggleActive(cat)}
+                      >
+                        {cat.is_active ? "Active" : "Inactive"}
+                      </Badge>
+                    </div>
+                    <div className="mt-0.5 flex items-center gap-2 text-xs text-muted-foreground">
+                      <code className="rounded bg-muted px-1 text-[10px]">{cat.slug}</code>
+                      <span>· Order: {cat.sort_order}</span>
+                    </div>
+                  </div>
+                  <div className="flex gap-1">
+                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(cat)}>
+                      <Edit className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-destructive hover:text-destructive"
+                      onClick={() => {
+                        if (deleteConfirmId === cat.id) handleDelete(cat.id);
+                        else setDeleteConfirmId(cat.id);
+                      }}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))
+        )}
+      </div>
+
+      {/* ─── Desktop Table ─── */}
+      <Card className="hidden lg:block">
         <Table>
           <TableHeader>
             <TableRow>
@@ -318,7 +375,7 @@ export default function CategoriesPage() {
           if (!open) setEditingCategory(null);
         }}
       >
-        <DialogContent>
+        <DialogContent className="max-h-[90dvh] overflow-y-auto max-w-[calc(100vw-2rem)] sm:max-w-md">
           <DialogHeader>
             <DialogTitle>
               {editingCategory ? "Edit Category" : "Add Category"}

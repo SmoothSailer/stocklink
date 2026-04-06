@@ -103,18 +103,78 @@ export default function AdminOrdersPage() {
     await loadOrders();
   }
 
+  function OrderActions({ order }: { order: OrderWithItems }) {
+    return (
+      <div className="flex gap-1">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8"
+          title="View order"
+          onClick={() => setDetailOrder(order)}
+        >
+          <Eye className="h-3.5 w-3.5" />
+        </Button>
+        {order.status === "placed" && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 text-primary hover:text-primary"
+            title="Confirm order"
+            onClick={() => handleStatusUpdate(order.id, "confirmed")}
+          >
+            <CheckCircle2 className="h-3.5 w-3.5" />
+          </Button>
+        )}
+        {order.status === "confirmed" && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 text-primary hover:text-primary"
+            title="Mark out for delivery"
+            onClick={() => handleStatusUpdate(order.id, "out_for_delivery")}
+          >
+            <Truck className="h-3.5 w-3.5" />
+          </Button>
+        )}
+        {order.status === "out_for_delivery" && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 text-primary hover:text-primary"
+            title="Mark delivered"
+            onClick={() => handleStatusUpdate(order.id, "delivered")}
+          >
+            <CheckCircle2 className="h-3.5 w-3.5" />
+          </Button>
+        )}
+        {order.status !== "delivered" && order.status !== "cancelled" && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 text-destructive hover:text-destructive"
+            title="Cancel order"
+            onClick={() => handleStatusUpdate(order.id, "cancelled")}
+          >
+            <XCircle className="h-3.5 w-3.5" />
+          </Button>
+        )}
+      </div>
+    );
+  }
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold">Orders</h1>
-        <p className="text-sm text-muted-foreground">
+        <h1 className="text-xl font-bold sm:text-2xl">Orders</h1>
+        <p className="text-xs text-muted-foreground sm:text-sm">
           Manage orders, assign deliveries, and track status
         </p>
       </div>
 
       {/* Status summary */}
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+      <div className="flex gap-2 overflow-x-auto pb-1 sm:grid sm:grid-cols-3 sm:overflow-visible lg:grid-cols-5">
         {(
           Object.entries(ORDER_STATUSES) as [
             OrderStatus,
@@ -123,16 +183,16 @@ export default function AdminOrdersPage() {
         ).map(([status, info]) => (
           <Card
             key={status}
-            className={`cursor-pointer transition-all hover:shadow-sm ${
+            className={`min-w-[100px] shrink-0 cursor-pointer transition-all hover:shadow-sm sm:min-w-0 ${
               statusFilter === status ? "ring-2 ring-primary" : ""
             }`}
             onClick={() =>
               setStatusFilter(statusFilter === status ? "all" : status)
             }
           >
-            <CardContent className="p-3">
-              <p className="text-xs text-muted-foreground">{info.label}</p>
-              <p className="text-2xl font-bold">{statusCounts[status] ?? 0}</p>
+            <CardContent className="p-2.5 sm:p-3">
+              <p className="text-[10px] text-muted-foreground sm:text-xs">{info.label}</p>
+              <p className="text-lg font-bold sm:text-2xl">{statusCounts[status] ?? 0}</p>
             </CardContent>
           </Card>
         ))}
@@ -140,7 +200,7 @@ export default function AdminOrdersPage() {
 
       {/* Search & filter */}
       <div className="flex flex-col gap-3 sm:flex-row">
-        <div className="relative flex-1 max-w-sm">
+        <div className="relative flex-1 sm:max-w-sm">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             placeholder="Search orders..."
@@ -153,7 +213,7 @@ export default function AdminOrdersPage() {
           value={statusFilter}
           onValueChange={(val) => setStatusFilter(val ?? "all")}
         >
-          <SelectTrigger className="w-[180px]">
+          <SelectTrigger className="w-full sm:w-[180px]">
             <SelectValue placeholder="Filter by status" />
           </SelectTrigger>
           <SelectContent>
@@ -167,145 +227,139 @@ export default function AdminOrdersPage() {
         </Select>
       </div>
 
-      {/* Orders table */}
-      <Card>
-        <CardContent className="p-0">
-          {loading ? (
-            <div className="flex items-center justify-center py-12">
-              <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-            </div>
-          ) : filtered.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-12 text-center">
-              <ClipboardList className="mb-3 h-10 w-10 text-muted-foreground/50" />
-              <p className="text-sm font-medium text-muted-foreground">
-                {search || statusFilter !== "all"
-                  ? "No orders found"
-                  : "No orders yet"}
-              </p>
-            </div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Order ID</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Items</TableHead>
-                  <TableHead>Address</TableHead>
-                  <TableHead>Payment</TableHead>
-                  <TableHead className="text-right">Total</TableHead>
-                  <TableHead>Time</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filtered.map((order) => {
-                  const statusInfo = ORDER_STATUSES[order.status];
-                  return (
-                    <TableRow key={order.id}>
-                      <TableCell className="font-mono text-sm font-medium">
-                        #{order.id.slice(0, 6).toUpperCase()}
-                      </TableCell>
-                      <TableCell>
+      {/* Content */}
+      {loading ? (
+        <div className="flex items-center justify-center py-12">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+        </div>
+      ) : filtered.length === 0 ? (
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-12 text-center">
+            <ClipboardList className="mb-3 h-10 w-10 text-muted-foreground/50" />
+            <p className="text-sm font-medium text-muted-foreground">
+              {search || statusFilter !== "all"
+                ? "No orders found"
+                : "No orders yet"}
+            </p>
+          </CardContent>
+        </Card>
+      ) : (
+        <>
+          {/* ─── Mobile Card List ─── */}
+          <div className="space-y-3 lg:hidden">
+            {filtered.map((order) => {
+              const statusInfo = ORDER_STATUSES[order.status];
+              return (
+                <Card key={order.id}>
+                  <CardContent className="p-4">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <p className="font-mono text-sm font-semibold">
+                          #{order.id.slice(0, 6).toUpperCase()}
+                        </p>
+                        <p className="mt-0.5 text-xs text-muted-foreground">
+                          {timeAgo(order.created_at)}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm font-bold">
+                          {formatPrice(order.total)}
+                        </p>
                         <Badge
                           variant="secondary"
-                          className={`text-xs ${statusInfo.color}`}
+                          className={`mt-1 text-[10px] ${statusInfo.color}`}
                         >
                           {statusInfo.label}
                         </Badge>
-                      </TableCell>
-                      <TableCell className="text-sm text-muted-foreground">
-                        {order.order_items.length} item
-                        {order.order_items.length !== 1 ? "s" : ""}
-                      </TableCell>
-                      <TableCell className="max-w-[200px] truncate text-sm text-muted-foreground">
-                        {order.delivery_address}
-                      </TableCell>
-                      <TableCell className="text-sm capitalize">
-                        {order.payment_method}
-                      </TableCell>
-                      <TableCell className="text-right font-medium">
-                        {formatPrice(order.total)}
-                      </TableCell>
-                      <TableCell className="text-xs text-muted-foreground">
-                        {timeAgo(order.created_at)}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end gap-1">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8"
-                            title="View order"
-                            onClick={() => setDetailOrder(order)}
+                      </div>
+                    </div>
+                    <div className="mt-3 space-y-1.5 text-xs text-muted-foreground">
+                      <p className="truncate">
+                        📍 {order.delivery_address}
+                      </p>
+                      <p>
+                        📦 {order.order_items.length} item{order.order_items.length !== 1 ? "s" : ""} · <span className="capitalize">{order.payment_method}</span>
+                      </p>
+                    </div>
+                    <div className="mt-3 flex items-center justify-between border-t pt-3">
+                      <OrderActions order={order} />
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-8 gap-1 text-xs"
+                        onClick={() => setDetailOrder(order)}
+                      >
+                        <Eye className="h-3 w-3" /> Details
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+
+          {/* ─── Desktop Table ─── */}
+          <Card className="hidden lg:block">
+            <CardContent className="p-0">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Order ID</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Items</TableHead>
+                    <TableHead>Address</TableHead>
+                    <TableHead>Payment</TableHead>
+                    <TableHead className="text-right">Total</TableHead>
+                    <TableHead>Time</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filtered.map((order) => {
+                    const statusInfo = ORDER_STATUSES[order.status];
+                    return (
+                      <TableRow key={order.id}>
+                        <TableCell className="font-mono text-sm font-medium">
+                          #{order.id.slice(0, 6).toUpperCase()}
+                        </TableCell>
+                        <TableCell>
+                          <Badge
+                            variant="secondary"
+                            className={`text-xs ${statusInfo.color}`}
                           >
-                            <Eye className="h-3.5 w-3.5" />
-                          </Button>
-                          {order.status === "placed" && (
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8 text-primary hover:text-primary"
-                              title="Confirm order"
-                              onClick={() =>
-                                handleStatusUpdate(order.id, "confirmed")
-                              }
-                            >
-                              <CheckCircle2 className="h-3.5 w-3.5" />
-                            </Button>
-                          )}
-                          {order.status === "confirmed" && (
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8 text-primary hover:text-primary"
-                              title="Mark out for delivery"
-                              onClick={() =>
-                                handleStatusUpdate(
-                                  order.id,
-                                  "out_for_delivery"
-                                )
-                              }
-                            >
-                              <Truck className="h-3.5 w-3.5" />
-                            </Button>
-                          )}
-                          {order.status === "out_for_delivery" && (
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8 text-primary hover:text-primary"
-                              title="Mark delivered"
-                              onClick={() =>
-                                handleStatusUpdate(order.id, "delivered")
-                              }
-                            >
-                              <CheckCircle2 className="h-3.5 w-3.5" />
-                            </Button>
-                          )}
-                          {order.status !== "delivered" &&
-                            order.status !== "cancelled" && (
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-8 w-8 text-destructive hover:text-destructive"
-                                title="Cancel order"
-                                onClick={() =>
-                                  handleStatusUpdate(order.id, "cancelled")
-                                }
-                              >
-                                <XCircle className="h-3.5 w-3.5" />
-                              </Button>
-                            )}
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
+                            {statusInfo.label}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground">
+                          {order.order_items.length} item
+                          {order.order_items.length !== 1 ? "s" : ""}
+                        </TableCell>
+                        <TableCell className="max-w-[200px] truncate text-sm text-muted-foreground">
+                          {order.delivery_address}
+                        </TableCell>
+                        <TableCell className="text-sm capitalize">
+                          {order.payment_method}
+                        </TableCell>
+                        <TableCell className="text-right font-medium">
+                          {formatPrice(order.total)}
+                        </TableCell>
+                        <TableCell className="text-xs text-muted-foreground">
+                          {timeAgo(order.created_at)}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex justify-end">
+                            <OrderActions order={order} />
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </>
+      )}
 
       {/* Order detail dialog */}
       <Dialog
@@ -314,7 +368,7 @@ export default function AdminOrdersPage() {
           if (!open) setDetailOrder(null);
         }}
       >
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-h-[90dvh] overflow-y-auto max-w-[calc(100vw-2rem)] sm:max-w-md">
           <DialogHeader>
             <DialogTitle>
               Order #{detailOrder?.id.slice(0, 6).toUpperCase()}

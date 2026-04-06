@@ -56,23 +56,23 @@ export default function InventoryClient({ products: allProducts }: InventoryClie
   );
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Page header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Inventory</h1>
-          <p className="text-sm text-muted-foreground">
+          <h1 className="text-xl font-bold sm:text-2xl">Inventory</h1>
+          <p className="text-xs text-muted-foreground sm:text-sm">
             Manage products, stock levels, and pricing
           </p>
         </div>
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger
-            render={<Button className="gap-2" />}
+            render={<Button className="w-full gap-2 sm:w-auto" />}
           >
             <Plus className="h-4 w-4" />
             Add Product
           </DialogTrigger>
-          <DialogContent className="max-w-lg">
+          <DialogContent className="max-h-[90dvh] overflow-y-auto max-w-[calc(100vw-2rem)] sm:max-w-lg">
             <DialogHeader>
               <DialogTitle>Add New Product</DialogTitle>
             </DialogHeader>
@@ -133,55 +133,55 @@ export default function InventoryClient({ products: allProducts }: InventoryClie
       </div>
 
       {/* Stats cards */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-2 sm:gap-4 lg:grid-cols-4">
         <Card>
-          <CardContent className="flex items-center gap-3 p-4">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-              <Package className="h-5 w-5 text-primary" />
+          <CardContent className="flex items-center gap-2 p-3 sm:gap-3 sm:p-4">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 sm:h-10 sm:w-10">
+              <Package className="h-4 w-4 text-primary sm:h-5 sm:w-5" />
             </div>
-            <div>
-              <p className="text-2xl font-bold">{totalProducts}</p>
-              <p className="text-xs text-muted-foreground">Total Products</p>
+            <div className="min-w-0">
+              <p className="text-lg font-bold sm:text-2xl">{totalProducts}</p>
+              <p className="truncate text-[10px] text-muted-foreground sm:text-xs">Total Products</p>
             </div>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="flex items-center gap-3 p-4">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-orange-100">
-              <AlertTriangle className="h-5 w-5 text-orange-600" />
+          <CardContent className="flex items-center gap-2 p-3 sm:gap-3 sm:p-4">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-orange-100 sm:h-10 sm:w-10">
+              <AlertTriangle className="h-4 w-4 text-orange-600 sm:h-5 sm:w-5" />
             </div>
-            <div>
-              <p className="text-2xl font-bold">{lowStock}</p>
-              <p className="text-xs text-muted-foreground">Low Stock</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="flex items-center gap-3 p-4">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-red-100">
-              <Package className="h-5 w-5 text-destructive" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold">{outOfStock}</p>
-              <p className="text-xs text-muted-foreground">Out of Stock</p>
+            <div className="min-w-0">
+              <p className="text-lg font-bold sm:text-2xl">{lowStock}</p>
+              <p className="truncate text-[10px] text-muted-foreground sm:text-xs">Low Stock</p>
             </div>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="flex items-center gap-3 p-4">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-green-100">
-              <Package className="h-5 w-5 text-primary" />
+          <CardContent className="flex items-center gap-2 p-3 sm:gap-3 sm:p-4">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-red-100 sm:h-10 sm:w-10">
+              <Package className="h-4 w-4 text-destructive sm:h-5 sm:w-5" />
             </div>
-            <div>
-              <p className="text-2xl font-bold">{formatPrice(totalValue)}</p>
-              <p className="text-xs text-muted-foreground">Stock Value</p>
+            <div className="min-w-0">
+              <p className="text-lg font-bold sm:text-2xl">{outOfStock}</p>
+              <p className="truncate text-[10px] text-muted-foreground sm:text-xs">Out of Stock</p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="col-span-2 lg:col-span-1">
+          <CardContent className="flex items-center gap-2 p-3 sm:gap-3 sm:p-4">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-green-100 sm:h-10 sm:w-10">
+              <Package className="h-4 w-4 text-primary sm:h-5 sm:w-5" />
+            </div>
+            <div className="min-w-0">
+              <p className="truncate text-lg font-bold sm:text-2xl">{formatPrice(totalValue)}</p>
+              <p className="truncate text-[10px] text-muted-foreground sm:text-xs">Stock Value</p>
             </div>
           </CardContent>
         </Card>
       </div>
 
       {/* Search */}
-      <div className="relative max-w-sm">
+      <div className="relative sm:max-w-sm">
         <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
         <Input
           placeholder="Search products..."
@@ -191,8 +191,44 @@ export default function InventoryClient({ products: allProducts }: InventoryClie
         />
       </div>
 
-      {/* Table */}
-      <Card>
+      {/* ─── Mobile Card List ─── */}
+      <div className="space-y-3 lg:hidden">
+        {products.map((product) => {
+          const stockInfo = getStockInfo(product.stock, product.unit);
+          return (
+            <Card key={product.id}>
+              <CardContent className="p-4">
+                <div className="flex items-start gap-3">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-muted text-lg">
+                    {getCategoryIcon(product.category)}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-semibold">{product.name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {product.wholesalers?.name ?? "—"} · per {product.unit}
+                        </p>
+                      </div>
+                      <Badge variant={stockInfo.variant} className="shrink-0 text-[10px]">
+                        {product.stock}
+                      </Badge>
+                    </div>
+                    <div className="mt-2 flex items-center gap-3 text-xs">
+                      <span className="font-bold text-primary">{formatPrice(product.price)}</span>
+                      <Badge variant="outline" className="text-[10px] capitalize">{product.category}</Badge>
+                      <span className="text-muted-foreground">MOQ: {product.min_order_qty ?? 1}</span>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
+
+      {/* ─── Desktop Table ─── */}
+      <Card className="hidden lg:block">
         <CardContent className="p-0">
           <Table>
             <TableHeader>

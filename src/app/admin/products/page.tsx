@@ -251,7 +251,7 @@ export default function ProductsPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Error banner */}
       {formError && !dialogOpen && (
         <div className="flex items-center justify-between rounded-lg border border-destructive/50 bg-destructive/10 px-4 py-3">
@@ -263,62 +263,62 @@ export default function ProductsPage() {
       )}
 
       {/* Page header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Products</h1>
-          <p className="text-sm text-muted-foreground">
+          <h1 className="text-xl font-bold sm:text-2xl">Products</h1>
+          <p className="text-xs text-muted-foreground sm:text-sm">
             Manage products, stock levels, pricing, and images
           </p>
         </div>
-        <Button className="gap-2" onClick={openAdd}>
+        <Button className="w-full gap-2 sm:w-auto" onClick={openAdd}>
           <Plus className="h-4 w-4" />
           Add Product
         </Button>
       </div>
 
       {/* Stats cards */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-2 sm:gap-4 lg:grid-cols-4">
         <Card>
-          <CardContent className="flex items-center gap-3 p-4">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-              <Package className="h-5 w-5 text-primary" />
+          <CardContent className="flex items-center gap-2 p-3 sm:gap-3 sm:p-4">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 sm:h-10 sm:w-10">
+              <Package className="h-4 w-4 text-primary sm:h-5 sm:w-5" />
             </div>
-            <div>
-              <p className="text-2xl font-bold">{totalProducts}</p>
-              <p className="text-xs text-muted-foreground">Total Products</p>
+            <div className="min-w-0">
+              <p className="text-lg font-bold sm:text-2xl">{totalProducts}</p>
+              <p className="truncate text-[10px] text-muted-foreground sm:text-xs">Total Products</p>
             </div>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="flex items-center gap-3 p-4">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-orange-100">
-              <AlertTriangle className="h-5 w-5 text-orange-600" />
+          <CardContent className="flex items-center gap-2 p-3 sm:gap-3 sm:p-4">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-orange-100 sm:h-10 sm:w-10">
+              <AlertTriangle className="h-4 w-4 text-orange-600 sm:h-5 sm:w-5" />
             </div>
-            <div>
-              <p className="text-2xl font-bold">{lowStock}</p>
-              <p className="text-xs text-muted-foreground">Low Stock</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="flex items-center gap-3 p-4">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-red-100">
-              <Package className="h-5 w-5 text-destructive" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold">{outOfStock}</p>
-              <p className="text-xs text-muted-foreground">Out of Stock</p>
+            <div className="min-w-0">
+              <p className="text-lg font-bold sm:text-2xl">{lowStock}</p>
+              <p className="truncate text-[10px] text-muted-foreground sm:text-xs">Low Stock</p>
             </div>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="flex items-center gap-3 p-4">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-green-100">
-              <Package className="h-5 w-5 text-primary" />
+          <CardContent className="flex items-center gap-2 p-3 sm:gap-3 sm:p-4">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-red-100 sm:h-10 sm:w-10">
+              <Package className="h-4 w-4 text-destructive sm:h-5 sm:w-5" />
             </div>
-            <div>
-              <p className="text-2xl font-bold">{formatPrice(totalValue)}</p>
-              <p className="text-xs text-muted-foreground">Stock Value</p>
+            <div className="min-w-0">
+              <p className="text-lg font-bold sm:text-2xl">{outOfStock}</p>
+              <p className="truncate text-[10px] text-muted-foreground sm:text-xs">Out of Stock</p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="col-span-2 lg:col-span-1">
+          <CardContent className="flex items-center gap-2 p-3 sm:gap-3 sm:p-4">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-green-100 sm:h-10 sm:w-10">
+              <Package className="h-4 w-4 text-primary sm:h-5 sm:w-5" />
+            </div>
+            <div className="min-w-0">
+              <p className="truncate text-lg font-bold sm:text-2xl">{formatPrice(totalValue)}</p>
+              <p className="truncate text-[10px] text-muted-foreground sm:text-xs">Stock Value</p>
             </div>
           </CardContent>
         </Card>
@@ -326,7 +326,7 @@ export default function ProductsPage() {
 
       {/* Search & filter */}
       <div className="flex flex-col gap-3 sm:flex-row">
-        <div className="relative flex-1 max-w-sm">
+        <div className="relative flex-1 sm:max-w-sm">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             placeholder="Search products..."
@@ -339,7 +339,7 @@ export default function ProductsPage() {
           value={categoryFilter}
           onValueChange={(val) => setCategoryFilter(val ?? "all")}
         >
-          <SelectTrigger className="w-[180px]">
+          <SelectTrigger className="w-full sm:w-[180px]">
             <SelectValue placeholder="All Categories" />
           </SelectTrigger>
           <SelectContent>
@@ -353,28 +353,110 @@ export default function ProductsPage() {
         </Select>
       </div>
 
-      {/* Products table */}
-      <Card>
-        <CardContent className="p-0">
-          {loading ? (
-            <div className="flex items-center justify-center py-12">
-              <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-            </div>
-          ) : filtered.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-12 text-center">
-              <Package className="mb-3 h-10 w-10 text-muted-foreground/50" />
-              <p className="text-sm font-medium text-muted-foreground">
-                {search || categoryFilter !== "all"
-                  ? "No products found"
-                  : "No products yet"}
-              </p>
-              <p className="text-xs text-muted-foreground mt-1">
-                {search || categoryFilter !== "all"
-                  ? "Try different filters"
-                  : "Add your first product to get started"}
-              </p>
-            </div>
-          ) : (
+      {/* Products */}
+      {loading ? (
+        <div className="flex items-center justify-center py-12">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+        </div>
+      ) : filtered.length === 0 ? (
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-12 text-center">
+            <Package className="mb-3 h-10 w-10 text-muted-foreground/50" />
+            <p className="text-sm font-medium text-muted-foreground">
+              {search || categoryFilter !== "all"
+                ? "No products found"
+                : "No products yet"}
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">
+              {search || categoryFilter !== "all"
+                ? "Try different filters"
+                : "Add your first product to get started"}
+            </p>
+          </CardContent>
+        </Card>
+      ) : (
+        <>
+          {/* ─── Mobile Card List ─── */}
+          <div className="space-y-3 lg:hidden">
+            {filtered.map((product) => {
+              const stockInfo = getStockInfo(product.stock, product.unit);
+              return (
+                <Card key={product.id}>
+                  <CardContent className="p-4">
+                    <div className="flex items-start gap-3">
+                      {product.image_url ? (
+                        <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-lg">
+                          <Image
+                            src={product.image_url}
+                            alt={product.name}
+                            fill
+                            className="object-cover"
+                            sizes="48px"
+                          />
+                        </div>
+                      ) : (
+                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-muted text-xl">
+                          {getCategoryIcon(product.category)}
+                        </div>
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-semibold">{product.name}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {product.wholesalers?.name ?? "No wholesaler"} · per {product.unit}
+                            </p>
+                          </div>
+                          <Badge variant={stockInfo.variant} className="shrink-0 text-[10px]">
+                            {product.stock} {product.unit}s
+                          </Badge>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="mt-3 flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-bold text-primary">{formatPrice(product.price)}</span>
+                        <Badge variant="outline" className="text-[10px] capitalize">{product.category}</Badge>
+                        {product.is_trending && <span className="text-[10px]">🔥</span>}
+                        {product.is_flash_deal && <span className="text-[10px]">⚡</span>}
+                      </div>
+                      <p className="text-[10px] text-muted-foreground">MOQ: {product.min_order_qty}</p>
+                    </div>
+                    <div className="mt-3 flex gap-2 border-t pt-3">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-9 flex-1 gap-1.5 text-xs"
+                        onClick={() => openEdit(product)}
+                      >
+                        <Edit className="h-3.5 w-3.5" />
+                        Edit
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-9 gap-1.5 text-xs text-destructive hover:text-destructive"
+                        onClick={() => {
+                          if (deleteConfirmId === product.id) {
+                            handleDelete(product.id);
+                          } else {
+                            setDeleteConfirmId(product.id);
+                          }
+                        }}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                        {deleteConfirmId === product.id ? "Confirm" : "Delete"}
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+
+          {/* ─── Desktop Table ─── */}
+          <Card className="hidden lg:block">
+            <CardContent className="p-0">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -490,9 +572,10 @@ export default function ProductsPage() {
                 })}
               </TableBody>
             </Table>
-          )}
-        </CardContent>
-      </Card>
+            </CardContent>
+          </Card>
+        </>
+      )}
 
       {/* Add/Edit Dialog */}
       <Dialog
@@ -506,7 +589,7 @@ export default function ProductsPage() {
           }
         }}
       >
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-h-[90dvh] overflow-y-auto max-w-[calc(100vw-2rem)] sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>
               {editingProduct ? "Edit Product" : "Add New Product"}
