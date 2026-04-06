@@ -158,81 +158,73 @@ export default function WholesalersPage() {
   const assignedCount = wholesalers.filter((w) => w.sales_rep_id).length;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Wholesalers</h1>
-          <p className="text-sm text-muted-foreground">
+          <h1 className="text-xl font-bold sm:text-2xl">Wholesalers</h1>
+          <p className="text-xs text-muted-foreground sm:text-sm">
             Manage wholesaler partners and assign sales representatives
           </p>
         </div>
-        <Button className="gap-2" onClick={openAdd}>
+        <Button className="w-full gap-2 sm:w-auto" onClick={openAdd}>
           <Plus className="h-4 w-4" />
           Add Wholesaler
         </Button>
       </div>
 
       {/* Stats */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-2 sm:gap-4 lg:grid-cols-4">
         <Card>
-          <CardContent className="flex items-center gap-3 p-4">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-100">
-              <Store className="h-5 w-5 text-blue-600" />
+          <CardContent className="flex items-center gap-2 p-3 sm:gap-3 sm:p-4">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-100 sm:h-10 sm:w-10">
+              <Store className="h-4 w-4 text-blue-600 sm:h-5 sm:w-5" />
             </div>
-            <div>
-              <p className="text-2xl font-bold">{wholesalers.length}</p>
-              <p className="text-xs text-muted-foreground">
-                Total Wholesalers
-              </p>
+            <div className="min-w-0">
+              <p className="text-lg font-bold sm:text-2xl">{wholesalers.length}</p>
+              <p className="truncate text-[10px] text-muted-foreground sm:text-xs">Total Wholesalers</p>
             </div>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="flex items-center gap-3 p-4">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-green-100">
-              <UserCheck className="h-5 w-5 text-green-600" />
+          <CardContent className="flex items-center gap-2 p-3 sm:gap-3 sm:p-4">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-green-100 sm:h-10 sm:w-10">
+              <UserCheck className="h-4 w-4 text-green-600 sm:h-5 sm:w-5" />
             </div>
-            <div>
-              <p className="text-2xl font-bold">{assignedCount}</p>
-              <p className="text-xs text-muted-foreground">With Sales Rep</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="flex items-center gap-3 p-4">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-              <MapPin className="h-5 w-5 text-primary" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold">
-                {
-                  new Set(
-                    wholesalers.map((w) => w.location).filter(Boolean)
-                  ).size
-                }
-              </p>
-              <p className="text-xs text-muted-foreground">Locations</p>
+            <div className="min-w-0">
+              <p className="text-lg font-bold sm:text-2xl">{assignedCount}</p>
+              <p className="truncate text-[10px] text-muted-foreground sm:text-xs">With Sales Rep</p>
             </div>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="flex items-center gap-3 p-4">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-purple-100">
-              <Phone className="h-5 w-5 text-purple-600" />
+          <CardContent className="flex items-center gap-2 p-3 sm:gap-3 sm:p-4">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 sm:h-10 sm:w-10">
+              <MapPin className="h-4 w-4 text-primary sm:h-5 sm:w-5" />
             </div>
-            <div>
-              <p className="text-2xl font-bold">
-                {wholesalers.filter((w) => w.phone).length}
+            <div className="min-w-0">
+              <p className="text-lg font-bold sm:text-2xl">
+                {new Set(wholesalers.map((w) => w.location).filter(Boolean)).size}
               </p>
-              <p className="text-xs text-muted-foreground">With Contact</p>
+              <p className="truncate text-[10px] text-muted-foreground sm:text-xs">Locations</p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="flex items-center gap-2 p-3 sm:gap-3 sm:p-4">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-purple-100 sm:h-10 sm:w-10">
+              <Phone className="h-4 w-4 text-purple-600 sm:h-5 sm:w-5" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-lg font-bold sm:text-2xl">{wholesalers.filter((w) => w.phone).length}</p>
+              <p className="truncate text-[10px] text-muted-foreground sm:text-xs">With Contact</p>
             </div>
           </CardContent>
         </Card>
       </div>
 
       {/* Search */}
-      <div className="relative max-w-sm">
+      <div className="relative sm:max-w-sm">
         <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
         <Input
           placeholder="Search wholesalers or reps..."
@@ -243,25 +235,110 @@ export default function WholesalersPage() {
       </div>
 
       {/* Table */}
-      <Card>
-        <CardContent className="p-0">
-          {loading ? (
-            <div className="flex items-center justify-center py-12">
-              <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-            </div>
-          ) : filtered.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-12 text-center">
-              <Store className="mb-3 h-10 w-10 text-muted-foreground/50" />
-              <p className="text-sm font-medium text-muted-foreground">
-                {search ? "No wholesalers found" : "No wholesalers yet"}
-              </p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                {search
-                  ? "Try a different search term"
-                  : "Add your first wholesaler to get started"}
-              </p>
-            </div>
-          ) : (
+      {loading ? (
+        <div className="flex items-center justify-center py-12">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+        </div>
+      ) : filtered.length === 0 ? (
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-12 text-center">
+            <Store className="mb-3 h-10 w-10 text-muted-foreground/50" />
+            <p className="text-sm font-medium text-muted-foreground">
+              {search ? "No wholesalers found" : "No wholesalers yet"}
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {search
+                ? "Try a different search term"
+                : "Add your first wholesaler to get started"}
+            </p>
+          </CardContent>
+        </Card>
+      ) : (
+        <>
+          {/* ─── Mobile Card List ─── */}
+          <div className="space-y-3 lg:hidden">
+            {filtered.map((wholesaler) => (
+              <Card key={wholesaler.id}>
+                <CardContent className="p-4">
+                  <div className="flex items-start gap-3">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-blue-100">
+                      <Store className="h-4 w-4 text-blue-600" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-semibold">{wholesaler.name}</p>
+                      {wholesaler.location && (
+                        <div className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
+                          <MapPin className="h-3 w-3 shrink-0" />
+                          <span className="truncate">{wholesaler.location}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="mt-3 space-y-1.5 text-xs text-muted-foreground">
+                    {wholesaler.phone && (
+                      <div className="flex items-center gap-1.5">
+                        <Phone className="h-3 w-3 shrink-0" />
+                        <span>{wholesaler.phone}</span>
+                      </div>
+                    )}
+                    <div className="flex items-center gap-1.5">
+                      <UserCheck className="h-3 w-3 shrink-0" />
+                      {wholesaler.sales_reps ? (
+                        <span>{wholesaler.sales_reps.name}</span>
+                      ) : (
+                        <Badge variant="secondary" className="text-[10px] text-orange-600 bg-orange-50">
+                          Unassigned
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="mt-3 flex gap-2 border-t pt-3">
+                    {wholesaler.phone && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-9 flex-1 gap-1.5 text-xs"
+                        onClick={() => sendWelcome(wholesaler)}
+                      >
+                        <Send className="h-3.5 w-3.5 text-[#25D366]" />
+                        WhatsApp
+                      </Button>
+                    )}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-9 flex-1 gap-1.5 text-xs"
+                      onClick={() => openEdit(wholesaler)}
+                    >
+                      <Edit className="h-3.5 w-3.5" />
+                      Edit
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-9 gap-1.5 text-xs text-destructive hover:text-destructive"
+                      onClick={() => {
+                        if (deleteConfirmId === wholesaler.id) {
+                          handleDelete(wholesaler.id);
+                        } else {
+                          setDeleteConfirmId(wholesaler.id);
+                        }
+                      }}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                      {deleteConfirmId === wholesaler.id ? "Confirm" : ""}
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+
+          {/* ─── Desktop Table ─── */}
+          <Card className="hidden lg:block">
+            <CardContent className="p-0">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -383,9 +460,10 @@ export default function WholesalersPage() {
                 ))}
               </TableBody>
             </Table>
-          )}
-        </CardContent>
-      </Card>
+            </CardContent>
+          </Card>
+        </>
+      )}
 
       {/* Add/Edit Dialog */}
       <Dialog
@@ -398,7 +476,7 @@ export default function WholesalersPage() {
           }
         }}
       >
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-h-[90dvh] overflow-y-auto max-w-[calc(100vw-2rem)] sm:max-w-md">
           <DialogHeader>
             <DialogTitle>
               {editingWholesaler ? "Edit Wholesaler" : "Add Wholesaler"}
@@ -485,7 +563,7 @@ export default function WholesalersPage() {
           if (!open) setWelcomeWholesaler(null);
         }}
       >
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-h-[90dvh] overflow-y-auto max-w-[calc(100vw-2rem)] sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <MessageCircle className="h-5 w-5 text-[#25D366]" />
