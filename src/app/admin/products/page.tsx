@@ -43,13 +43,14 @@ import {
   getWholesalers,
   getCategories,
   getProductUnits,
+  getManufacturers,
   createProduct,
   updateProduct,
   deleteProduct,
 } from "@/app/admin/actions";
 import { uploadProductImage } from "@/lib/supabase/storage";
 import { formatPrice, getStockInfo } from "@/lib/utils";
-import type { Wholesaler, Category, ProductUnit } from "@/types/database";
+import type { Wholesaler, Category, ProductUnit, Manufacturer } from "@/types/database";
 
 interface ProductWithWholesaler {
   id: string;
@@ -62,6 +63,7 @@ interface ProductWithWholesaler {
   stock: number;
   image_url: string | null;
   wholesaler_id: string | null;
+  manufacturer_id: string | null;
   is_trending: boolean;
   is_flash_deal: boolean;
   flash_deal_price: number | null;
@@ -70,12 +72,14 @@ interface ProductWithWholesaler {
   created_at: string;
   updated_at: string;
   wholesalers: { name: string } | null;
+  manufacturers: { name: string } | null;
 }
 
 export default function ProductsPage() {
   const [products, setProducts] = useState<ProductWithWholesaler[]>([]);
   const [wholesalers, setWholesalers] = useState<Wholesaler[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [manufacturers, setManufacturers] = useState<Manufacturer[]>([]);
   const [units, setUnits] = useState<ProductUnit[]>([]);
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
@@ -92,16 +96,18 @@ export default function ProductsPage() {
 
   const loadData = useCallback(async () => {
     try {
-      const [prods, whs, cats, uns] = await Promise.all([
+      const [prods, whs, cats, uns, mfrs] = await Promise.allSettled([
         getProducts(),
         getWholesalers(),
         getCategories(),
         getProductUnits(),
+        getManufacturers(),
       ]);
-      setProducts(prods as ProductWithWholesaler[]);
-      setWholesalers(whs);
-      setCategories(cats);
-      setUnits(uns);
+      if (prods.status === "fulfilled") setProducts(prods.value as ProductWithWholesaler[]);
+      if (whs.status === "fulfilled") setWholesalers(whs.value);
+      if (cats.status === "fulfilled") setCategories(cats.value);
+      if (uns.status === "fulfilled") setUnits(uns.value);
+      if (mfrs.status === "fulfilled") setManufacturers(mfrs.value);
     } catch {
       // Empty state shown on error
     } finally {
@@ -156,6 +162,7 @@ export default function ProductsPage() {
       const min_order_qty = parseInt(formData.get("min_order_qty") as string);
       const stock = parseInt(formData.get("stock") as string);
       const wholesaler_id = formData.get("wholesaler_id") as string;
+      const manufacturer_id = formData.get("manufacturer_id") as string;
       const is_trending = formData.get("is_trending") === "on";
       const is_flash_deal = formData.get("is_flash_deal") === "on";
       const flash_deal_price = formData.get("flash_deal_price")
@@ -192,6 +199,7 @@ export default function ProductsPage() {
         stock: stock || 0,
         image_url: image_url ?? undefined,
         wholesaler_id: wholesaler_id || undefined,
+        manufacturer_id: manufacturer_id || undefined,
         is_trending,
         is_flash_deal,
         flash_deal_price: is_flash_deal ? flash_deal_price : undefined,
@@ -404,7 +412,9 @@ export default function ProductsPage() {
                           <div className="min-w-0">
                             <p className="truncate text-sm font-semibold">{product.name}</p>
                             <p className="text-xs text-muted-foreground">
-                              {product.wholesalers?.name ?? "No wholesaler"} · per {product.unit}
+                              {product.wholesalers?.name ?? "No wholesaler"}
+                              {product.manufacturers?.name ? ` · ${product.manufacturers.name}` : ""}
+                              {" "}· per {product.unit}
                             </p>
                           </div>
                           <Badge variant={stockInfo.variant} className="shrink-0 text-[10px]">
@@ -466,6 +476,7 @@ export default function ProductsPage() {
                   <TableHead className="text-right">MOQ</TableHead>
                   <TableHead className="text-right">Stock</TableHead>
                   <TableHead>Wholesaler</TableHead>
+                  <TableHead>Manufacturer</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -522,6 +533,9 @@ export default function ProductsPage() {
                       </TableCell>
                       <TableCell className="text-sm text-muted-foreground">
                         {product.wholesalers?.name ?? "—"}
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
+                        {product.manufacturers?.name ?? "—"}
                       </TableCell>
                       <TableCell className="text-right">
                         {deleteConfirmId === product.id ? (
@@ -595,7 +609,7 @@ export default function ProductsPage() {
               {editingProduct ? "Edit Product" : "Add New Product"}
             </DialogTitle>
           </DialogHeader>
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form key={editingProduct?.id ?? "new"} onSubmit={handleSubmit} className="space-y-4">
             {/* Image upload */}
             <div className="space-y-2">
               <label className="text-sm font-medium">Product Image</label>
@@ -737,15 +751,14 @@ export default function ProductsPage() {
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-medium">
-                  Wholesaler <span className="text-destructive">*</span>
+                  Wholesaler
                 </label>
                 <select
                   name="wholesaler_id"
                   className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                   defaultValue={editingProduct?.wholesaler_id ?? ""}
-                  required
                 >
-                  <option value="">Select wholesaler...</option>
+                  <option value="">No wholesaler</option>
                   {wholesalers.map((w) => (
                     <option key={w.id} value={w.id}>
                       {w.name}
@@ -753,6 +766,22 @@ export default function ProductsPage() {
                   ))}
                 </select>
               </div>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Manufacturer</label>
+              <select
+                name="manufacturer_id"
+                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                defaultValue={editingProduct?.manufacturer_id ?? ""}
+              >
+                <option value="">No manufacturer</option>
+                {manufacturers.filter((m) => m.is_active).map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.name}
+                  </option>
+                ))}
+              </select>
             </div>
 
             <div className="space-y-2">

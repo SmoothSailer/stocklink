@@ -3,6 +3,8 @@ import { SearchBar } from "@/components/shared/search-bar";
 import { CategoryGrid } from "@/components/retailer/category-grid";
 import { ProductCard } from "@/components/retailer/product-card";
 import { FlashDealCard } from "@/components/retailer/flash-deal-card";
+
+export const dynamic = "force-dynamic";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getTrendingProducts, getFlashDeals, getBulkStockProducts } from "./actions";
 import { ChevronRight, Flame, Zap, MapPin } from "lucide-react";

@@ -17,6 +17,8 @@ import {
   Plus,
   Edit,
   Minus,
+  Factory,
+  User,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -37,8 +39,10 @@ import {
   repUpdateWholesaler,
   repCreateProduct,
   repUpdateProduct,
+  repCreateManufacturer,
+  repUpdateManufacturer,
 } from "@/app/sales-rep/actions";
-import type { SalesRep, Wholesaler, Order, OrderStatus } from "@/types/database";
+import type { SalesRep, Wholesaler, Order, OrderStatus, Manufacturer } from "@/types/database";
 
 interface ProductWithWholesaler {
   id: string;
@@ -48,7 +52,9 @@ interface ProductWithWholesaler {
   unit: string;
   category: string;
   wholesaler_id: string | null;
+  manufacturer_id: string | null;
   wholesalers: { id: string; name: string; location: string | null } | null;
+  manufacturers: { id: string; name: string } | null;
 }
 
 interface OrderWithItems extends Order {
@@ -68,6 +74,7 @@ interface OrderWithItems extends Order {
 
 interface DashboardStats {
   totalWholesalers: number;
+  totalManufacturers: number;
   totalProducts: number;
   lowStockProducts: number;
   totalOrders: number;
@@ -95,11 +102,12 @@ interface Props {
   orders: OrderWithItems[];
   stats: DashboardStats;
   products: ProductWithWholesaler[];
+  manufacturers: Manufacturer[];
   categories: CategoryOption[];
   units: UnitOption[];
 }
 
-type Tab = "overview" | "wholesalers" | "orders" | "products";
+type Tab = "overview" | "wholesalers" | "manufacturers" | "orders" | "products";
 
 export default function SalesRepDashboardClient({
   rep,
@@ -107,6 +115,7 @@ export default function SalesRepDashboardClient({
   orders,
   stats,
   products,
+  manufacturers,
   categories,
   units,
 }: Props) {
@@ -163,6 +172,12 @@ export default function SalesRepDashboardClient({
             >
               Wholesalers
             </TabsTrigger>
+            <TabsTrigger
+              value="manufacturers"
+              className="flex-1 text-xs sm:text-sm"
+            >
+              Mfrs
+            </TabsTrigger>
             <TabsTrigger value="orders" className="flex-1 text-xs sm:text-sm">
               Orders
             </TabsTrigger>
@@ -185,11 +200,15 @@ export default function SalesRepDashboardClient({
         {activeTab === "wholesalers" && (
           <WholesalersTab wholesalers={wholesalers} rep={rep} />
         )}
+        {activeTab === "manufacturers" && (
+          <ManufacturersTab manufacturers={manufacturers} rep={rep} />
+        )}
         {activeTab === "orders" && <OrdersTab orders={orders} />}
         {activeTab === "products" && (
           <ProductsTab
             products={products}
             wholesalers={wholesalers}
+            manufacturers={manufacturers}
             categories={categories}
             units={units}
             rep={rep}
@@ -229,6 +248,12 @@ function OverviewTab({
           label="Wholesalers"
           value={stats.totalWholesalers}
           bgColor="bg-primary/10"
+        />
+        <StatCard
+          icon={<Factory className="h-4 w-4 text-violet-600" />}
+          label="Manufacturers"
+          value={stats.totalManufacturers}
+          bgColor="bg-violet-100"
         />
         <StatCard
           icon={<Package className="h-4 w-4 text-blue-600" />}
@@ -283,7 +308,7 @@ function OverviewTab({
                       {p.name}
                     </span>
                     <span className="ml-1 text-muted-foreground">
-                      ({p.wholesalers?.name})
+                      ({p.wholesalers?.name ?? p.manufacturers?.name ?? "—"})
                     </span>
                   </div>
                   <Badge
@@ -546,6 +571,219 @@ function WholesalersTab({
 }
 
 /* ════════════════════════════════════════════════════════════════
+   Manufacturers Tab
+   ════════════════════════════════════════════════════════════════ */
+
+function ManufacturersTab({
+  manufacturers,
+  rep,
+}: {
+  manufacturers: Manufacturer[];
+  rep: SalesRep;
+}) {
+  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editing, setEditing] = useState<Manufacturer | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
+
+  function openAdd() {
+    setEditing(null);
+    setFormError(null);
+    setDialogOpen(true);
+  }
+
+  function openEdit(m: Manufacturer) {
+    setEditing(m);
+    setFormError(null);
+    setDialogOpen(true);
+  }
+
+  async function handleSubmit(formData: FormData) {
+    setFormError(null);
+    startTransition(async () => {
+      const result = editing
+        ? await repUpdateManufacturer(rep.id, editing.id, formData)
+        : await repCreateManufacturer(rep.id, formData);
+      if (result.error) {
+        setFormError(result.error);
+        return;
+      }
+      setDialogOpen(false);
+      setEditing(null);
+      router.refresh();
+    });
+  }
+
+  return (
+    <div className="space-y-3">
+      <Button className="w-full gap-2 sm:w-auto" onClick={openAdd}>
+        <Plus className="h-4 w-4" />
+        Add Manufacturer
+      </Button>
+
+      {manufacturers.length === 0 && !dialogOpen ? (
+        <EmptyState
+          icon={<Factory className="h-10 w-10" />}
+          title="No manufacturers yet"
+          description="Onboard your first manufacturer to start managing their products."
+        />
+      ) : (
+        manufacturers.map((m) => (
+          <Card key={m.id}>
+            <CardContent className="p-4">
+              <div className="flex items-start gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-violet-100">
+                  <Factory className="h-5 w-5 text-violet-600" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-semibold">{m.name}</p>
+                  {m.contact_person && (
+                    <div className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
+                      <User className="h-3 w-3 shrink-0" />
+                      <span className="truncate">{m.contact_person}</span>
+                    </div>
+                  )}
+                  {m.location && (
+                    <div className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
+                      <MapPin className="h-3 w-3 shrink-0" />
+                      <span className="truncate">{m.location}</span>
+                    </div>
+                  )}
+                  {m.contact_phone && (
+                    <div className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
+                      <Phone className="h-3 w-3 shrink-0" />
+                      <span>{m.contact_phone}</span>
+                    </div>
+                  )}
+                </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 shrink-0"
+                  onClick={() => openEdit(m)}
+                >
+                  <Edit className="h-3.5 w-3.5" />
+                  <span className="sr-only">Edit</span>
+                </Button>
+              </div>
+              {/* Actions */}
+              <div className="mt-3 flex gap-2 border-t pt-3">
+                {m.contact_phone && (
+                  <a
+                    href={`tel:${m.contact_phone}`}
+                    className="flex h-9 flex-1 items-center justify-center gap-1.5 rounded-md border text-xs font-medium transition-colors hover:bg-muted"
+                  >
+                    <Phone className="h-3.5 w-3.5" />
+                    Call
+                  </a>
+                )}
+                {m.contact_phone && (
+                  <a
+                    href={buildWhatsAppLink(
+                      `Hi! This is ${rep.name} from Ristoka, reaching out about ${m.name}. 👋`,
+                      m.contact_phone.replace(/[\s\-+]/g, "")
+                    )}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex h-9 flex-1 items-center justify-center gap-1.5 rounded-md border text-xs font-medium text-[#25D366] transition-colors hover:bg-green-50"
+                  >
+                    <Send className="h-3.5 w-3.5" />
+                    WhatsApp
+                  </a>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        ))
+      )}
+
+      {/* Add / Edit Manufacturer Dialog */}
+      <Dialog
+        open={dialogOpen}
+        onOpenChange={(open) => {
+          setDialogOpen(open);
+          if (!open) {
+            setEditing(null);
+            setFormError(null);
+          }
+        }}
+      >
+        <DialogContent className="max-h-[90dvh] overflow-y-auto max-w-[calc(100vw-2rem)] sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {editing ? "Edit Manufacturer" : "Add Manufacturer"}
+            </DialogTitle>
+          </DialogHeader>
+          <form action={handleSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">
+                Business Name <span className="text-destructive">*</span>
+              </label>
+              <Input
+                name="name"
+                placeholder="e.g. Bidco Africa"
+                defaultValue={editing?.name ?? ""}
+                required
+                className="h-11"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Contact Person</label>
+              <Input
+                name="contact_person"
+                placeholder="e.g. John Kamau"
+                defaultValue={editing?.contact_person ?? ""}
+                className="h-11"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Phone</label>
+              <Input
+                name="contact_phone"
+                type="tel"
+                placeholder="+254712345678"
+                defaultValue={editing?.contact_phone ?? ""}
+                className="h-11"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Location</label>
+              <Input
+                name="location"
+                placeholder="e.g. Industrial Area, Nairobi"
+                defaultValue={editing?.location ?? ""}
+                className="h-11"
+              />
+            </div>
+            {formError && (
+              <p className="text-sm text-destructive">{formError}</p>
+            )}
+            <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end">
+              <Button
+                type="button"
+                variant="outline"
+                className="h-11 sm:h-9"
+                onClick={() => setDialogOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" disabled={isPending} className="h-11 sm:h-9">
+                {isPending
+                  ? "Saving..."
+                  : editing
+                    ? "Update"
+                    : "Add Manufacturer"}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+/* ════════════════════════════════════════════════════════════════
    Orders Tab
    ════════════════════════════════════════════════════════════════ */
 
@@ -624,12 +862,14 @@ function OrdersTab({ orders }: { orders: OrderWithItems[] }) {
 function ProductsTab({
   products,
   wholesalers,
+  manufacturers,
   categories,
   units,
   rep,
 }: {
   products: ProductWithWholesaler[];
   wholesalers: Wholesaler[];
+  manufacturers: Manufacturer[];
   categories: CategoryOption[];
   units: UnitOption[];
   rep: SalesRep;
@@ -686,7 +926,7 @@ function ProductsTab({
             setFormError(null);
             setAddOpen(true);
           }}
-          disabled={wholesalers.length === 0}
+          disabled={wholesalers.length === 0 && manufacturers.length === 0}
         >
           <Plus className="h-4 w-4" />
           Add Product
@@ -709,13 +949,13 @@ function ProductsTab({
         </div>
       </div>
 
-      {wholesalers.length === 0 && (
+      {wholesalers.length === 0 && manufacturers.length === 0 && (
         <p className="rounded-lg border border-orange-200 bg-orange-50 p-3 text-xs text-orange-800">
-          Add a wholesaler first before adding products.
+          Add a wholesaler or manufacturer first before adding products.
         </p>
       )}
 
-      {products.length === 0 && wholesalers.length > 0 ? (
+      {products.length === 0 && (wholesalers.length > 0 || manufacturers.length > 0) ? (
         <EmptyState
           icon={<Package className="h-10 w-10" />}
           title="No products yet"
@@ -735,7 +975,7 @@ function ProductsTab({
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-medium">{p.name}</p>
                 <p className="text-xs text-muted-foreground">
-                  {p.wholesalers?.name}
+                  {p.wholesalers?.name ?? p.manufacturers?.name ?? "—"}
                   {p.wholesalers?.location && ` · ${p.wholesalers.location}`}
                 </p>
               </div>
@@ -771,24 +1011,40 @@ function ProductsTab({
           <DialogHeader>
             <DialogTitle>Add Product</DialogTitle>
           </DialogHeader>
-          <form action={handleAddProduct} className="space-y-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium">
-                Wholesaler <span className="text-destructive">*</span>
-              </label>
-              <select
-                name="wholesaler_id"
-                required
-                className="h-11 w-full rounded-md border border-input bg-background px-3 text-sm"
-              >
-                <option value="">Select wholesaler</option>
-                {wholesalers.map((w) => (
-                  <option key={w.id} value={w.id}>
-                    {w.name}
-                  </option>
-                ))}
-              </select>
+          <form key="add-product" action={handleAddProduct} className="space-y-4">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Wholesaler</label>
+                <select
+                  name="wholesaler_id"
+                  className="h-11 w-full rounded-md border border-input bg-background px-3 text-sm"
+                >
+                  <option value="">None</option>
+                  {wholesalers.map((w) => (
+                    <option key={w.id} value={w.id}>
+                      {w.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Manufacturer</label>
+                <select
+                  name="manufacturer_id"
+                  className="h-11 w-full rounded-md border border-input bg-background px-3 text-sm"
+                >
+                  <option value="">None</option>
+                  {manufacturers.map((m) => (
+                    <option key={m.id} value={m.id}>
+                      {m.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
+            <p className="text-[10px] text-muted-foreground">
+              Assign at least a wholesaler or manufacturer
+            </p>
             <div className="space-y-2">
               <label className="text-sm font-medium">
                 Product Name <span className="text-destructive">*</span>
@@ -923,7 +1179,7 @@ function ProductsTab({
               <div className="rounded-lg border bg-muted/30 p-3">
                 <p className="text-sm font-medium">{editProduct.name}</p>
                 <p className="text-xs text-muted-foreground">
-                  {editProduct.wholesalers?.name} · {editProduct.category} ·{" "}
+                  {editProduct.wholesalers?.name ?? editProduct.manufacturers?.name ?? "—"} · {editProduct.category} ·{" "}
                   {editProduct.unit}
                 </p>
               </div>

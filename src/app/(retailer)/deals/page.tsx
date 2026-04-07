@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { getFlashDeals, getTrendingProducts } from "../actions";
 import DealsClient from "./deals-client";
 
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: "Deals & Flash Sales — Wholesale Discounts",
   description:

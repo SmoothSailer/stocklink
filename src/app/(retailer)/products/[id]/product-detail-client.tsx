@@ -11,6 +11,7 @@ import {
   Package,
   MessageCircle,
   UserCheck,
+  Factory,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -37,6 +38,10 @@ interface ProductDetailClientProps {
         bio: string | null;
         avatar_url: string | null;
       } | null;
+    } | null;
+    manufacturers: {
+      id: string;
+      name: string;
     } | null;
   };
 }
@@ -120,13 +125,19 @@ export default function ProductDetailClient({ product }: ProductDetailClientProp
           </div>
         </div>
 
-        {/* Stock, MOQ & Location */}
+        {/* Stock, MOQ, Manufacturer & Location */}
         <div className="flex flex-wrap gap-2">
           <Badge variant={stockInfo.variant}>{stockInfo.label}</Badge>
           <Badge variant="outline" className="gap-1">
             <Package className="h-3 w-3" />
             Min. {moq} {product.unit}s
           </Badge>
+          {product.manufacturers?.name && (
+            <Badge variant="outline" className="gap-1">
+              <Factory className="h-3 w-3" />
+              {product.manufacturers.name}
+            </Badge>
+          )}
           {product.location && (
             <Badge variant="outline" className="gap-1">
               <MapPin className="h-3 w-3" />

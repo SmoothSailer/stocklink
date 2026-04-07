@@ -1,12 +1,14 @@
 import Link from "next/link";
-import { MapPin, Package } from "lucide-react";
+import { MapPin, Package, Factory } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import type { Product } from "@/types/database";
 import { formatPrice, getStockInfo, getCategoryIcon } from "@/lib/utils";
 
 interface ProductCardProps {
-  product: Product;
+  product: Product & {
+    manufacturers?: { id: string; name: string } | null;
+  };
 }
 
 export function ProductCard({ product }: ProductCardProps) {
@@ -69,6 +71,16 @@ export function ProductCard({ product }: ProductCardProps) {
               Min. {product.min_order_qty} {product.unit}s
             </span>
           </div>
+
+          {/* Manufacturer */}
+          {product.manufacturers?.name && (
+            <div className="mt-1 flex items-center gap-1">
+              <Factory className="h-3 w-3 text-muted-foreground" />
+              <span className="truncate text-[10px] text-muted-foreground">
+                {product.manufacturers.name}
+              </span>
+            </div>
+          )}
 
           {/* Stock badge + location */}
           <div className="mt-2 flex items-center justify-between">
