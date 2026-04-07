@@ -491,7 +491,7 @@ export async function getProducts() {
   const supabase = createAdminClient();
   const { data, error } = await supabase
     .from("products")
-    .select("*, wholesalers(name, sales_rep_id, sales_reps(id, name, whatsapp_phone)), manufacturers(name)")
+    .select("*, wholesalers(name, sales_rep_id, sales_reps(id, name, whatsapp_phone)), manufacturers(name), product_unit_options(*)")
     .order("created_at", { ascending: false });
   if (error) throw new Error(error.message);
   return data;
@@ -515,7 +515,7 @@ export async function createProduct(data: {
 }) {
   const supabase = createAdminClient();
 
-  const { error } = await supabase.from("products").insert({
+  const { data: inserted, error } = await supabase.from("products").insert({
     name: data.name,
     description: data.description || null,
     category: data.category,
@@ -530,12 +530,12 @@ export async function createProduct(data: {
     is_flash_deal: data.is_flash_deal ?? false,
     flash_deal_price: data.flash_deal_price ?? null,
     flash_deal_expires_at: data.flash_deal_expires_at || null,
-  });
+  }).select("id").single();
 
   if (error) return { error: error.message };
   revalidatePath("/admin/products");
   revalidatePath("/");
-  return { error: null };
+  return { error: null, id: inserted.id };
 }
 
 export async function updateProduct(
@@ -570,6 +570,53 @@ export async function deleteProduct(id: string) {
   const supabase = createAdminClient();
   const { error } = await supabase.from("products").delete().eq("id", id);
   if (error) return { error: error.message };
+  revalidatePath("/admin/products");
+  revalidatePath("/");
+  return { error: null };
+}
+
+// ── Product Unit Options Actions ────────────────────────────────
+
+export async function getProductUnitOptions(productId: string) {
+  const supabase = createAdminClient();
+  const { data, error } = await supabase
+    .from("product_unit_options")
+    .select("*")
+    .eq("product_id", productId)
+    .order("sort_order", { ascending: true });
+  if (error) throw new Error(error.message);
+  return data;
+}
+
+export async function saveProductUnitOptions(
+  productId: string,
+  options: { unit_slug: string; price: number; stock: number; min_order_qty: number }[]
+) {
+  const supabase = createAdminClient();
+
+  // Delete existing options for this product
+  const { error: deleteError } = await supabase
+    .from("product_unit_options")
+    .delete()
+    .eq("product_id", productId);
+  if (deleteError) return { error: deleteError.message };
+
+  // Insert new options (if any)
+  if (options.length > 0) {
+    const rows = options.map((opt, idx) => ({
+      product_id: productId,
+      unit_slug: opt.unit_slug,
+      price: opt.price,
+      stock: opt.stock,
+      min_order_qty: opt.min_order_qty,
+      sort_order: idx,
+    }));
+    const { error: insertError } = await supabase
+      .from("product_unit_options")
+      .insert(rows);
+    if (insertError) return { error: insertError.message };
+  }
+
   revalidatePath("/admin/products");
   revalidatePath("/");
   return { error: null };

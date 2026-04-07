@@ -41,8 +41,16 @@ import {
   repUpdateProduct,
   repCreateManufacturer,
   repUpdateManufacturer,
+  repSaveProductUnitOptions,
 } from "@/app/sales-rep/actions";
 import type { SalesRep, Wholesaler, Order, OrderStatus, Manufacturer } from "@/types/database";
+
+interface UnitOptionRow {
+  unit_slug: string;
+  price: number;
+  stock: number;
+  min_order_qty: number;
+}
 
 interface ProductWithWholesaler {
   id: string;
@@ -55,6 +63,7 @@ interface ProductWithWholesaler {
   manufacturer_id: string | null;
   wholesalers: { id: string; name: string; location: string | null } | null;
   manufacturers: { id: string; name: string } | null;
+  product_unit_options?: { id: string; unit_slug: string; price: number; stock: number; min_order_qty: number; sort_order: number }[];
 }
 
 interface OrderWithItems extends Order {
@@ -882,6 +891,7 @@ function ProductsTab({
     null
   );
   const [formError, setFormError] = useState<string | null>(null);
+  const [unitOptions, setUnitOptions] = useState<UnitOptionRow[]>([]);
 
   const sorted = [...products].sort((a, b) => {
     if (sortBy === "stock") return a.stock - b.stock;
@@ -891,13 +901,23 @@ function ProductsTab({
 
   async function handleAddProduct(formData: FormData) {
     setFormError(null);
+    const currentUnitOptions = [...unitOptions];
     startTransition(async () => {
       const result = await repCreateProduct(rep.id, formData);
       if (result.error) {
         setFormError(result.error);
         return;
       }
+      // Save unit options if any
+      if (currentUnitOptions.length > 0 && result.id) {
+        const unitResult = await repSaveProductUnitOptions(rep.id, result.id, currentUnitOptions);
+        if (unitResult.error) {
+          setFormError(unitResult.error);
+          return;
+        }
+      }
       setAddOpen(false);
+      setUnitOptions([]);
       router.refresh();
     });
   }
@@ -1140,6 +1160,83 @@ function ProductsTab({
                 />
               </div>
             </div>
+
+            {/* Additional Unit Options */}
+            <div className="space-y-2 rounded-lg border border-dashed p-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-medium">Additional Units</p>
+                  <p className="text-[10px] text-muted-foreground">
+                    e.g. sell in pieces and boxes
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-7 gap-1 text-[10px]"
+                  onClick={() =>
+                    setUnitOptions([...unitOptions, { unit_slug: "", price: 0, stock: 0, min_order_qty: 1 }])
+                  }
+                >
+                  <Plus className="h-3 w-3" />
+                  Add
+                </Button>
+              </div>
+              {unitOptions.map((opt, idx) => (
+                <div key={idx} className="flex items-center gap-1.5">
+                  <select
+                    className="h-9 flex-1 rounded-md border border-input bg-background px-2 text-xs"
+                    value={opt.unit_slug}
+                    onChange={(e) => {
+                      const updated = [...unitOptions];
+                      updated[idx] = { ...updated[idx], unit_slug: e.target.value };
+                      setUnitOptions(updated);
+                    }}
+                  >
+                    <option value="">Unit</option>
+                    {units.map((u) => (
+                      <option key={u.id} value={u.slug}>{u.name}</option>
+                    ))}
+                  </select>
+                  <Input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    placeholder="Price"
+                    className="h-9 w-20 text-xs"
+                    value={opt.price || ""}
+                    onChange={(e) => {
+                      const updated = [...unitOptions];
+                      updated[idx] = { ...updated[idx], price: parseFloat(e.target.value) || 0 };
+                      setUnitOptions(updated);
+                    }}
+                  />
+                  <Input
+                    type="number"
+                    min="0"
+                    placeholder="Stock"
+                    className="h-9 w-16 text-xs"
+                    value={opt.stock || ""}
+                    onChange={(e) => {
+                      const updated = [...unitOptions];
+                      updated[idx] = { ...updated[idx], stock: parseInt(e.target.value) || 0 };
+                      setUnitOptions(updated);
+                    }}
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-9 w-9 shrink-0 text-destructive"
+                    onClick={() => setUnitOptions(unitOptions.filter((_, i) => i !== idx))}
+                  >
+                    <Minus className="h-3 w-3" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+
             {formError && (
               <p className="text-sm text-destructive">{formError}</p>
             )}

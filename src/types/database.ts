@@ -123,6 +123,47 @@ export interface Database {
         };
         Relationships: [];
       };
+      product_unit_options: {
+        Row: {
+          id: string;
+          product_id: string;
+          unit_slug: string;
+          price: number;
+          stock: number;
+          min_order_qty: number;
+          sort_order: number;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          product_id: string;
+          unit_slug: string;
+          price: number;
+          stock?: number;
+          min_order_qty?: number;
+          sort_order?: number;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          product_id?: string;
+          unit_slug?: string;
+          price?: number;
+          stock?: number;
+          min_order_qty?: number;
+          sort_order?: number;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "product_unit_options_product_id_fkey";
+            columns: ["product_id"];
+            isOneToOne: false;
+            referencedRelation: "products";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       sales_reps: {
         Row: {
           id: string;
@@ -360,6 +401,7 @@ export interface Database {
           quantity: number;
           unit_price: number;
           total_price: number;
+          unit: string | null;
         };
         Insert: {
           id?: string;
@@ -368,6 +410,7 @@ export interface Database {
           quantity: number;
           unit_price: number;
           total_price: number;
+          unit?: string | null;
         };
         Update: {
           id?: string;
@@ -376,6 +419,7 @@ export interface Database {
           quantity?: number;
           unit_price?: number;
           total_price?: number;
+          unit?: string | null;
         };
         Relationships: [
           {
@@ -527,6 +571,7 @@ export interface Database {
 export type Category = Database["public"]["Tables"]["categories"]["Row"];
 export type Manufacturer = Database["public"]["Tables"]["manufacturers"]["Row"];
 export type ProductUnit = Database["public"]["Tables"]["product_units"]["Row"];
+export type ProductUnitOption = Database["public"]["Tables"]["product_unit_options"]["Row"];
 export type SalesRep = Database["public"]["Tables"]["sales_reps"]["Row"];
 export type Wholesaler = Database["public"]["Tables"]["wholesalers"]["Row"];
 export type Product = Database["public"]["Tables"]["products"]["Row"];

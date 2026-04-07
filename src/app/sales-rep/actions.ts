@@ -69,7 +69,7 @@ export async function getRepProducts(repId: string) {
   // Build query with OR conditions for wholesaler_id and manufacturer_id
   let query = supabase
     .from("products")
-    .select("*, wholesalers(id, name, location), manufacturers(id, name)")
+    .select("*, wholesalers(id, name, location), manufacturers(id, name), product_unit_options(*)")
     .order("created_at", { ascending: false });
 
   if (wholesalerIds.length > 0 && manufacturerIds.length > 0) {
@@ -491,7 +491,7 @@ export async function repCreateProduct(repId: string, formData: FormData) {
     if (!m) return { error: "Manufacturer not found or not assigned to you" };
   }
 
-  const { error } = await supabase.from("products").insert({
+  const { data: inserted, error } = await supabase.from("products").insert({
     name: name.trim(),
     description: description?.trim() || null,
     category,
@@ -501,9 +501,51 @@ export async function repCreateProduct(repId: string, formData: FormData) {
     min_order_qty: Math.max(1, min_order_qty),
     wholesaler_id: wholesaler_id || null,
     manufacturer_id: manufacturer_id || null,
-  });
+  }).select("id").single();
 
   if (error) return { error: error.message };
+  revalidatePath("/sales-rep/dashboard");
+  revalidatePath("/");
+  return { error: null, id: inserted.id };
+}
+
+/**
+ * Save additional unit options for a product (owned by rep's wholesaler/manufacturer).
+ */
+export async function repSaveProductUnitOptions(
+  repId: string,
+  productId: string,
+  options: { unit_slug: string; price: number; stock: number; min_order_qty: number }[]
+) {
+  if (!(await verifyRepOwnership(repId))) {
+    return { error: "Unauthorized" };
+  }
+
+  const supabase = await createClient();
+
+  // Delete existing options
+  const { error: deleteError } = await supabase
+    .from("product_unit_options")
+    .delete()
+    .eq("product_id", productId);
+  if (deleteError) return { error: deleteError.message };
+
+  // Insert new options (if any)
+  if (options.length > 0) {
+    const rows = options.map((opt, idx) => ({
+      product_id: productId,
+      unit_slug: opt.unit_slug,
+      price: opt.price,
+      stock: opt.stock,
+      min_order_qty: opt.min_order_qty,
+      sort_order: idx,
+    }));
+    const { error: insertError } = await supabase
+      .from("product_unit_options")
+      .insert(rows);
+    if (insertError) return { error: insertError.message };
+  }
+
   revalidatePath("/sales-rep/dashboard");
   revalidatePath("/");
   return { error: null };

@@ -47,10 +47,18 @@ import {
   createProduct,
   updateProduct,
   deleteProduct,
+  saveProductUnitOptions,
 } from "@/app/admin/actions";
 import { uploadProductImage } from "@/lib/supabase/storage";
 import { formatPrice, getStockInfo } from "@/lib/utils";
-import type { Wholesaler, Category, ProductUnit, Manufacturer } from "@/types/database";
+import type { Wholesaler, Category, ProductUnit, Manufacturer, ProductUnitOption } from "@/types/database";
+
+interface UnitOptionRow {
+  unit_slug: string;
+  price: number;
+  stock: number;
+  min_order_qty: number;
+}
 
 interface ProductWithWholesaler {
   id: string;
@@ -73,6 +81,7 @@ interface ProductWithWholesaler {
   updated_at: string;
   wholesalers: { name: string } | null;
   manufacturers: { name: string } | null;
+  product_unit_options: ProductUnitOption[];
 }
 
 export default function ProductsPage() {
@@ -92,6 +101,7 @@ export default function ProductsPage() {
   const [saving, setSaving] = useState(false);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [unitOptions, setUnitOptions] = useState<UnitOptionRow[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const loadData = useCallback(async () => {
@@ -215,9 +225,21 @@ export default function ProductsPage() {
         return;
       }
 
+      // Save unit options
+      const productId = editingProduct?.id ?? (result as { id?: string }).id;
+      if (productId) {
+        const unitResult = await saveProductUnitOptions(productId, unitOptions);
+        if (unitResult.error) {
+          setFormError(unitResult.error);
+          setSaving(false);
+          return;
+        }
+      }
+
       setDialogOpen(false);
       setEditingProduct(null);
       clearImage();
+      setUnitOptions([]);
       await loadData();
     } catch {
       setFormError("An unexpected error occurred");
@@ -242,6 +264,14 @@ export default function ProductsPage() {
     setFormError(null);
     clearImage();
     if (product.image_url) setImagePreview(product.image_url);
+    setUnitOptions(
+      (product.product_unit_options ?? []).map((o) => ({
+        unit_slug: o.unit_slug,
+        price: o.price,
+        stock: o.stock,
+        min_order_qty: o.min_order_qty,
+      }))
+    );
     setDialogOpen(true);
   }
 
@@ -249,6 +279,7 @@ export default function ProductsPage() {
     setEditingProduct(null);
     setFormError(null);
     clearImage();
+    setUnitOptions([]);
     setDialogOpen(true);
   }
 
@@ -415,6 +446,9 @@ export default function ProductsPage() {
                               {product.wholesalers?.name ?? "No wholesaler"}
                               {product.manufacturers?.name ? ` · ${product.manufacturers.name}` : ""}
                               {" "}· per {product.unit}
+                              {(product.product_unit_options?.length ?? 0) > 0 && (
+                                <span className="ml-1 text-primary">+{product.product_unit_options.length} unit{product.product_unit_options.length > 1 ? "s" : ""}</span>
+                              )}
                             </p>
                           </div>
                           <Badge variant={stockInfo.variant} className="shrink-0 text-[10px]">
@@ -508,6 +542,9 @@ export default function ProductsPage() {
                             </p>
                             <p className="text-xs text-muted-foreground">
                               per {product.unit}
+                              {(product.product_unit_options?.length ?? 0) > 0 && (
+                                <span className="ml-1 text-primary">+{product.product_unit_options.length}</span>
+                              )}
                             </p>
                           </div>
                         </div>
@@ -766,6 +803,105 @@ export default function ProductsPage() {
                   ))}
                 </select>
               </div>
+            </div>
+
+            {/* Additional Unit Options */}
+            <div className="space-y-3 rounded-lg border border-dashed p-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium">Additional Unit Options</p>
+                  <p className="text-xs text-muted-foreground">
+                    Sell this product in multiple units (e.g. pieces and boxes)
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-8 gap-1 text-xs"
+                  onClick={() =>
+                    setUnitOptions([...unitOptions, { unit_slug: "", price: 0, stock: 0, min_order_qty: 1 }])
+                  }
+                >
+                  <Plus className="h-3 w-3" />
+                  Add Unit
+                </Button>
+              </div>
+              {unitOptions.map((opt, idx) => (
+                <div key={idx} className="grid grid-cols-[1fr_auto] gap-2">
+                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                    <select
+                      className="flex h-9 w-full rounded-md border border-input bg-transparent px-2 py-1 text-xs shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                      value={opt.unit_slug}
+                      onChange={(e) => {
+                        const updated = [...unitOptions];
+                        updated[idx] = { ...updated[idx], unit_slug: e.target.value };
+                        setUnitOptions(updated);
+                      }}
+                      required
+                    >
+                      <option value="">Unit...</option>
+                      {units.filter((u) => u.is_active).map((u) => (
+                        <option key={u.slug} value={u.slug}>
+                          {u.name}
+                        </option>
+                      ))}
+                    </select>
+                    <Input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      placeholder="Price"
+                      className="h-9 text-xs"
+                      value={opt.price || ""}
+                      onChange={(e) => {
+                        const updated = [...unitOptions];
+                        updated[idx] = { ...updated[idx], price: parseFloat(e.target.value) || 0 };
+                        setUnitOptions(updated);
+                      }}
+                      required
+                    />
+                    <Input
+                      type="number"
+                      min="0"
+                      placeholder="Stock"
+                      className="h-9 text-xs"
+                      value={opt.stock || ""}
+                      onChange={(e) => {
+                        const updated = [...unitOptions];
+                        updated[idx] = { ...updated[idx], stock: parseInt(e.target.value) || 0 };
+                        setUnitOptions(updated);
+                      }}
+                    />
+                    <Input
+                      type="number"
+                      min="1"
+                      placeholder="MOQ"
+                      className="h-9 text-xs"
+                      value={opt.min_order_qty || ""}
+                      onChange={(e) => {
+                        const updated = [...unitOptions];
+                        updated[idx] = { ...updated[idx], min_order_qty: parseInt(e.target.value) || 1 };
+                        setUnitOptions(updated);
+                      }}
+                    />
+                  </div>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-9 w-9 shrink-0 text-destructive hover:text-destructive"
+                    onClick={() => setUnitOptions(unitOptions.filter((_, i) => i !== idx))}
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              ))}
+              {unitOptions.length === 0 && (
+                <p className="text-center text-xs text-muted-foreground py-1">
+                  No additional units. The default unit above will be used.
+                </p>
+              )}
             </div>
 
             <div className="space-y-2">
