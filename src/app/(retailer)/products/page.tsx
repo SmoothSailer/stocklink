@@ -2,8 +2,6 @@ import type { Metadata } from "next";
 import { getPublicProducts } from "../actions";
 import ProductsListClient from "./products-list-client";
 
-export const dynamic = "force-dynamic";
-
 export const metadata: Metadata = {
   title: "Wholesale Products — Browse & Order",
   description:

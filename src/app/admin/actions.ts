@@ -151,109 +151,6 @@ export async function deleteProductUnit(id: string) {
 
 // ── Sales Rep Actions ───────────────────────────────────────────
 
-// ── Manufacturer Actions ────────────────────────────────────────
-
-export async function getManufacturers() {
-  const supabase = createAdminClient();
-  const { data, error } = await supabase
-    .from("manufacturers")
-    .select("*, sales_reps(id, name)")
-    .order("name", { ascending: true });
-  if (error) throw new Error(error.message);
-  return data;
-}
-
-export async function createManufacturer(formData: FormData) {
-  const supabase = createAdminClient();
-  const name = formData.get("name") as string;
-  const description = formData.get("description") as string | null;
-  const location = formData.get("location") as string | null;
-  const website = formData.get("website") as string | null;
-  const contact_person = formData.get("contact_person") as string | null;
-  const contact_phone = formData.get("contact_phone") as string | null;
-  const contact_email = formData.get("contact_email") as string | null;
-  const sales_rep_id = formData.get("sales_rep_id") as string | null;
-
-  if (!name?.trim()) {
-    return { error: "Manufacturer name is required" };
-  }
-
-  const slug = name
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "");
-
-  const { error } = await supabase.from("manufacturers").insert({
-    name: name.trim(),
-    slug,
-    description: description?.trim() || null,
-    location: location?.trim() || null,
-    website: website?.trim() || null,
-    contact_person: contact_person?.trim() || null,
-    contact_phone: contact_phone?.trim() || null,
-    contact_email: contact_email?.trim() || null,
-    sales_rep_id: sales_rep_id || null,
-  });
-
-  if (error) return { error: error.message };
-  revalidatePath("/admin/manufacturers");
-  return { error: null };
-}
-
-export async function updateManufacturer(id: string, formData: FormData) {
-  const supabase = createAdminClient();
-  const name = formData.get("name") as string;
-  const description = formData.get("description") as string | null;
-  const location = formData.get("location") as string | null;
-  const website = formData.get("website") as string | null;
-  const contact_person = formData.get("contact_person") as string | null;
-  const contact_phone = formData.get("contact_phone") as string | null;
-  const contact_email = formData.get("contact_email") as string | null;
-  const sales_rep_id = formData.get("sales_rep_id") as string | null;
-  const is_active = formData.get("is_active") === "true";
-
-  if (!name?.trim()) {
-    return { error: "Manufacturer name is required" };
-  }
-
-  const slug = name
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "");
-
-  const { error } = await supabase
-    .from("manufacturers")
-    .update({
-      name: name.trim(),
-      slug,
-      description: description?.trim() || null,
-      location: location?.trim() || null,
-      website: website?.trim() || null,
-      contact_person: contact_person?.trim() || null,
-      contact_phone: contact_phone?.trim() || null,
-      contact_email: contact_email?.trim() || null,
-      sales_rep_id: sales_rep_id || null,
-      is_active,
-    })
-    .eq("id", id);
-
-  if (error) return { error: error.message };
-  revalidatePath("/admin/manufacturers");
-  return { error: null };
-}
-
-export async function deleteManufacturer(id: string) {
-  const supabase = createAdminClient();
-  const { error } = await supabase.from("manufacturers").delete().eq("id", id);
-  if (error) return { error: error.message };
-  revalidatePath("/admin/manufacturers");
-  return { error: null };
-}
-
-// ── Sales Rep Actions ───────────────────────────────────────────
-
 export async function getSalesReps() {
   const supabase = createAdminClient();
   const { data, error } = await supabase
@@ -491,7 +388,7 @@ export async function getProducts() {
   const supabase = createAdminClient();
   const { data, error } = await supabase
     .from("products")
-    .select("*, wholesalers(name, sales_rep_id, sales_reps(id, name, whatsapp_phone)), manufacturers(name), product_unit_options(*)")
+    .select("*, wholesalers(name, sales_rep_id, sales_reps(id, name, whatsapp_phone))")
     .order("created_at", { ascending: false });
   if (error) throw new Error(error.message);
   return data;
@@ -507,7 +404,6 @@ export async function createProduct(data: {
   stock: number;
   image_url?: string;
   wholesaler_id?: string;
-  manufacturer_id?: string;
   is_trending?: boolean;
   is_flash_deal?: boolean;
   flash_deal_price?: number;
@@ -515,7 +411,7 @@ export async function createProduct(data: {
 }) {
   const supabase = createAdminClient();
 
-  const { data: inserted, error } = await supabase.from("products").insert({
+  const { error } = await supabase.from("products").insert({
     name: data.name,
     description: data.description || null,
     category: data.category,
@@ -525,17 +421,16 @@ export async function createProduct(data: {
     stock: data.stock,
     image_url: data.image_url || null,
     wholesaler_id: data.wholesaler_id || null,
-    manufacturer_id: data.manufacturer_id || null,
     is_trending: data.is_trending ?? false,
     is_flash_deal: data.is_flash_deal ?? false,
     flash_deal_price: data.flash_deal_price ?? null,
     flash_deal_expires_at: data.flash_deal_expires_at || null,
-  }).select("id").single();
+  });
 
   if (error) return { error: error.message };
   revalidatePath("/admin/products");
   revalidatePath("/");
-  return { error: null, id: inserted.id };
+  return { error: null };
 }
 
 export async function updateProduct(
@@ -550,7 +445,6 @@ export async function updateProduct(
     stock?: number;
     image_url?: string | null;
     wholesaler_id?: string | null;
-    manufacturer_id?: string | null;
     is_trending?: boolean;
     is_flash_deal?: boolean;
     flash_deal_price?: number | null;
@@ -570,53 +464,6 @@ export async function deleteProduct(id: string) {
   const supabase = createAdminClient();
   const { error } = await supabase.from("products").delete().eq("id", id);
   if (error) return { error: error.message };
-  revalidatePath("/admin/products");
-  revalidatePath("/");
-  return { error: null };
-}
-
-// ── Product Unit Options Actions ────────────────────────────────
-
-export async function getProductUnitOptions(productId: string) {
-  const supabase = createAdminClient();
-  const { data, error } = await supabase
-    .from("product_unit_options")
-    .select("*")
-    .eq("product_id", productId)
-    .order("sort_order", { ascending: true });
-  if (error) throw new Error(error.message);
-  return data;
-}
-
-export async function saveProductUnitOptions(
-  productId: string,
-  options: { unit_slug: string; price: number; stock: number; min_order_qty: number }[]
-) {
-  const supabase = createAdminClient();
-
-  // Delete existing options for this product
-  const { error: deleteError } = await supabase
-    .from("product_unit_options")
-    .delete()
-    .eq("product_id", productId);
-  if (deleteError) return { error: deleteError.message };
-
-  // Insert new options (if any)
-  if (options.length > 0) {
-    const rows = options.map((opt, idx) => ({
-      product_id: productId,
-      unit_slug: opt.unit_slug,
-      price: opt.price,
-      stock: opt.stock,
-      min_order_qty: opt.min_order_qty,
-      sort_order: idx,
-    }));
-    const { error: insertError } = await supabase
-      .from("product_unit_options")
-      .insert(rows);
-    if (insertError) return { error: insertError.message };
-  }
-
   revalidatePath("/admin/products");
   revalidatePath("/");
   return { error: null };

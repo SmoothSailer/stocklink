@@ -11,7 +11,6 @@ import {
   Package,
   MessageCircle,
   UserCheck,
-  Factory,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -20,7 +19,7 @@ import { Separator } from "@/components/ui/separator";
 import { WhatsAppButton } from "@/components/shared/whatsapp-button";
 import { QuantitySelector } from "@/components/retailer/quantity-selector";
 import { formatPrice, getStockInfo, buildWhatsAppLink, getCategoryIcon } from "@/lib/utils";
-import type { Product, ProductUnitOption } from "@/types/database";
+import type { Product } from "@/types/database";
 
 interface ProductDetailClientProps {
   product: Product & {
@@ -39,57 +38,27 @@ interface ProductDetailClientProps {
         avatar_url: string | null;
       } | null;
     } | null;
-    manufacturers: {
-      id: string;
-      name: string;
-    } | null;
-    product_unit_options?: ProductUnitOption[];
   };
 }
 
-interface UnitChoice {
-  slug: string;
-  price: number;
-  stock: number;
-  moq: number;
-}
-
 export default function ProductDetailClient({ product }: ProductDetailClientProps) {
-  // Build unit choices: default unit + additional unit options
-  const unitChoices: UnitChoice[] = [
-    { slug: product.unit, price: product.price, stock: product.stock, moq: product.min_order_qty ?? 1 },
-    ...(product.product_unit_options ?? []).map((o) => ({
-      slug: o.unit_slug,
-      price: o.price,
-      stock: o.stock,
-      moq: o.min_order_qty,
-    })),
-  ];
-  const hasMultipleUnits = unitChoices.length > 1;
-
-  const [selectedUnitIdx, setSelectedUnitIdx] = useState(0);
-  const activeUnit = unitChoices[selectedUnitIdx];
-  const moq = activeUnit.moq;
+  const moq = product.min_order_qty ?? 1;
   const [quantity, setQuantity] = useState(moq);
 
   const wholesaler = product.wholesalers;
   const salesRep = wholesaler?.sales_reps ?? null;
-  const stockInfo = getStockInfo(activeUnit.stock, activeUnit.slug);
+  const stockInfo = getStockInfo(product.stock, product.unit);
   const displayPrice =
-    product.is_flash_deal && product.flash_deal_price && selectedUnitIdx === 0
+    product.is_flash_deal && product.flash_deal_price
       ? product.flash_deal_price
-      : activeUnit.price;
+      : product.price;
   const totalPrice = displayPrice * quantity;
 
   const repName = salesRep?.name ?? "Ristoka";
-  const orderMessage = `🛒 *Bulk Order from Ristoka*\n\nHi ${repName}! 👋\n\n📦 Product: ${product.name}\n📊 Quantity: ${quantity} ${activeUnit.slug}s\n💰 Unit Price: KSh ${displayPrice.toLocaleString()} per ${activeUnit.slug}\n💵 Total: KSh ${totalPrice.toLocaleString()}\n📦 Min Order: ${moq} ${activeUnit.slug}s\n🏬 Supplier: ${wholesaler?.name ?? "Ristoka Wholesale"}\n\nPlease confirm availability and delivery.`;
+  const orderMessage = `🛒 *Bulk Order from Ristoka*\n\nHi ${repName}! 👋\n\n📦 Product: ${product.name}\n📊 Quantity: ${quantity} ${product.unit}s\n💰 Unit Price: KSh ${displayPrice.toLocaleString()} per ${product.unit}\n💵 Total: KSh ${totalPrice.toLocaleString()}\n📦 Min Order: ${moq} ${product.unit}s\n🏬 Supplier: ${wholesaler?.name ?? "Ristoka Wholesale"}\n\nPlease confirm availability and delivery.`;
 
-  const shareMessage = `Check out ${product.name} on Ristoka!\n\nWholesale Price: KSh ${displayPrice.toLocaleString()} per ${activeUnit.slug}\nMin Order: ${moq} ${activeUnit.slug}s\n${activeUnit.stock > 0 ? "✅ In Stock" : "❌ Out of Stock"}`;
+  const shareMessage = `Check out ${product.name} on Ristoka!\n\nWholesale Price: KSh ${displayPrice.toLocaleString()} per ${product.unit}\nMin Order: ${moq} ${product.unit}s\n${product.stock > 0 ? "✅ In Stock" : "❌ Out of Stock"}`;
 
-  function handleUnitChange(idx: number) {
-    setSelectedUnitIdx(idx);
-    setQuantity(unitChoices[idx].moq);
-  }
   return (
     <div className="mx-auto max-w-3xl">
       {/* Back button */}
@@ -146,50 +115,18 @@ export default function ProductDetailClient({ product }: ProductDetailClientProp
               </span>
             )}
             <span className="text-sm text-muted-foreground">
-              per {activeUnit.slug}
+              per {product.unit}
             </span>
           </div>
         </div>
 
-        {/* Unit selector (when multiple units available) */}
-        {hasMultipleUnits && (
-          <div className="space-y-2">
-            <p className="text-sm font-semibold">Select Unit</p>
-            <div className="flex flex-wrap gap-2">
-              {unitChoices.map((uc, idx) => (
-                <button
-                  key={uc.slug}
-                  type="button"
-                  onClick={() => handleUnitChange(idx)}
-                  className={`rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
-                    selectedUnitIdx === idx
-                      ? "border-primary bg-primary/10 text-primary"
-                      : "border-border bg-card text-foreground hover:border-primary/40"
-                  }`}
-                >
-                  <span className="capitalize">{uc.slug}</span>
-                  <span className="ml-1.5 text-xs text-muted-foreground">
-                    {formatPrice(uc.price)}
-                  </span>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Stock, MOQ, Manufacturer & Location */}
+        {/* Stock, MOQ & Location */}
         <div className="flex flex-wrap gap-2">
           <Badge variant={stockInfo.variant}>{stockInfo.label}</Badge>
           <Badge variant="outline" className="gap-1">
             <Package className="h-3 w-3" />
-            Min. {moq} {activeUnit.slug}s
+            Min. {moq} {product.unit}s
           </Badge>
-          {product.manufacturers?.name && (
-            <Badge variant="outline" className="gap-1">
-              <Factory className="h-3 w-3" />
-              {product.manufacturers.name}
-            </Badge>
-          )}
           {product.location && (
             <Badge variant="outline" className="gap-1">
               <MapPin className="h-3 w-3" />
@@ -268,19 +205,19 @@ export default function ProductDetailClient({ product }: ProductDetailClientProp
         {/* Quantity selector */}
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-sm font-semibold">Quantity ({activeUnit.slug}s)</p>
+            <p className="text-sm font-semibold">Quantity ({product.unit}s)</p>
             <p className="text-xs text-muted-foreground">
               Total: {formatPrice(totalPrice)}
             </p>
             <p className="text-[10px] text-muted-foreground">
-              Minimum order: {moq} {activeUnit.slug}s
+              Minimum order: {moq} {product.unit}s
             </p>
           </div>
           <QuantitySelector
             value={quantity}
             onChange={setQuantity}
             min={moq}
-            max={activeUnit.stock > 0 ? activeUnit.stock : moq}
+            max={product.stock > 0 ? product.stock : moq}
           />
         </div>
 

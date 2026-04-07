@@ -3,8 +3,6 @@ import Link from "next/link";
 import { getProductById } from "../../actions";
 import OrderConfirmClient from "./order-confirm-client";
 
-export const dynamic = "force-dynamic";
-
 export const metadata: Metadata = {
   title: "Confirm Order",
   robots: { index: false, follow: false },
