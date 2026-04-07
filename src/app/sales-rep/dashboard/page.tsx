@@ -6,6 +6,7 @@ import {
   getRepOrders,
   getRepDashboardStats,
   getRepProducts,
+  getRepManufacturers,
   getCategories,
   getProductUnits,
 } from "@/app/sales-rep/actions";
@@ -56,15 +57,24 @@ export default async function SalesRepDashboardPage() {
     );
   }
 
-  const [wholesalers, orders, stats, products, categories, units] =
-    await Promise.all([
+  const [wholesalersResult, ordersResult, statsResult, productsResult, manufacturersResult, categoriesResult, unitsResult] =
+    await Promise.allSettled([
       getRepWholesalers(rep.id),
       getRepOrders(rep.id),
       getRepDashboardStats(rep.id),
       getRepProducts(rep.id),
+      getRepManufacturers(rep.id),
       getCategories(),
       getProductUnits(),
     ]);
+
+  const wholesalers = wholesalersResult.status === "fulfilled" ? wholesalersResult.value : [];
+  const orders = ordersResult.status === "fulfilled" ? ordersResult.value : [];
+  const stats = statsResult.status === "fulfilled" ? statsResult.value : { totalWholesalers: 0, totalManufacturers: 0, totalProducts: 0, lowStockProducts: 0, totalOrders: 0, pendingOrders: 0, totalRevenue: 0 };
+  const products = productsResult.status === "fulfilled" ? productsResult.value : [];
+  const manufacturers = manufacturersResult.status === "fulfilled" ? manufacturersResult.value : [];
+  const categories = categoriesResult.status === "fulfilled" ? categoriesResult.value : [];
+  const units = unitsResult.status === "fulfilled" ? unitsResult.value : [];
 
   return (
     <SalesRepDashboardClient
@@ -73,6 +83,7 @@ export default async function SalesRepDashboardPage() {
       orders={orders}
       stats={stats}
       products={products}
+      manufacturers={manufacturers}
       categories={categories}
       units={units}
     />

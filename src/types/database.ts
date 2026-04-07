@@ -34,6 +34,62 @@ export interface Database {
         };
         Relationships: [];
       };
+      manufacturers: {
+        Row: {
+          id: string;
+          name: string;
+          slug: string;
+          logo_url: string | null;
+          description: string | null;
+          location: string | null;
+          website: string | null;
+          contact_person: string | null;
+          contact_phone: string | null;
+          contact_email: string | null;
+          sales_rep_id: string | null;
+          is_active: boolean;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          name: string;
+          slug: string;
+          logo_url?: string | null;
+          description?: string | null;
+          location?: string | null;
+          website?: string | null;
+          contact_person?: string | null;
+          contact_phone?: string | null;
+          contact_email?: string | null;
+          sales_rep_id?: string | null;
+          is_active?: boolean;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          name?: string;
+          slug?: string;
+          logo_url?: string | null;
+          description?: string | null;
+          location?: string | null;
+          website?: string | null;
+          contact_person?: string | null;
+          contact_phone?: string | null;
+          contact_email?: string | null;
+          sales_rep_id?: string | null;
+          is_active?: boolean;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "manufacturers_sales_rep_id_fkey";
+            columns: ["sales_rep_id"];
+            isOneToOne: false;
+            referencedRelation: "sales_reps";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       product_units: {
         Row: {
           id: string;
@@ -66,6 +122,47 @@ export interface Database {
           created_at?: string;
         };
         Relationships: [];
+      };
+      product_unit_options: {
+        Row: {
+          id: string;
+          product_id: string;
+          unit_slug: string;
+          price: number;
+          stock: number;
+          min_order_qty: number;
+          sort_order: number;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          product_id: string;
+          unit_slug: string;
+          price: number;
+          stock?: number;
+          min_order_qty?: number;
+          sort_order?: number;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          product_id?: string;
+          unit_slug?: string;
+          price?: number;
+          stock?: number;
+          min_order_qty?: number;
+          sort_order?: number;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "product_unit_options_product_id_fkey";
+            columns: ["product_id"];
+            isOneToOne: false;
+            referencedRelation: "products";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       sales_reps: {
         Row: {
@@ -153,6 +250,7 @@ export interface Database {
           stock: number;
           image_url: string | null;
           wholesaler_id: string | null;
+          manufacturer_id: string | null;
           is_trending: boolean;
           is_flash_deal: boolean;
           flash_deal_price: number | null;
@@ -172,6 +270,7 @@ export interface Database {
           stock?: number;
           image_url?: string | null;
           wholesaler_id?: string | null;
+          manufacturer_id?: string | null;
           is_trending?: boolean;
           is_flash_deal?: boolean;
           flash_deal_price?: number | null;
@@ -191,6 +290,7 @@ export interface Database {
           stock?: number;
           image_url?: string | null;
           wholesaler_id?: string | null;
+          manufacturer_id?: string | null;
           is_trending?: boolean;
           is_flash_deal?: boolean;
           flash_deal_price?: number | null;
@@ -205,6 +305,13 @@ export interface Database {
             columns: ["wholesaler_id"];
             isOneToOne: false;
             referencedRelation: "wholesalers";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "products_manufacturer_id_fkey";
+            columns: ["manufacturer_id"];
+            isOneToOne: false;
+            referencedRelation: "manufacturers";
             referencedColumns: ["id"];
           },
         ];
@@ -294,6 +401,7 @@ export interface Database {
           quantity: number;
           unit_price: number;
           total_price: number;
+          unit: string | null;
         };
         Insert: {
           id?: string;
@@ -302,6 +410,7 @@ export interface Database {
           quantity: number;
           unit_price: number;
           total_price: number;
+          unit?: string | null;
         };
         Update: {
           id?: string;
@@ -310,6 +419,7 @@ export interface Database {
           quantity?: number;
           unit_price?: number;
           total_price?: number;
+          unit?: string | null;
         };
         Relationships: [
           {
@@ -459,7 +569,9 @@ export interface Database {
 
 // Convenience type aliases
 export type Category = Database["public"]["Tables"]["categories"]["Row"];
+export type Manufacturer = Database["public"]["Tables"]["manufacturers"]["Row"];
 export type ProductUnit = Database["public"]["Tables"]["product_units"]["Row"];
+export type ProductUnitOption = Database["public"]["Tables"]["product_unit_options"]["Row"];
 export type SalesRep = Database["public"]["Tables"]["sales_reps"]["Row"];
 export type Wholesaler = Database["public"]["Tables"]["wholesalers"]["Row"];
 export type Product = Database["public"]["Tables"]["products"]["Row"];

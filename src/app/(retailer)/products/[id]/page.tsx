@@ -3,6 +3,8 @@ import Link from "next/link";
 import { getProductById } from "../../actions";
 import ProductDetailClient from "./product-detail-client";
 import { ProductJsonLd, BreadcrumbJsonLd } from "@/components/seo/json-ld";
+
+export const dynamic = "force-dynamic";
 import { CURRENCY } from "@/lib/constants";
 
 const siteUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://ristoka.com";
