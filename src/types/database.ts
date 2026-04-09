@@ -551,6 +551,41 @@ export interface Database {
           },
         ];
       };
+      product_media: {
+        Row: {
+          id: string;
+          product_id: string;
+          url: string;
+          type: "image" | "video";
+          sort_order: number;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          product_id: string;
+          url: string;
+          type?: "image" | "video";
+          sort_order?: number;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          product_id?: string;
+          url?: string;
+          type?: "image" | "video";
+          sort_order?: number;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "product_media_product_id_fkey";
+            columns: ["product_id"];
+            isOneToOne: false;
+            referencedRelation: "products";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
     };
     Views: {
       [_ in never]: never;
@@ -581,6 +616,7 @@ export type OrderItem = Database["public"]["Tables"]["order_items"]["Row"];
 export type DemandRequest = Database["public"]["Tables"]["demand_requests"]["Row"];
 export type Affiliate = Database["public"]["Tables"]["affiliates"]["Row"];
 export type Referral = Database["public"]["Tables"]["referrals"]["Row"];
+export type ProductMedia = Database["public"]["Tables"]["product_media"]["Row"];
 
 export type OrderStatus = Order["status"];
 export type PaymentMethod = Order["payment_method"];

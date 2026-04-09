@@ -3,10 +3,9 @@ import { createClient } from "@/lib/supabase/client";
 const BUCKET = "product-images";
 
 /**
- * Upload an image file to Supabase Storage and return its public URL.
- * The file is stored at: product-images/{timestamp}-{filename}
+ * Upload a media file (image or video) to Supabase Storage and return its public URL.
  */
-export async function uploadProductImage(file: File): Promise<string> {
+export async function uploadProductMedia(file: File): Promise<string> {
   const supabase = createClient();
 
   const ext = file.name.split(".").pop() ?? "jpg";
@@ -31,16 +30,45 @@ export async function uploadProductImage(file: File): Promise<string> {
 }
 
 /**
- * Delete a product image from Supabase Storage by its full URL.
+ * Upload an image file to Supabase Storage and return its public URL.
+ * @deprecated Use uploadProductMedia instead
  */
-export async function deleteProductImage(imageUrl: string): Promise<void> {
+export async function uploadProductImage(file: File): Promise<string> {
+  return uploadProductMedia(file);
+}
+
+/**
+ * Delete a product media file from Supabase Storage by its full URL.
+ */
+export async function deleteProductMedia(mediaUrl: string): Promise<void> {
   const supabase = createClient();
 
-  // Extract path from the full URL
-  // URL format: https://<project>.supabase.co/storage/v1/object/public/product-images/<filename>
-  const urlParts = imageUrl.split(`/storage/v1/object/public/${BUCKET}/`);
+  const urlParts = mediaUrl.split(`/storage/v1/object/public/${BUCKET}/`);
   if (urlParts.length < 2) return;
 
   const path = urlParts[1];
   await supabase.storage.from(BUCKET).remove([path]);
+}
+
+/**
+ * Delete a product image from Supabase Storage by its full URL.
+ * @deprecated Use deleteProductMedia instead
+ */
+export async function deleteProductImage(imageUrl: string): Promise<void> {
+  return deleteProductMedia(imageUrl);
+}
+
+/**
+ * Determine if a file is a video based on its MIME type.
+ */
+export function isVideoFile(file: File): boolean {
+  return file.type.startsWith("video/");
+}
+
+/**
+ * Determine media type from a URL (checks extension).
+ */
+export function getMediaType(url: string): "image" | "video" {
+  const ext = url.split(".").pop()?.toLowerCase().split("?")[0] ?? "";
+  return ["mp4", "webm", "mov", "avi", "mkv"].includes(ext) ? "video" : "image";
 }

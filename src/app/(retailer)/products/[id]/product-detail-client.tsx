@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import {
   ArrowLeft,
   MapPin,
@@ -12,6 +13,9 @@ import {
   MessageCircle,
   UserCheck,
   Factory,
+  ChevronLeft,
+  ChevronRight,
+  Play,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -20,7 +24,7 @@ import { Separator } from "@/components/ui/separator";
 import { WhatsAppButton } from "@/components/shared/whatsapp-button";
 import { QuantitySelector } from "@/components/retailer/quantity-selector";
 import { formatPrice, getStockInfo, buildWhatsAppLink, getCategoryIcon } from "@/lib/utils";
-import type { Product, ProductUnitOption } from "@/types/database";
+import type { Product, ProductUnitOption, ProductMedia } from "@/types/database";
 
 interface ProductDetailClientProps {
   product: Product & {
@@ -44,6 +48,7 @@ interface ProductDetailClientProps {
       name: string;
     } | null;
     product_unit_options?: ProductUnitOption[];
+    product_media?: ProductMedia[];
   };
 }
 
@@ -55,6 +60,20 @@ interface UnitChoice {
 }
 
 export default function ProductDetailClient({ product }: ProductDetailClientProps) {
+  // Build media gallery from product_media or fallback to image_url
+  const mediaList = (product.product_media ?? [])
+    .sort((a, b) => a.sort_order - b.sort_order);
+  if (mediaList.length === 0 && product.image_url) {
+    mediaList.push({
+      id: "fallback",
+      product_id: product.id,
+      url: product.image_url,
+      type: "image",
+      sort_order: 0,
+      created_at: "",
+    });
+  }
+
   // Build unit choices: default unit + additional unit options
   const unitChoices: UnitChoice[] = [
     { slug: product.unit, price: product.price, stock: product.stock, moq: product.min_order_qty ?? 1 },
@@ -67,6 +86,7 @@ export default function ProductDetailClient({ product }: ProductDetailClientProp
   ];
   const hasMultipleUnits = unitChoices.length > 1;
 
+  const [mediaIdx, setMediaIdx] = useState(0);
   const [selectedUnitIdx, setSelectedUnitIdx] = useState(0);
   const activeUnit = unitChoices[selectedUnitIdx];
   const moq = activeUnit.moq;
@@ -103,11 +123,71 @@ export default function ProductDetailClient({ product }: ProductDetailClientProp
         </Link>
       </div>
 
-      {/* Product image */}
-      <div className="relative flex h-64 items-center justify-center bg-gradient-to-br from-muted to-muted/60 sm:h-80">
-        <span className="text-7xl">
-          {getCategoryIcon(product.category)}
-        </span>
+      {/* Product media gallery */}
+      <div className="relative h-64 bg-muted sm:h-80">
+        {mediaList.length > 0 ? (
+          <>
+            {mediaList[mediaIdx].type === "video" ? (
+              <video
+                key={mediaList[mediaIdx].url}
+                src={mediaList[mediaIdx].url}
+                controls
+                playsInline
+                className="h-full w-full object-contain bg-black"
+              />
+            ) : (
+              <Image
+                key={mediaList[mediaIdx].url}
+                src={mediaList[mediaIdx].url}
+                alt={product.name}
+                fill
+                className="object-contain"
+                sizes="(max-width: 768px) 100vw, 768px"
+                priority={mediaIdx === 0}
+              />
+            )}
+            {/* Gallery navigation arrows */}
+            {mediaList.length > 1 && (
+              <>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full bg-card/80 backdrop-blur-sm"
+                  onClick={() => setMediaIdx((prev) => (prev === 0 ? mediaList.length - 1 : prev - 1))}
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="absolute right-14 top-1/2 -translate-y-1/2 rounded-full bg-card/80 backdrop-blur-sm"
+                  onClick={() => setMediaIdx((prev) => (prev === mediaList.length - 1 ? 0 : prev + 1))}
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+                {/* Dots indicator */}
+                <div className="absolute bottom-3 left-1/2 flex -translate-x-1/2 gap-1.5">
+                  {mediaList.map((m, i) => (
+                    <button
+                      key={m.id}
+                      type="button"
+                      onClick={() => setMediaIdx(i)}
+                      className={`h-2 w-2 rounded-full transition-colors ${
+                        i === mediaIdx ? "bg-primary" : "bg-card/60"
+                      }`}
+                    />
+                  ))}
+                </div>
+              </>
+            )}
+          </>
+        ) : (
+          <div className="flex h-full items-center justify-center">
+            <span className="text-7xl">
+              {getCategoryIcon(product.category)}
+            </span>
+          </div>
+        )}
 
         {product.is_flash_deal && (
           <Badge className="absolute left-4 top-4 bg-accent text-accent-foreground">

@@ -5,17 +5,18 @@ import { SearchBar } from "@/components/shared/search-bar";
 import { ProductCard } from "@/components/retailer/product-card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { PRODUCT_CATEGORIES } from "@/lib/constants";
 import { SlidersHorizontal, X } from "lucide-react";
-import type { Product } from "@/types/database";
+import type { Product, Category } from "@/types/database";
 
 interface ProductsListClientProps {
   products: Product[];
+  categories: Category[];
+  initialCategory?: string;
 }
 
-export default function ProductsListClient({ products }: ProductsListClientProps) {
+export default function ProductsListClient({ products, categories, initialCategory }: ProductsListClientProps) {
   const [search, setSearch] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(initialCategory ?? null);
   const [showInStockOnly, setShowInStockOnly] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
 
@@ -73,20 +74,20 @@ export default function ProductsListClient({ products }: ProductsListClientProps
               Category
             </p>
             <div className="flex flex-wrap gap-2">
-              {PRODUCT_CATEGORIES.map((cat) => (
+              {categories.map((cat) => (
                 <Badge
-                  key={cat.value}
+                  key={cat.slug}
                   variant={
-                    selectedCategory === cat.value ? "default" : "outline"
+                    selectedCategory === cat.slug ? "default" : "outline"
                   }
                   className="cursor-pointer px-3 py-1.5 text-xs"
                   onClick={() =>
                     setSelectedCategory(
-                      selectedCategory === cat.value ? null : cat.value
+                      selectedCategory === cat.slug ? null : cat.slug
                     )
                   }
                 >
-                  {cat.icon} {cat.label}
+                  {cat.icon} {cat.name}
                 </Badge>
               ))}
             </div>

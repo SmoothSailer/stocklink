@@ -6,7 +6,7 @@ import { FlashDealCard } from "@/components/retailer/flash-deal-card";
 
 export const dynamic = "force-dynamic";
 import { Skeleton } from "@/components/ui/skeleton";
-import { getTrendingProducts, getFlashDeals, getBulkStockProducts } from "./actions";
+import { getTrendingProducts, getFlashDeals, getBulkStockProducts, getCategories } from "./actions";
 import { ChevronRight, Flame, Zap, MapPin } from "lucide-react";
 import Link from "next/link";
 
@@ -51,10 +51,11 @@ function ProductGridSkeleton() {
 }
 
 export default async function HomePage() {
-  const [trendingProducts, flashDeals, nearbyProducts] = await Promise.all([
+  const [trendingProducts, flashDeals, nearbyProducts, categories] = await Promise.all([
     getTrendingProducts(),
     getFlashDeals(),
     getBulkStockProducts(4),
+    getCategories(),
   ]);
 
   return (
@@ -76,7 +77,7 @@ export default async function HomePage() {
         <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
           Categories
         </h2>
-        <CategoryGrid />
+        <CategoryGrid categories={categories} />
       </section>
 
       {/* Flash Deals */}

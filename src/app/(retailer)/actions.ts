@@ -2,6 +2,19 @@
 
 import { createClient } from "@/lib/supabase/server";
 
+// ── Category Queries ────────────────────────────────────────────
+
+export async function getCategories() {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("categories")
+    .select("*")
+    .eq("is_active", true)
+    .order("sort_order", { ascending: true });
+  if (error) throw new Error(error.message);
+  return data;
+}
+
 // ── Product Queries ─────────────────────────────────────────────
 
 export async function getPublicProducts() {
@@ -9,7 +22,7 @@ export async function getPublicProducts() {
   const { data, error } = await supabase
     .from("products")
     .select(
-      "*, wholesalers(id, name, location, phone, sales_rep_id, sales_reps(id, name, phone, whatsapp_phone, bio, avatar_url)), manufacturers(id, name), product_unit_options(*)"
+      "*, wholesalers(id, name, location, phone, sales_rep_id, sales_reps(id, name, phone, whatsapp_phone, bio, avatar_url)), manufacturers(id, name), product_unit_options(*), product_media(*)"
     )
     .order("created_at", { ascending: false });
   if (error) throw new Error(error.message);
@@ -21,7 +34,7 @@ export async function getProductById(id: string) {
   const { data, error } = await supabase
     .from("products")
     .select(
-      "*, wholesalers(id, name, location, phone, sales_rep_id, sales_reps(id, name, phone, whatsapp_phone, bio, avatar_url)), manufacturers(id, name), product_unit_options(*)"
+      "*, wholesalers(id, name, location, phone, sales_rep_id, sales_reps(id, name, phone, whatsapp_phone, bio, avatar_url)), manufacturers(id, name), product_unit_options(*), product_media(*)"
     )
     .eq("id", id)
     .single();
@@ -33,7 +46,7 @@ export async function getTrendingProducts() {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("products")
-    .select("*, wholesalers(id, name, location), manufacturers(id, name), product_unit_options(*)")
+    .select("*, wholesalers(id, name, location), manufacturers(id, name), product_unit_options(*), product_media(*)")
     .eq("is_trending", true)
     .order("created_at", { ascending: false });
   if (error) throw new Error(error.message);
@@ -44,7 +57,7 @@ export async function getFlashDeals() {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("products")
-    .select("*, wholesalers(id, name, location), manufacturers(id, name), product_unit_options(*)")
+    .select("*, wholesalers(id, name, location), manufacturers(id, name), product_unit_options(*), product_media(*)")
     .eq("is_flash_deal", true)
     .order("created_at", { ascending: false });
   if (error) throw new Error(error.message);
@@ -55,7 +68,7 @@ export async function getBulkStockProducts(limit = 4) {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("products")
-    .select("*, wholesalers(id, name, location), manufacturers(id, name), product_unit_options(*)")
+    .select("*, wholesalers(id, name, location), manufacturers(id, name), product_unit_options(*), product_media(*)")
     .gt("stock", 0)
     .order("stock", { ascending: false })
     .limit(limit);
