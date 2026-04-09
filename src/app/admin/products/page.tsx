@@ -205,6 +205,7 @@ export default function ProductsPage() {
       const flash_deal_price = formData.get("flash_deal_price")
         ? parseFloat(formData.get("flash_deal_price") as string)
         : undefined;
+      const flash_deal_expires_at = formData.get("flash_deal_expires_at") as string || undefined;
 
       if (!name?.trim()) {
         setFormError("Product name is required");
@@ -259,6 +260,9 @@ export default function ProductsPage() {
         is_trending,
         is_flash_deal,
         flash_deal_price: is_flash_deal ? flash_deal_price : undefined,
+        flash_deal_expires_at: is_flash_deal && flash_deal_expires_at
+          ? new Date(flash_deal_expires_at).toISOString()
+          : undefined,
       };
 
       const result = editingProduct
@@ -1041,6 +1045,26 @@ export default function ProductsPage() {
                 placeholder="Leave blank if not a flash deal"
                 defaultValue={editingProduct?.flash_deal_price ?? ""}
               />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium">
+                Flash Deal Expires At
+              </label>
+              <Input
+                name="flash_deal_expires_at"
+                type="datetime-local"
+                defaultValue={
+                  editingProduct?.flash_deal_expires_at
+                    ? new Date(editingProduct.flash_deal_expires_at)
+                        .toISOString()
+                        .slice(0, 16)
+                    : ""
+                }
+              />
+              <p className="text-xs text-muted-foreground">
+                Set when this deal expires. A countdown will show on the storefront.
+              </p>
             </div>
 
             {formError && (
