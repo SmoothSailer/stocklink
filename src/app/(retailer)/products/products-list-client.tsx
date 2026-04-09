@@ -12,10 +12,11 @@ interface ProductsListClientProps {
   products: Product[];
   categories: Category[];
   initialCategory?: string;
+  initialSearch?: string;
 }
 
-export default function ProductsListClient({ products, categories, initialCategory }: ProductsListClientProps) {
-  const [search, setSearch] = useState("");
+export default function ProductsListClient({ products, categories, initialCategory, initialSearch }: ProductsListClientProps) {
+  const [search, setSearch] = useState(initialSearch ?? "");
   const [selectedCategory, setSelectedCategory] = useState<string | null>(initialCategory ?? null);
   const [showInStockOnly, setShowInStockOnly] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
