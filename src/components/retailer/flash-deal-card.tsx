@@ -4,12 +4,15 @@ import { Share2, Package } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import type { Product } from "@/types/database";
+import type { Product, ProductMedia } from "@/types/database";
 import { formatPrice, getCountdown, buildWhatsAppLink, getCategoryIcon } from "@/lib/utils";
 import Link from "next/link";
+import Image from "next/image";
 
 interface FlashDealCardProps {
-  product: Product;
+  product: Product & {
+    product_media?: ProductMedia[];
+  };
 }
 
 export function FlashDealCard({ product }: FlashDealCardProps) {
@@ -18,6 +21,8 @@ export function FlashDealCard({ product }: FlashDealCardProps) {
   const countdown = product.flash_deal_expires_at
     ? getCountdown(product.flash_deal_expires_at)
     : null;
+  const coverImage = product.product_media?.sort((a, b) => a.sort_order - b.sort_order).find((m) => m.type === "image")?.url
+    ?? product.image_url;
 
   const shareMessage = `🔥 Bulk Deal on ${product.name}!\n\nWas: KSh ${product.price.toLocaleString()} per ${product.unit}\nNow: KSh ${dealPrice.toLocaleString()} per ${product.unit}\nSave: KSh ${savings.toLocaleString()} per unit\nMin Order: ${product.min_order_qty ?? 1} ${product.unit}s\n\nOrder in bulk on Ristoka!`;
 
@@ -29,10 +34,20 @@ export function FlashDealCard({ product }: FlashDealCardProps) {
   return (
     <Card className="min-w-[240px] overflow-hidden border-accent/30 bg-gradient-to-br from-orange-50 to-white snap-start">
       <Link href={`/products/${product.id}`}>
-        <div className="relative flex h-28 items-center justify-center bg-gradient-to-br from-accent/10 to-accent/5">
-          <span className="text-5xl">
-            {getCategoryIcon(product.category)}
-          </span>
+        <div className="relative flex h-28 items-center justify-center bg-muted">
+          {coverImage ? (
+            <Image
+              src={coverImage}
+              alt={product.name}
+              fill
+              className="object-contain p-1"
+              sizes="240px"
+            />
+          ) : (
+            <span className="text-5xl">
+              {getCategoryIcon(product.category)}
+            </span>
+          )}
           {countdown && (
             <Badge className="absolute right-2 top-2 bg-accent text-accent-foreground animate-pulse">
               ⏰ {countdown}

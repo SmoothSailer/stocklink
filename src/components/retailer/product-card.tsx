@@ -1,14 +1,16 @@
 import Link from "next/link";
+import Image from "next/image";
 import { MapPin, Package, Factory, Layers } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import type { Product, ProductUnitOption } from "@/types/database";
+import type { Product, ProductUnitOption, ProductMedia } from "@/types/database";
 import { formatPrice, getStockInfo, getCategoryIcon } from "@/lib/utils";
 
 interface ProductCardProps {
   product: Product & {
     manufacturers?: { id: string; name: string } | null;
     product_unit_options?: ProductUnitOption[];
+    product_media?: ProductMedia[];
   };
 }
 
@@ -17,17 +19,29 @@ export function ProductCard({ product }: ProductCardProps) {
   const displayPrice = product.is_flash_deal && product.flash_deal_price
     ? product.flash_deal_price
     : product.price;
+  const coverImage = product.product_media?.sort((a, b) => a.sort_order - b.sort_order).find((m) => m.type === "image")?.url
+    ?? product.image_url;
 
   return (
     <Link href={`/products/${product.id}`}>
       <Card className="group overflow-hidden border-border/60 transition-all hover:shadow-md">
         {/* Image area */}
-        <div className="relative aspect-square overflow-hidden bg-muted">
-          <div className="flex h-full items-center justify-center bg-gradient-to-br from-muted to-muted/60">
-            <span className="text-4xl">
-              {getCategoryIcon(product.category)}
-            </span>
-          </div>
+        <div className="relative aspect-[4/3] overflow-hidden bg-muted">
+          {coverImage ? (
+            <Image
+              src={coverImage}
+              alt={product.name}
+              fill
+              className="object-contain p-1 transition-transform group-hover:scale-105"
+              sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+            />
+          ) : (
+            <div className="flex h-full items-center justify-center bg-gradient-to-br from-muted to-muted/60">
+              <span className="text-4xl">
+                {getCategoryIcon(product.category)}
+              </span>
+            </div>
+          )}
 
           {/* Flash deal badge */}
           {product.is_flash_deal && (

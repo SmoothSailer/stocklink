@@ -491,7 +491,7 @@ export async function getProducts() {
   const supabase = createAdminClient();
   const { data, error } = await supabase
     .from("products")
-    .select("*, wholesalers(name, sales_rep_id, sales_reps(id, name, whatsapp_phone)), manufacturers(name), product_unit_options(*)")
+    .select("*, wholesalers(name, sales_rep_id, sales_reps(id, name, whatsapp_phone)), manufacturers(name), product_unit_options(*), product_media(*)")
     .order("created_at", { ascending: false });
   if (error) throw new Error(error.message);
   return data;
@@ -613,6 +613,40 @@ export async function saveProductUnitOptions(
     }));
     const { error: insertError } = await supabase
       .from("product_unit_options")
+      .insert(rows);
+    if (insertError) return { error: insertError.message };
+  }
+
+  revalidatePath("/admin/products");
+  revalidatePath("/");
+  return { error: null };
+}
+
+// ── Product Media Actions ───────────────────────────────────────
+
+export async function saveProductMedia(
+  productId: string,
+  media: { url: string; type: "image" | "video"; sort_order: number }[]
+) {
+  const supabase = createAdminClient();
+
+  // Delete existing media for this product
+  const { error: deleteError } = await supabase
+    .from("product_media")
+    .delete()
+    .eq("product_id", productId);
+  if (deleteError) return { error: deleteError.message };
+
+  // Insert new media (if any)
+  if (media.length > 0) {
+    const rows = media.map((m) => ({
+      product_id: productId,
+      url: m.url,
+      type: m.type,
+      sort_order: m.sort_order,
+    }));
+    const { error: insertError } = await supabase
+      .from("product_media")
       .insert(rows);
     if (insertError) return { error: insertError.message };
   }

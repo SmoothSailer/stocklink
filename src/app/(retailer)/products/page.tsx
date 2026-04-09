@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { getPublicProducts } from "../actions";
+import { getPublicProducts, getCategories } from "../actions";
 import ProductsListClient from "./products-list-client";
 
 export const dynamic = "force-dynamic";
@@ -15,8 +15,16 @@ export const metadata: Metadata = {
   },
 };
 
-export default async function ProductsPage() {
-  const products = await getPublicProducts();
+export default async function ProductsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ category?: string; q?: string }>;
+}) {
+  const { category, q } = await searchParams;
+  const [products, categories] = await Promise.all([
+    getPublicProducts(),
+    getCategories(),
+  ]);
 
-  return <ProductsListClient products={products} />;
+  return <ProductsListClient products={products} categories={categories} initialCategory={category} initialSearch={q} />;
 }

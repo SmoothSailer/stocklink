@@ -12,6 +12,8 @@ import {
   Upload,
   X,
   ImageIcon,
+  Film,
+  GripVertical,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -48,16 +50,25 @@ import {
   updateProduct,
   deleteProduct,
   saveProductUnitOptions,
+  saveProductMedia,
 } from "@/app/admin/actions";
-import { uploadProductImage } from "@/lib/supabase/storage";
+import { uploadProductMedia, deleteProductMedia, isVideoFile, getMediaType } from "@/lib/supabase/storage";
 import { formatPrice, getStockInfo } from "@/lib/utils";
-import type { Wholesaler, Category, ProductUnit, Manufacturer, ProductUnitOption } from "@/types/database";
+import type { Wholesaler, Category, ProductUnit, Manufacturer, ProductUnitOption, ProductMedia } from "@/types/database";
 
 interface UnitOptionRow {
   unit_slug: string;
   price: number;
   stock: number;
   min_order_qty: number;
+}
+
+interface MediaItem {
+  id?: string;
+  url: string;
+  type: "image" | "video";
+  file?: File;
+  preview?: string;
 }
 
 interface ProductWithWholesaler {
@@ -82,6 +93,7 @@ interface ProductWithWholesaler {
   wholesalers: { name: string } | null;
   manufacturers: { name: string } | null;
   product_unit_options: ProductUnitOption[];
+  product_media: ProductMedia[];
 }
 
 export default function ProductsPage() {
@@ -99,8 +111,7 @@ export default function ProductsPage() {
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const [imageFile, setImageFile] = useState<File | null>(null);
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [mediaItems, setMediaItems] = useState<MediaItem[]>([]);
   const [unitOptions, setUnitOptions] = useState<UnitOptionRow[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -142,16 +153,32 @@ export default function ProductsPage() {
   const outOfStock = products.filter((p) => p.stock === 0).length;
   const totalValue = products.reduce((acc, p) => acc + p.price * p.stock, 0);
 
-  function handleImageChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setImageFile(file);
-    setImagePreview(URL.createObjectURL(file));
+  function handleMediaAdd(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = e.target.files;
+    if (!files) return;
+    const newItems: MediaItem[] = Array.from(files).map((file) => ({
+      url: "",
+      type: isVideoFile(file) ? "video" as const : "image" as const,
+      file,
+      preview: URL.createObjectURL(file),
+    }));
+    setMediaItems((prev) => [...prev, ...newItems]);
+    if (fileInputRef.current) fileInputRef.current.value = "";
   }
 
-  function clearImage() {
-    setImageFile(null);
-    setImagePreview(null);
+  function removeMediaItem(index: number) {
+    setMediaItems((prev) => {
+      const item = prev[index];
+      if (item.preview && item.file) URL.revokeObjectURL(item.preview);
+      return prev.filter((_, i) => i !== index);
+    });
+  }
+
+  function clearAllMedia() {
+    mediaItems.forEach((item) => {
+      if (item.preview && item.file) URL.revokeObjectURL(item.preview);
+    });
+    setMediaItems([]);
     if (fileInputRef.current) fileInputRef.current.value = "";
   }
 
@@ -178,6 +205,7 @@ export default function ProductsPage() {
       const flash_deal_price = formData.get("flash_deal_price")
         ? parseFloat(formData.get("flash_deal_price") as string)
         : undefined;
+      const flash_deal_expires_at = formData.get("flash_deal_expires_at") as string || undefined;
 
       if (!name?.trim()) {
         setFormError("Product name is required");
@@ -185,18 +213,37 @@ export default function ProductsPage() {
         return;
       }
 
-      // Upload image if selected
-      let image_url: string | undefined | null = editingProduct?.image_url;
-      if (imageFile) {
-        try {
-          image_url = await uploadProductImage(imageFile);
-        } catch (err) {
-          setFormError(
-            `Image upload failed: ${err instanceof Error ? err.message : "Unknown error"}`
-          );
-          setSaving(false);
-          return;
+      // Upload new media files
+      const uploadedMedia: { url: string; type: "image" | "video"; sort_order: number }[] = [];
+      let firstImageUrl: string | undefined | null = editingProduct?.image_url;
+
+      for (let i = 0; i < mediaItems.length; i++) {
+        const item = mediaItems[i];
+        if (item.file) {
+          try {
+            const url = await uploadProductMedia(item.file);
+            uploadedMedia.push({ url, type: item.type, sort_order: i });
+            if (!firstImageUrl && item.type === "image") firstImageUrl = url;
+          } catch (err) {
+            setFormError(
+              `Upload failed: ${err instanceof Error ? err.message : "Unknown error"}`
+            );
+            setSaving(false);
+            return;
+          }
+        } else {
+          // Existing media (already uploaded)
+          uploadedMedia.push({ url: item.url, type: item.type, sort_order: i });
+          if (!firstImageUrl && item.type === "image") firstImageUrl = item.url;
         }
+      }
+
+      // Use the first image as the product thumbnail (image_url)
+      if (uploadedMedia.length > 0) {
+        const firstImage = uploadedMedia.find((m) => m.type === "image");
+        firstImageUrl = firstImage?.url ?? uploadedMedia[0].url;
+      } else {
+        firstImageUrl = null;
       }
 
       const productData = {
@@ -207,12 +254,15 @@ export default function ProductsPage() {
         unit: unit || "bag",
         min_order_qty: min_order_qty || 1,
         stock: stock || 0,
-        image_url: image_url ?? undefined,
+        image_url: firstImageUrl ?? undefined,
         wholesaler_id: wholesaler_id || undefined,
         manufacturer_id: manufacturer_id || undefined,
         is_trending,
         is_flash_deal,
         flash_deal_price: is_flash_deal ? flash_deal_price : undefined,
+        flash_deal_expires_at: is_flash_deal && flash_deal_expires_at
+          ? new Date(flash_deal_expires_at).toISOString()
+          : undefined,
       };
 
       const result = editingProduct
@@ -234,11 +284,21 @@ export default function ProductsPage() {
           setSaving(false);
           return;
         }
+
+        // Save product media
+        if (uploadedMedia.length > 0) {
+          const mediaResult = await saveProductMedia(productId, uploadedMedia);
+          if (mediaResult.error) {
+            setFormError(mediaResult.error);
+            setSaving(false);
+            return;
+          }
+        }
       }
 
       setDialogOpen(false);
       setEditingProduct(null);
-      clearImage();
+      clearAllMedia();
       setUnitOptions([]);
       await loadData();
     } catch {
@@ -262,8 +322,23 @@ export default function ProductsPage() {
   function openEdit(product: ProductWithWholesaler) {
     setEditingProduct(product);
     setFormError(null);
-    clearImage();
-    if (product.image_url) setImagePreview(product.image_url);
+    clearAllMedia();
+    // Load existing media
+    const existingMedia: MediaItem[] = (product.product_media ?? [])
+      .sort((a, b) => a.sort_order - b.sort_order)
+      .map((m) => ({
+        id: m.id,
+        url: m.url,
+        type: m.type as "image" | "video",
+      }));
+    // If no product_media but has image_url, use that as fallback
+    if (existingMedia.length === 0 && product.image_url) {
+      existingMedia.push({
+        url: product.image_url,
+        type: getMediaType(product.image_url),
+      });
+    }
+    setMediaItems(existingMedia);
     setUnitOptions(
       (product.product_unit_options ?? []).map((o) => ({
         unit_slug: o.unit_slug,
@@ -278,7 +353,7 @@ export default function ProductsPage() {
   function openAdd() {
     setEditingProduct(null);
     setFormError(null);
-    clearImage();
+    clearAllMedia();
     setUnitOptions([]);
     setDialogOpen(true);
   }
@@ -636,7 +711,7 @@ export default function ProductsPage() {
           if (!open) {
             setEditingProduct(null);
             setFormError(null);
-            clearImage();
+            clearAllMedia();
           }
         }}
       >
@@ -647,55 +722,62 @@ export default function ProductsPage() {
             </DialogTitle>
           </DialogHeader>
           <form key={editingProduct?.id ?? "new"} onSubmit={handleSubmit} className="space-y-4">
-            {/* Image upload */}
+            {/* Media upload */}
             <div className="space-y-2">
-              <label className="text-sm font-medium">Product Image</label>
-              <div className="flex items-center gap-4">
-                {imagePreview ? (
-                  <div className="relative h-20 w-20 overflow-hidden rounded-lg border">
-                    <Image
-                      src={imagePreview}
-                      alt="Preview"
-                      fill
-                      className="object-cover"
-                      sizes="80px"
-                    />
+              <label className="text-sm font-medium">Product Media</label>
+              <div className="flex flex-wrap gap-2">
+                {mediaItems.map((item, idx) => (
+                  <div key={idx} className="group relative h-20 w-20 overflow-hidden rounded-lg border">
+                    {item.type === "video" ? (
+                      <div className="flex h-full w-full items-center justify-center bg-muted">
+                        <Film className="h-6 w-6 text-muted-foreground" />
+                        <span className="absolute bottom-0.5 left-0.5 rounded bg-black/60 px-1 text-[8px] text-white">
+                          Video
+                        </span>
+                      </div>
+                    ) : (
+                      <Image
+                        src={item.preview ?? item.url}
+                        alt={`Media ${idx + 1}`}
+                        fill
+                        className="object-cover"
+                        sizes="80px"
+                      />
+                    )}
                     <button
                       type="button"
-                      onClick={clearImage}
-                      className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-destructive text-white"
+                      onClick={() => removeMediaItem(idx)}
+                      className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-destructive text-white opacity-0 transition-opacity group-hover:opacity-100"
                     >
                       <X className="h-3 w-3" />
                     </button>
+                    {idx === 0 && (
+                      <span className="absolute bottom-0.5 right-0.5 rounded bg-primary/80 px-1 text-[8px] text-white">
+                        Cover
+                      </span>
+                    )}
                   </div>
-                ) : (
-                  <div className="flex h-20 w-20 items-center justify-center rounded-lg border border-dashed">
-                    <ImageIcon className="h-6 w-6 text-muted-foreground/50" />
-                  </div>
-                )}
-                <div>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="gap-2"
-                    onClick={() => fileInputRef.current?.click()}
-                  >
-                    <Upload className="h-3.5 w-3.5" />
-                    {imagePreview ? "Change" : "Upload"}
-                  </Button>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    JPEG, PNG, WebP (max 5MB)
-                  </p>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/jpeg,image/png,image/webp,image/gif"
-                    className="hidden"
-                    onChange={handleImageChange}
-                  />
-                </div>
+                ))}
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="flex h-20 w-20 flex-col items-center justify-center gap-1 rounded-lg border border-dashed hover:border-primary/50 hover:bg-muted/50 transition-colors"
+                >
+                  <Upload className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-[10px] text-muted-foreground">Add</span>
+                </button>
               </div>
+              <p className="text-xs text-muted-foreground">
+                Images (JPEG, PNG, WebP) & short videos (MP4, WebM) — max 5MB each. First image is the cover.
+              </p>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,video/quicktime"
+                className="hidden"
+                onChange={handleMediaAdd}
+                multiple
+              />
             </div>
 
             <div className="space-y-2">
@@ -963,6 +1045,26 @@ export default function ProductsPage() {
                 placeholder="Leave blank if not a flash deal"
                 defaultValue={editingProduct?.flash_deal_price ?? ""}
               />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium">
+                Flash Deal Expires At
+              </label>
+              <Input
+                name="flash_deal_expires_at"
+                type="datetime-local"
+                defaultValue={
+                  editingProduct?.flash_deal_expires_at
+                    ? new Date(editingProduct.flash_deal_expires_at)
+                        .toISOString()
+                        .slice(0, 16)
+                    : ""
+                }
+              />
+              <p className="text-xs text-muted-foreground">
+                Set when this deal expires. A countdown will show on the storefront.
+              </p>
             </div>
 
             {formError && (
