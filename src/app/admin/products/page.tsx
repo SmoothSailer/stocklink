@@ -61,6 +61,7 @@ interface UnitOptionRow {
   price: number;
   stock: number;
   min_order_qty: number;
+  pieces_per_unit?: number;
 }
 
 interface MediaItem {
@@ -80,6 +81,7 @@ interface ProductWithWholesaler {
   unit: string;
   min_order_qty: number;
   stock: number;
+  pieces_per_unit: number | null;
   image_url: string | null;
   wholesaler_id: string | null;
   manufacturer_id: string | null;
@@ -198,6 +200,9 @@ export default function ProductsPage() {
       const unit = formData.get("unit") as string;
       const min_order_qty = parseInt(formData.get("min_order_qty") as string);
       const stock = parseInt(formData.get("stock") as string);
+      const pieces_per_unit = formData.get("pieces_per_unit")
+        ? parseInt(formData.get("pieces_per_unit") as string)
+        : undefined;
       const wholesaler_id = formData.get("wholesaler_id") as string;
       const manufacturer_id = formData.get("manufacturer_id") as string;
       const is_trending = formData.get("is_trending") === "on";
@@ -254,6 +259,7 @@ export default function ProductsPage() {
         unit: unit || "bag",
         min_order_qty: min_order_qty || 1,
         stock: stock || 0,
+        pieces_per_unit: pieces_per_unit || undefined,
         image_url: firstImageUrl ?? undefined,
         wholesaler_id: wholesaler_id || undefined,
         manufacturer_id: manufacturer_id || undefined,
@@ -345,6 +351,7 @@ export default function ProductsPage() {
         price: o.price,
         stock: o.stock,
         min_order_qty: o.min_order_qty,
+        pieces_per_unit: o.pieces_per_unit ?? undefined,
       }))
     );
     setDialogOpen(true);
@@ -869,6 +876,19 @@ export default function ProductsPage() {
                 />
               </div>
               <div className="space-y-2">
+                <label className="text-sm font-medium">Pieces per Unit</label>
+                <Input
+                  name="pieces_per_unit"
+                  type="number"
+                  min="1"
+                  placeholder="e.g. 12 pieces per box"
+                  defaultValue={editingProduct?.pieces_per_unit ?? ""}
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
                 <label className="text-sm font-medium">
                   Wholesaler
                 </label>
@@ -902,7 +922,7 @@ export default function ProductsPage() {
                   size="sm"
                   className="h-8 gap-1 text-xs"
                   onClick={() =>
-                    setUnitOptions([...unitOptions, { unit_slug: "", price: 0, stock: 0, min_order_qty: 1 }])
+                    setUnitOptions([...unitOptions, { unit_slug: "", price: 0, stock: 0, min_order_qty: 1, pieces_per_unit: undefined }])
                   }
                 >
                   <Plus className="h-3 w-3" />
@@ -911,7 +931,7 @@ export default function ProductsPage() {
               </div>
               {unitOptions.map((opt, idx) => (
                 <div key={idx} className="grid grid-cols-[1fr_auto] gap-2">
-                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
                     <select
                       className="flex h-9 w-full rounded-md border border-input bg-transparent px-2 py-1 text-xs shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                       value={opt.unit_slug}
@@ -964,6 +984,18 @@ export default function ProductsPage() {
                       onChange={(e) => {
                         const updated = [...unitOptions];
                         updated[idx] = { ...updated[idx], min_order_qty: parseInt(e.target.value) || 1 };
+                        setUnitOptions(updated);
+                      }}
+                    />
+                    <Input
+                      type="number"
+                      min="1"
+                      placeholder="Pcs/unit"
+                      className="h-9 text-xs"
+                      value={opt.pieces_per_unit || ""}
+                      onChange={(e) => {
+                        const updated = [...unitOptions];
+                        updated[idx] = { ...updated[idx], pieces_per_unit: parseInt(e.target.value) || undefined };
                         setUnitOptions(updated);
                       }}
                     />
