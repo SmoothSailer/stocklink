@@ -505,6 +505,7 @@ export async function createProduct(data: {
   unit: string;
   min_order_qty: number;
   stock: number;
+  pieces_per_unit?: number;
   image_url?: string;
   wholesaler_id?: string;
   manufacturer_id?: string;
@@ -523,6 +524,7 @@ export async function createProduct(data: {
     unit: data.unit,
     min_order_qty: data.min_order_qty,
     stock: data.stock,
+    pieces_per_unit: data.pieces_per_unit ?? null,
     image_url: data.image_url || null,
     wholesaler_id: data.wholesaler_id || null,
     manufacturer_id: data.manufacturer_id || null,
@@ -548,6 +550,7 @@ export async function updateProduct(
     unit?: string;
     min_order_qty?: number;
     stock?: number;
+    pieces_per_unit?: number | null;
     image_url?: string | null;
     wholesaler_id?: string | null;
     manufacturer_id?: string | null;
@@ -590,7 +593,7 @@ export async function getProductUnitOptions(productId: string) {
 
 export async function saveProductUnitOptions(
   productId: string,
-  options: { unit_slug: string; price: number; stock: number; min_order_qty: number }[]
+  options: { unit_slug: string; price: number; stock: number; min_order_qty: number; pieces_per_unit?: number }[]
 ) {
   const supabase = createAdminClient();
 
@@ -609,6 +612,7 @@ export async function saveProductUnitOptions(
       price: opt.price,
       stock: opt.stock,
       min_order_qty: opt.min_order_qty,
+      pieces_per_unit: opt.pieces_per_unit ?? null,
       sort_order: idx,
     }));
     const { error: insertError } = await supabase

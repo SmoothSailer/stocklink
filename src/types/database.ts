@@ -131,6 +131,7 @@ export interface Database {
           price: number;
           stock: number;
           min_order_qty: number;
+          pieces_per_unit: number | null;
           sort_order: number;
           created_at: string;
         };
@@ -141,6 +142,7 @@ export interface Database {
           price: number;
           stock?: number;
           min_order_qty?: number;
+          pieces_per_unit?: number | null;
           sort_order?: number;
           created_at?: string;
         };
@@ -151,6 +153,7 @@ export interface Database {
           price?: number;
           stock?: number;
           min_order_qty?: number;
+          pieces_per_unit?: number | null;
           sort_order?: number;
           created_at?: string;
         };
@@ -248,6 +251,7 @@ export interface Database {
           unit: string;
           min_order_qty: number;
           stock: number;
+          pieces_per_unit: number | null;
           image_url: string | null;
           wholesaler_id: string | null;
           manufacturer_id: string | null;
@@ -268,6 +272,7 @@ export interface Database {
           unit?: string;
           min_order_qty?: number;
           stock?: number;
+          pieces_per_unit?: number | null;
           image_url?: string | null;
           wholesaler_id?: string | null;
           manufacturer_id?: string | null;
@@ -288,6 +293,7 @@ export interface Database {
           unit?: string;
           min_order_qty?: number;
           stock?: number;
+          pieces_per_unit?: number | null;
           image_url?: string | null;
           wholesaler_id?: string | null;
           manufacturer_id?: string | null;

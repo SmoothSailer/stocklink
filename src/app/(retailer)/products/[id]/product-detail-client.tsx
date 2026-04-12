@@ -57,6 +57,7 @@ interface UnitChoice {
   price: number;
   stock: number;
   moq: number;
+  piecesPerUnit?: number | null;
 }
 
 export default function ProductDetailClient({ product }: ProductDetailClientProps) {
@@ -76,12 +77,13 @@ export default function ProductDetailClient({ product }: ProductDetailClientProp
 
   // Build unit choices: default unit + additional unit options
   const unitChoices: UnitChoice[] = [
-    { slug: product.unit, price: product.price, stock: product.stock, moq: product.min_order_qty ?? 1 },
+    { slug: product.unit, price: product.price, stock: product.stock, moq: product.min_order_qty ?? 1, piecesPerUnit: product.pieces_per_unit },
     ...(product.product_unit_options ?? []).map((o) => ({
       slug: o.unit_slug,
       price: o.price,
       stock: o.stock,
       moq: o.min_order_qty,
+      piecesPerUnit: o.pieces_per_unit,
     })),
   ];
   const hasMultipleUnits = unitChoices.length > 1;
@@ -251,6 +253,11 @@ export default function ProductDetailClient({ product }: ProductDetailClientProp
                   <span className="ml-1.5 text-xs text-muted-foreground">
                     {formatPrice(uc.price)}
                   </span>
+                  {uc.piecesPerUnit && (
+                    <span className="ml-1 text-[10px] text-muted-foreground">
+                      ({uc.piecesPerUnit}pcs)
+                    </span>
+                  )}
                 </button>
               ))}
             </div>
@@ -264,6 +271,12 @@ export default function ProductDetailClient({ product }: ProductDetailClientProp
             <Package className="h-3 w-3" />
             Min. {moq} {activeUnit.slug}s
           </Badge>
+          {activeUnit.piecesPerUnit && (
+            <Badge variant="outline" className="gap-1">
+              <Package className="h-3 w-3" />
+              {activeUnit.piecesPerUnit} pcs per {activeUnit.slug}
+            </Badge>
+          )}
           {product.manufacturers?.name && (
             <Badge variant="outline" className="gap-1">
               <Factory className="h-3 w-3" />
