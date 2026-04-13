@@ -688,6 +688,7 @@ export interface Database {
           installment_amount: number;
           down_payment_rate: number;
           down_payment: number;
+          down_payment_paid_at: string | null;
           agreed_at: string;
           created_by: string | null;
           created_at: string;
@@ -702,6 +703,7 @@ export interface Database {
           installment_amount: number;
           down_payment_rate?: number;
           down_payment: number;
+          down_payment_paid_at?: string | null;
           agreed_at?: string;
           created_by?: string | null;
           created_at?: string;
@@ -716,6 +718,7 @@ export interface Database {
           installment_amount?: number;
           down_payment_rate?: number;
           down_payment?: number;
+          down_payment_paid_at?: string | null;
           agreed_at?: string;
           created_by?: string | null;
           created_at?: string;

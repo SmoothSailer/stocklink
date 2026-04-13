@@ -925,6 +925,85 @@ export async function repCreateBnplPlan(
 }
 
 /**
+ * Record the 30% down payment for a BNPL plan.
+ * Creates a payment_record, updates bnpl_plans.down_payment_paid_at,
+ * and updates the order's amount_paid / payment_status.
+ */
+export async function repRecordDownPayment(
+  repId: string,
+  orderId: string,
+  payment: {
+    method: "mpesa" | "cash" | "card";
+    reference?: string;
+    notes?: string;
+  }
+) {
+  if (!(await verifyRepOwnership(repId))) {
+    return { error: "Unauthorized" };
+  }
+
+  const supabase = await createClient();
+
+  // Get the BNPL plan for this order
+  const { data: plan } = await supabase
+    .from("bnpl_plans")
+    .select("id, down_payment, down_payment_paid_at, order_id")
+    .eq("order_id", orderId)
+    .single();
+
+  if (!plan) return { error: "No BNPL plan found for this order" };
+  if (plan.down_payment_paid_at) return { error: "Down payment already recorded" };
+
+  const { data: { user } } = await supabase.auth.getUser();
+
+  // Create payment record for the down payment
+  const { error: insertError } = await supabase.from("payment_records").insert({
+    order_id: orderId,
+    amount: plan.down_payment,
+    method: payment.method,
+    reference: payment.reference || null,
+    notes: payment.notes || `BNPL 30% down payment`,
+    recorded_by: user?.id ?? null,
+  });
+
+  if (insertError) return { error: insertError.message };
+
+  // Mark down payment as paid on the plan
+  const { error: planError } = await supabase
+    .from("bnpl_plans")
+    .update({ down_payment_paid_at: new Date().toISOString() })
+    .eq("id", plan.id);
+
+  if (planError) return { error: planError.message };
+
+  // Update order amount_paid and payment_status
+  const { data: order } = await supabase
+    .from("orders")
+    .select("total, amount_paid")
+    .eq("id", orderId)
+    .single();
+
+  if (order) {
+    const newAmountPaid = (order.amount_paid ?? 0) + plan.down_payment;
+    const isPaid = newAmountPaid >= order.total;
+    const paymentStatus: "pending" | "partial" | "paid" =
+      newAmountPaid <= 0 ? "pending" : isPaid ? "paid" : "partial";
+
+    await supabase
+      .from("orders")
+      .update({
+        amount_paid: newAmountPaid,
+        payment_status: paymentStatus,
+        ...(isPaid ? { paid_at: new Date().toISOString() } : {}),
+      })
+      .eq("id", orderId);
+  }
+
+  revalidatePath("/sales-rep/dashboard");
+  return { error: null };
+}
+
+/**
  * Get the BNPL plan and installments for an order.
  */
 export async function getOrderBnplPlan(orderId: string) {

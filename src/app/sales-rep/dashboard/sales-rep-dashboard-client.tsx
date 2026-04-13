@@ -55,6 +55,7 @@ import {
   repCreateBnplPlan,
   getOrderBnplPlan,
   repPayBnplInstallment,
+  repRecordDownPayment,
 } from "@/app/sales-rep/actions";
 import type { SalesRep, Wholesaler, Order, OrderStatus, Manufacturer, PaymentRecord, BnplPlan, BnplInstallment } from "@/types/database";
 
@@ -846,6 +847,10 @@ function OrdersTab({ orders, rep }: { orders: OrderWithItems[]; rep: SalesRep })
   const [instPayMethod, setInstPayMethod] = useState<"mpesa" | "cash" | "card">("mpesa");
   const [instPayRef, setInstPayRef] = useState("");
   const [showInstPayForm, setShowInstPayForm] = useState<string | null>(null);
+  const [recordingDownPayment, setRecordingDownPayment] = useState(false);
+  const [showDownPayForm, setShowDownPayForm] = useState(false);
+  const [downPayMethod, setDownPayMethod] = useState<"mpesa" | "cash" | "card">("mpesa");
+  const [downPayRef, setDownPayRef] = useState("");
 
   const filteredOrders =
     statusFilter === "all"
@@ -962,6 +967,29 @@ function OrdersTab({ orders, rep }: { orders: OrderWithItems[]; rep: SalesRep })
       router.refresh();
     }
     setPayingInstallmentId(null);
+  }
+
+  async function handleRecordDownPayment() {
+    if (!paymentDialogOrder) return;
+    setRecordingDownPayment(true);
+    const result = await repRecordDownPayment(rep.id, paymentDialogOrder.id, {
+      method: downPayMethod,
+      reference: downPayRef.trim() || undefined,
+    });
+
+    if (result.error) {
+      alert(result.error);
+    } else {
+      // Refresh plan & payment records
+      const plan = await getOrderBnplPlan(paymentDialogOrder.id);
+      if (plan) setBnplPlan(plan as BnplPlanWithInstallments);
+      const records = await getOrderPayments(paymentDialogOrder.id);
+      setPaymentRecords(records as PaymentRecord[]);
+      setShowDownPayForm(false);
+      setDownPayRef("");
+      router.refresh();
+    }
+    setRecordingDownPayment(false);
   }
 
   if (orders.length === 0) {
@@ -1369,6 +1397,77 @@ function OrdersTab({ orders, rep }: { orders: OrderWithItems[]; rep: SalesRep })
                           <span>30% Down Payment</span>
                           <span className="font-semibold">{formatPrice(bnplPlan.down_payment)}</span>
                         </div>
+                      </div>
+
+                      {/* Down Payment Recording */}
+                      <div className="rounded border p-2 space-y-2">
+                        <div className="flex items-center justify-between text-xs">
+                          <div>
+                            <p className="font-medium">⬇ Down Payment (30%)</p>
+                            <p className="text-muted-foreground">{formatPrice(bnplPlan.down_payment)}</p>
+                          </div>
+                          <Badge className={`text-[10px] ${
+                            bnplPlan.down_payment_paid_at
+                              ? "bg-green-100 text-green-800"
+                              : "bg-red-100 text-red-800"
+                          }`}>
+                            {bnplPlan.down_payment_paid_at ? "Paid" : "Required"}
+                          </Badge>
+                        </div>
+                        {!bnplPlan.down_payment_paid_at && (
+                          <>
+                            {showDownPayForm ? (
+                              <div className="space-y-2 pt-1 border-t">
+                                <div className="flex gap-1.5">
+                                  {(["mpesa", "cash", "card"] as const).map((m) => (
+                                    <button
+                                      key={m}
+                                      type="button"
+                                      onClick={() => setDownPayMethod(m)}
+                                      className={`flex-1 rounded border px-1.5 py-1 text-[10px] font-medium ${
+                                        downPayMethod === m ? "border-primary bg-primary/10 text-primary" : "text-muted-foreground"
+                                      }`}
+                                    >
+                                      {m === "mpesa" ? "M-Pesa" : m === "cash" ? "Cash" : "Card"}
+                                    </button>
+                                  ))}
+                                </div>
+                                {downPayMethod !== "cash" && (
+                                  <Input
+                                    className="h-8 text-xs"
+                                    placeholder={downPayMethod === "mpesa" ? "M-Pesa code" : "Receipt ref"}
+                                    value={downPayRef}
+                                    onChange={(e) => setDownPayRef(e.target.value.toUpperCase())}
+                                  />
+                                )}
+                                <div className="flex gap-2">
+                                  <Button
+                                    size="sm"
+                                    className="h-7 flex-1 gap-1 text-xs"
+                                    disabled={recordingDownPayment}
+                                    onClick={handleRecordDownPayment}
+                                  >
+                                    {recordingDownPayment ? <Loader2 className="h-3 w-3 animate-spin" /> : <CheckCircle2 className="h-3 w-3" />}
+                                    Confirm {formatPrice(bnplPlan.down_payment)}
+                                  </Button>
+                                  <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setShowDownPayForm(false)}>
+                                    Cancel
+                                  </Button>
+                                </div>
+                              </div>
+                            ) : (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-7 w-full gap-1 text-xs"
+                                onClick={() => { setShowDownPayForm(true); setDownPayRef(""); setDownPayMethod("mpesa"); }}
+                              >
+                                <Banknote className="h-3 w-3" />
+                                Record Down Payment
+                              </Button>
+                            )}
+                          </>
+                        )}
                       </div>
 
                       <p className="text-xs font-semibold text-muted-foreground">

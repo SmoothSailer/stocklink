@@ -234,7 +234,16 @@ export default function OrderDetailClient({
               {bnplPlan.down_payment > 0 && (
                 <div className="flex justify-between text-primary font-medium border-t pt-1 mt-1">
                   <span>⬇ Down Payment ({Math.round(bnplPlan.down_payment_rate * 100)}%)</span>
-                  <span>{formatPrice(bnplPlan.down_payment)}</span>
+                  <span className="flex items-center gap-1.5">
+                    {formatPrice(bnplPlan.down_payment)}
+                    <Badge className={`text-[10px] ${
+                      bnplPlan.down_payment_paid_at
+                        ? "bg-green-100 text-green-800"
+                        : "bg-red-100 text-red-800"
+                    }`}>
+                      {bnplPlan.down_payment_paid_at ? "Paid" : "Required"}
+                    </Badge>
+                  </span>
                 </div>
               )}
             </div>
