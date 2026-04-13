@@ -87,7 +87,7 @@ export async function getRepProducts(repId: string) {
 }
 
 /**
- * Get orders that contain products from the rep's assigned wholesalers.
+ * Get orders that contain products from the rep's assigned wholesalers or manufacturers.
  */
 export async function getRepOrders(repId: string) {
   const supabase = await createClient();
@@ -98,15 +98,31 @@ export async function getRepOrders(repId: string) {
     .select("id")
     .eq("sales_rep_id", repId);
 
-  if (!wholesalers || wholesalers.length === 0) return [];
-
-  const wholesalerIds = wholesalers.map((w) => w.id);
-
-  // Get products for those wholesalers
-  const { data: products } = await supabase
-    .from("products")
+  // Get manufacturer IDs for this rep
+  const { data: manufacturers } = await supabase
+    .from("manufacturers")
     .select("id")
-    .in("wholesaler_id", wholesalerIds);
+    .eq("sales_rep_id", repId);
+
+  const wholesalerIds = wholesalers?.map((w) => w.id) ?? [];
+  const manufacturerIds = manufacturers?.map((m) => m.id) ?? [];
+
+  if (wholesalerIds.length === 0 && manufacturerIds.length === 0) return [];
+
+  // Get products for those wholesalers and manufacturers
+  let productsQuery = supabase.from("products").select("id");
+
+  if (wholesalerIds.length > 0 && manufacturerIds.length > 0) {
+    productsQuery = productsQuery.or(
+      `wholesaler_id.in.(${wholesalerIds.join(",")}),manufacturer_id.in.(${manufacturerIds.join(",")})`
+    );
+  } else if (wholesalerIds.length > 0) {
+    productsQuery = productsQuery.in("wholesaler_id", wholesalerIds);
+  } else {
+    productsQuery = productsQuery.in("manufacturer_id", manufacturerIds);
+  }
+
+  const { data: products } = await productsQuery;
 
   if (!products || products.length === 0) return [];
 
@@ -126,12 +142,90 @@ export async function getRepOrders(repId: string) {
 
   const { data: orders } = await supabase
     .from("orders")
-    .select("*, order_items(*, products(name, unit, wholesaler_id, wholesalers(name)))")
+    .select("*, retailers(id, name, business_name, phone, location), order_items(*, products(name, unit, wholesaler_id, wholesalers(name)))")
     .in("id", orderIds)
     .order("created_at", { ascending: false })
     .limit(50);
 
   return orders ?? [];
+}
+
+/**
+ * Update order status — sales rep can confirm, mark out_for_delivery, delivered, or cancel.
+ * Verifies the order contains products belonging to the rep's wholesalers/manufacturers.
+ */
+export async function repUpdateOrderStatus(
+  repId: string,
+  orderId: string,
+  status: "confirmed" | "out_for_delivery" | "delivered" | "cancelled"
+) {
+  if (!(await verifyRepOwnership(repId))) {
+    return { error: "Unauthorized" };
+  }
+
+  const supabase = await createClient();
+
+  // Verify this order belongs to the rep's products
+  const { data: wholesalers } = await supabase
+    .from("wholesalers")
+    .select("id")
+    .eq("sales_rep_id", repId);
+
+  const { data: manufacturers } = await supabase
+    .from("manufacturers")
+    .select("id")
+    .eq("sales_rep_id", repId);
+
+  const wholesalerIds = wholesalers?.map((w) => w.id) ?? [];
+  const manufacturerIds = manufacturers?.map((m) => m.id) ?? [];
+
+  if (wholesalerIds.length === 0 && manufacturerIds.length === 0) {
+    return { error: "No wholesalers or manufacturers assigned" };
+  }
+
+  // Check that at least one order item has a product from this rep's scope
+  const { data: orderItems } = await supabase
+    .from("order_items")
+    .select("product_id, products(wholesaler_id, manufacturer_id)")
+    .eq("order_id", orderId);
+
+  if (!orderItems || orderItems.length === 0) {
+    return { error: "Order not found or has no items" };
+  }
+
+  const hasAccess = orderItems.some((item) => {
+    const p = item.products as { wholesaler_id: string | null; manufacturer_id: string | null } | null;
+    if (!p) return false;
+    return (
+      (p.wholesaler_id && wholesalerIds.includes(p.wholesaler_id)) ||
+      (p.manufacturer_id && manufacturerIds.includes(p.manufacturer_id))
+    );
+  });
+
+  if (!hasAccess) {
+    return { error: "You don't have permission to manage this order" };
+  }
+
+  // Update order status
+  const { error } = await supabase
+    .from("orders")
+    .update({ status })
+    .eq("id", orderId);
+
+  if (error) return { error: error.message };
+
+  // Get current user for history
+  const { data: { user } } = await supabase.auth.getUser();
+
+  // Log status change in history
+  await supabase.from("order_status_history").insert({
+    order_id: orderId,
+    status,
+    changed_by: user?.id ?? null,
+  });
+
+  revalidatePath("/sales-rep/dashboard");
+  return { error: null };
 }
 
 /**
@@ -611,5 +705,395 @@ export async function repUpdateProduct(
   if (error) return { error: error.message };
   revalidatePath("/sales-rep/dashboard");
   revalidatePath("/");
+  return { error: null };
+}
+
+// ── Payment Tracking Actions ────────────────────────────────────
+
+/**
+ * Record a payment against an order.
+ * Updates order's amount_paid, payment_status, and paid_at.
+ */
+export async function repRecordPayment(
+  repId: string,
+  orderId: string,
+  payment: {
+    amount: number;
+    method: "mpesa" | "cash" | "card";
+    reference?: string;
+    notes?: string;
+  }
+) {
+  if (!(await verifyRepOwnership(repId))) {
+    return { error: "Unauthorized" };
+  }
+
+  const supabase = await createClient();
+
+  // Verify ownership of the order (same check as repUpdateOrderStatus)
+  const { data: wholesalers } = await supabase
+    .from("wholesalers")
+    .select("id")
+    .eq("sales_rep_id", repId);
+
+  const { data: manufacturers } = await supabase
+    .from("manufacturers")
+    .select("id")
+    .eq("sales_rep_id", repId);
+
+  const wholesalerIds = wholesalers?.map((w) => w.id) ?? [];
+  const manufacturerIds = manufacturers?.map((m) => m.id) ?? [];
+
+  if (wholesalerIds.length === 0 && manufacturerIds.length === 0) {
+    return { error: "No wholesalers or manufacturers assigned" };
+  }
+
+  const { data: orderItems } = await supabase
+    .from("order_items")
+    .select("product_id, products(wholesaler_id, manufacturer_id)")
+    .eq("order_id", orderId);
+
+  if (!orderItems || orderItems.length === 0) {
+    return { error: "Order not found or has no items" };
+  }
+
+  const hasAccess = orderItems.some((item) => {
+    const p = item.products as { wholesaler_id: string | null; manufacturer_id: string | null } | null;
+    if (!p) return false;
+    return (
+      (p.wholesaler_id && wholesalerIds.includes(p.wholesaler_id)) ||
+      (p.manufacturer_id && manufacturerIds.includes(p.manufacturer_id))
+    );
+  });
+
+  if (!hasAccess) {
+    return { error: "You don't have permission to manage this order" };
+  }
+
+  // Get the order to calculate new amount_paid
+  const { data: order } = await supabase
+    .from("orders")
+    .select("total, amount_paid")
+    .eq("id", orderId)
+    .single();
+
+  if (!order) return { error: "Order not found" };
+
+  const { data: { user } } = await supabase.auth.getUser();
+
+  // Insert payment record
+  const { error: insertError } = await supabase.from("payment_records").insert({
+    order_id: orderId,
+    amount: payment.amount,
+    method: payment.method,
+    reference: payment.reference || null,
+    notes: payment.notes || null,
+    recorded_by: user?.id ?? null,
+  });
+
+  if (insertError) return { error: insertError.message };
+
+  // Update order totals
+  const newAmountPaid = (order.amount_paid ?? 0) + payment.amount;
+  const isPaid = newAmountPaid >= order.total;
+  const paymentStatus: "pending" | "partial" | "paid" =
+    newAmountPaid <= 0 ? "pending" : isPaid ? "paid" : "partial";
+
+  const { error: updateError } = await supabase
+    .from("orders")
+    .update({
+      amount_paid: newAmountPaid,
+      payment_status: paymentStatus,
+      ...(isPaid ? { paid_at: new Date().toISOString() } : {}),
+    })
+    .eq("id", orderId);
+
+  if (updateError) return { error: updateError.message };
+
+  revalidatePath("/sales-rep/dashboard");
+  return { error: null };
+}
+
+/**
+ * Get payment records for an order.
+ */
+export async function getOrderPayments(orderId: string) {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("payment_records")
+    .select("*")
+    .eq("order_id", orderId)
+    .order("created_at", { ascending: true });
+
+  return data ?? [];
+}
+
+// ── Murabaha BNPL Actions ───────────────────────────────────────
+
+/**
+ * Create a Murabaha BNPL plan for an order.
+ * Sets up the installment schedule with due dates.
+ */
+export async function repCreateBnplPlan(
+  repId: string,
+  orderId: string,
+  plan: {
+    cost_price: number;
+    markup_amount: number;
+    num_installments: number;
+    first_due_date: string;
+    interval_days: number;
+  }
+) {
+  if (!(await verifyRepOwnership(repId))) {
+    return { error: "Unauthorized" };
+  }
+
+  const supabase = await createClient();
+
+  // Check no plan exists already
+  const { data: existingPlan } = await supabase
+    .from("bnpl_plans")
+    .select("id")
+    .eq("order_id", orderId)
+    .maybeSingle();
+
+  if (existingPlan) {
+    return { error: "A BNPL plan already exists for this order" };
+  }
+
+  const DOWN_PAYMENT_RATE = 0.3;
+  const totalWithMarkup = plan.cost_price + plan.markup_amount;
+  const downPayment = Math.ceil(totalWithMarkup * DOWN_PAYMENT_RATE * 100) / 100;
+  const remainingAmount = totalWithMarkup - downPayment;
+  const installmentAmount = Math.ceil((remainingAmount / plan.num_installments) * 100) / 100;
+
+  const { data: { user } } = await supabase.auth.getUser();
+
+  // Create the plan
+  const { data: bnplPlan, error: planError } = await supabase
+    .from("bnpl_plans")
+    .insert({
+      order_id: orderId,
+      cost_price: plan.cost_price,
+      markup_amount: plan.markup_amount,
+      total_with_markup: totalWithMarkup,
+      num_installments: plan.num_installments,
+      installment_amount: installmentAmount,
+      down_payment_rate: DOWN_PAYMENT_RATE,
+      down_payment: downPayment,
+      created_by: user?.id ?? null,
+    })
+    .select("id")
+    .single();
+
+  if (planError) return { error: planError.message };
+
+  // Create installment schedule (only the remaining 70%)
+  const installments = [];
+  const firstDue = new Date(plan.first_due_date);
+  for (let i = 0; i < plan.num_installments; i++) {
+    const dueDate = new Date(firstDue);
+    dueDate.setDate(dueDate.getDate() + i * plan.interval_days);
+    // Last installment gets the remainder to avoid rounding issues
+    const amount = i === plan.num_installments - 1
+      ? remainingAmount - installmentAmount * (plan.num_installments - 1)
+      : installmentAmount;
+    installments.push({
+      plan_id: bnplPlan.id,
+      installment_number: i + 1,
+      amount,
+      due_date: dueDate.toISOString().split("T")[0],
+      status: "upcoming" as const,
+    });
+  }
+
+  const { error: instError } = await supabase
+    .from("bnpl_installments")
+    .insert(installments);
+
+  if (instError) return { error: instError.message };
+
+  // Update the order total to reflect the markup
+  await supabase
+    .from("orders")
+    .update({ total: totalWithMarkup })
+    .eq("id", orderId);
+
+  revalidatePath("/sales-rep/dashboard");
+  return { error: null };
+}
+
+/**
+ * Record the 30% down payment for a BNPL plan.
+ * Creates a payment_record, updates bnpl_plans.down_payment_paid_at,
+ * and updates the order's amount_paid / payment_status.
+ */
+export async function repRecordDownPayment(
+  repId: string,
+  orderId: string,
+  payment: {
+    method: "mpesa" | "cash" | "card";
+    reference?: string;
+    notes?: string;
+  }
+) {
+  if (!(await verifyRepOwnership(repId))) {
+    return { error: "Unauthorized" };
+  }
+
+  const supabase = await createClient();
+
+  // Get the BNPL plan for this order
+  const { data: plan } = await supabase
+    .from("bnpl_plans")
+    .select("id, down_payment, down_payment_paid_at, order_id")
+    .eq("order_id", orderId)
+    .single();
+
+  if (!plan) return { error: "No BNPL plan found for this order" };
+  if (plan.down_payment_paid_at) return { error: "Down payment already recorded" };
+
+  const { data: { user } } = await supabase.auth.getUser();
+
+  // Create payment record for the down payment
+  const { error: insertError } = await supabase.from("payment_records").insert({
+    order_id: orderId,
+    amount: plan.down_payment,
+    method: payment.method,
+    reference: payment.reference || null,
+    notes: payment.notes || `BNPL 30% down payment`,
+    recorded_by: user?.id ?? null,
+  });
+
+  if (insertError) return { error: insertError.message };
+
+  // Mark down payment as paid on the plan
+  const { error: planError } = await supabase
+    .from("bnpl_plans")
+    .update({ down_payment_paid_at: new Date().toISOString() })
+    .eq("id", plan.id);
+
+  if (planError) return { error: planError.message };
+
+  // Update order amount_paid and payment_status
+  const { data: order } = await supabase
+    .from("orders")
+    .select("total, amount_paid")
+    .eq("id", orderId)
+    .single();
+
+  if (order) {
+    const newAmountPaid = (order.amount_paid ?? 0) + plan.down_payment;
+    const isPaid = newAmountPaid >= order.total;
+    const paymentStatus: "pending" | "partial" | "paid" =
+      newAmountPaid <= 0 ? "pending" : isPaid ? "paid" : "partial";
+
+    await supabase
+      .from("orders")
+      .update({
+        amount_paid: newAmountPaid,
+        payment_status: paymentStatus,
+        ...(isPaid ? { paid_at: new Date().toISOString() } : {}),
+      })
+      .eq("id", orderId);
+  }
+
+  revalidatePath("/sales-rep/dashboard");
+  return { error: null };
+}
+
+/**
+ * Get the BNPL plan and installments for an order.
+ */
+export async function getOrderBnplPlan(orderId: string) {
+  const supabase = await createClient();
+
+  const { data: plan } = await supabase
+    .from("bnpl_plans")
+    .select("*, bnpl_installments(*)")
+    .eq("order_id", orderId)
+    .maybeSingle();
+
+  return plan;
+}
+
+/**
+ * Mark a BNPL installment as paid by linking it to a payment record.
+ */
+export async function repPayBnplInstallment(
+  repId: string,
+  installmentId: string,
+  payment: {
+    method: "mpesa" | "cash" | "card";
+    reference?: string;
+    notes?: string;
+  }
+) {
+  if (!(await verifyRepOwnership(repId))) {
+    return { error: "Unauthorized" };
+  }
+
+  const supabase = await createClient();
+
+  const { data: installment } = await supabase
+    .from("bnpl_installments")
+    .select("*, bnpl_plans(order_id, total_with_markup)")
+    .eq("id", installmentId)
+    .single();
+
+  if (!installment) return { error: "Installment not found" };
+  if (installment.status === "paid") return { error: "Installment already paid" };
+
+  const plan = installment.bnpl_plans as { order_id: string; total_with_markup: number };
+  const { data: { user } } = await supabase.auth.getUser();
+
+  // Create payment record
+  const { data: paymentRecord, error: payError } = await supabase
+    .from("payment_records")
+    .insert({
+      order_id: plan.order_id,
+      amount: installment.amount,
+      method: payment.method,
+      reference: payment.reference || null,
+      notes: payment.notes || `Installment ${installment.installment_number}`,
+      recorded_by: user?.id ?? null,
+    })
+    .select("id")
+    .single();
+
+  if (payError) return { error: payError.message };
+
+  // Mark installment as paid
+  await supabase
+    .from("bnpl_installments")
+    .update({
+      status: "paid",
+      paid_at: new Date().toISOString(),
+      payment_record_id: paymentRecord.id,
+    })
+    .eq("id", installmentId);
+
+  // Update order amount_paid and payment_status
+  const { data: order } = await supabase
+    .from("orders")
+    .select("total, amount_paid")
+    .eq("id", plan.order_id)
+    .single();
+
+  if (order) {
+    const newAmountPaid = (order.amount_paid ?? 0) + installment.amount;
+    const isPaid = newAmountPaid >= order.total;
+    await supabase
+      .from("orders")
+      .update({
+        amount_paid: newAmountPaid,
+        payment_status: isPaid ? "paid" : "partial",
+        ...(isPaid ? { paid_at: new Date().toISOString() } : {}),
+      })
+      .eq("id", plan.order_id);
+  }
+
+  revalidatePath("/sales-rep/dashboard");
   return { error: null };
 }

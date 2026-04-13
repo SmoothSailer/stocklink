@@ -5,13 +5,14 @@ import {
   PackageCheck,
   XCircle,
 } from "lucide-react";
-import type { OrderStatus } from "@/types/database";
+import type { OrderStatus, OrderStatusHistory } from "@/types/database";
 import { cn } from "@/lib/utils";
 
 interface OrderTimelineProps {
   currentStatus: OrderStatus;
   createdAt: string;
   updatedAt: string;
+  statusHistory?: OrderStatusHistory[];
 }
 
 const steps: {
@@ -37,17 +38,40 @@ export function OrderTimeline({
   currentStatus,
   createdAt,
   updatedAt,
+  statusHistory,
 }: OrderTimelineProps) {
   const currentIndex = statusOrder[currentStatus];
 
+  // Build a map of status → timestamp from history
+  const historyMap = new Map<string, string>();
+  if (statusHistory && statusHistory.length > 0) {
+    for (const entry of statusHistory) {
+      // Use the first occurrence of each status
+      if (!historyMap.has(entry.status)) {
+        historyMap.set(entry.status, entry.created_at);
+      }
+    }
+  }
+
+  function getTimestampForStatus(status: OrderStatus, index: number): string | null {
+    // Try status history first
+    const fromHistory = historyMap.get(status);
+    if (fromHistory) return fromHistory;
+    // Fallback for placed → use createdAt, for current step → use updatedAt
+    if (index === 0) return createdAt;
+    if (statusOrder[status] === currentIndex) return updatedAt;
+    return null;
+  }
+
   if (currentStatus === "cancelled") {
+    const cancelledAt = historyMap.get("cancelled") ?? updatedAt;
     return (
       <div className="flex items-center gap-3 rounded-lg bg-red-50 p-4">
         <XCircle className="h-6 w-6 text-destructive" />
         <div>
           <p className="font-semibold text-destructive">Order Cancelled</p>
           <p className="text-sm text-muted-foreground">
-            {new Date(updatedAt).toLocaleDateString("en-KE", {
+            {new Date(cancelledAt).toLocaleDateString("en-KE", {
               day: "numeric",
               month: "short",
               year: "numeric",
@@ -67,6 +91,7 @@ export function OrderTimeline({
         const isCurrent = index === currentIndex;
         const isLast = index === steps.length - 1;
         const Icon = step.icon;
+        const timestamp = isCompleted ? getTimestampForStatus(step.status, index) : null;
 
         return (
           <div key={step.status} className="flex gap-3">
@@ -104,11 +129,9 @@ export function OrderTimeline({
               >
                 {step.label}
               </p>
-              {isCurrent && (
+              {timestamp && (
                 <p className="mt-0.5 text-xs text-muted-foreground">
-                  {new Date(
-                    index === 0 ? createdAt : updatedAt
-                  ).toLocaleDateString("en-KE", {
+                  {new Date(timestamp).toLocaleDateString("en-KE", {
                     day: "numeric",
                     month: "short",
                     hour: "2-digit",

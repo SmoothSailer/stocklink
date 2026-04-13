@@ -666,7 +666,7 @@ export async function getOrders() {
   const supabase = createAdminClient();
   const { data, error } = await supabase
     .from("orders")
-    .select("*, order_items(*, products(name, unit))")
+    .select("*, retailers(id, name, business_name, phone, location), order_items(*, products(name, unit))")
     .order("created_at", { ascending: false });
   if (error) throw new Error(error.message);
   return data;
@@ -683,6 +683,13 @@ export async function updateOrderStatus(
     .eq("id", id);
 
   if (error) return { error: error.message };
+
+  // Log status change in history
+  await supabase.from("order_status_history").insert({
+    order_id: id,
+    status,
+  });
+
   revalidatePath("/admin/orders");
   return { error: null };
 }

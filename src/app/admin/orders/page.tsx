@@ -36,8 +36,8 @@ import {
 } from "@/components/ui/dialog";
 import { getOrders, updateOrderStatus } from "@/app/admin/actions";
 import { formatPrice, timeAgo } from "@/lib/utils";
-import { ORDER_STATUSES } from "@/lib/constants";
-import type { OrderStatus } from "@/types/database";
+import { ORDER_STATUSES, PAYMENT_STATUSES } from "@/lib/constants";
+import type { OrderStatus, PaymentStatus } from "@/types/database";
 
 interface OrderWithItems {
   id: string;
@@ -45,10 +45,20 @@ interface OrderWithItems {
   status: OrderStatus;
   total: number;
   delivery_address: string;
-  payment_method: "mpesa" | "cash" | "card";
+  payment_method: "mpesa" | "cash" | "card" | "bnpl";
+  payment_status: PaymentStatus;
+  amount_paid: number;
+  paid_at: string | null;
   notes: string | null;
   created_at: string;
   updated_at: string;
+  retailers: {
+    id: string;
+    name: string;
+    business_name: string | null;
+    phone: string;
+    location: string | null;
+  } | null;
   order_items: {
     id: string;
     quantity: number;
@@ -257,6 +267,11 @@ export default function AdminOrdersPage() {
                         <p className="font-mono text-sm font-semibold">
                           #{order.id.slice(0, 6).toUpperCase()}
                         </p>
+                        {order.retailers && (
+                          <p className="mt-0.5 text-xs font-medium">
+                            {order.retailers.business_name ?? order.retailers.name}
+                          </p>
+                        )}
                         <p className="mt-0.5 text-xs text-muted-foreground">
                           {timeAgo(order.created_at)}
                         </p>
@@ -279,6 +294,14 @@ export default function AdminOrdersPage() {
                       </p>
                       <p>
                         📦 {order.order_items.length} item{order.order_items.length !== 1 ? "s" : ""} · <span className="capitalize">{order.payment_method}</span>
+                      </p>
+                      <p>
+                        💰 <Badge variant="secondary" className={`text-[10px] ${PAYMENT_STATUSES[order.payment_status]?.color ?? ""}`}>
+                          {PAYMENT_STATUSES[order.payment_status]?.label ?? order.payment_status}
+                        </Badge>
+                        {order.amount_paid > 0 && order.payment_status !== "paid" && (
+                          <span className="ml-1">{formatPrice(order.amount_paid)} / {formatPrice(order.total)}</span>
+                        )}
                       </p>
                     </div>
                     <div className="mt-3 flex items-center justify-between border-t pt-3">
@@ -305,6 +328,7 @@ export default function AdminOrdersPage() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Order ID</TableHead>
+                    <TableHead>Customer</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Items</TableHead>
                     <TableHead>Address</TableHead>
@@ -322,6 +346,16 @@ export default function AdminOrdersPage() {
                         <TableCell className="font-mono text-sm font-medium">
                           #{order.id.slice(0, 6).toUpperCase()}
                         </TableCell>
+                        <TableCell className="text-sm">
+                          {order.retailers ? (
+                            <div>
+                              <p className="font-medium">{order.retailers.business_name ?? order.retailers.name}</p>
+                              <p className="text-xs text-muted-foreground">{order.retailers.phone}</p>
+                            </div>
+                          ) : (
+                            <span className="text-muted-foreground">—</span>
+                          )}
+                        </TableCell>
                         <TableCell>
                           <Badge
                             variant="secondary"
@@ -337,8 +371,11 @@ export default function AdminOrdersPage() {
                         <TableCell className="max-w-[200px] truncate text-sm text-muted-foreground">
                           {order.delivery_address}
                         </TableCell>
-                        <TableCell className="text-sm capitalize">
-                          {order.payment_method}
+                        <TableCell className="text-sm">
+                          <span className="capitalize">{order.payment_method}</span>
+                          <Badge variant="secondary" className={`ml-1.5 text-[10px] ${PAYMENT_STATUSES[order.payment_status]?.color ?? ""}`}>
+                            {PAYMENT_STATUSES[order.payment_status]?.label ?? order.payment_status}
+                          </Badge>
                         </TableCell>
                         <TableCell className="text-right font-medium">
                           {formatPrice(order.total)}
@@ -376,6 +413,21 @@ export default function AdminOrdersPage() {
           </DialogHeader>
           {detailOrder && (
             <div className="space-y-4">
+              {/* Customer info */}
+              {detailOrder.retailers && (
+                <div className="rounded-lg bg-muted/50 p-3 space-y-1">
+                  <p className="text-xs font-semibold text-muted-foreground">Customer</p>
+                  <p className="text-sm font-medium">{detailOrder.retailers.name}</p>
+                  {detailOrder.retailers.business_name && (
+                    <p className="text-xs text-muted-foreground">{detailOrder.retailers.business_name}</p>
+                  )}
+                  <p className="text-xs text-muted-foreground">{detailOrder.retailers.phone}</p>
+                  {detailOrder.retailers.location && (
+                    <p className="text-xs text-muted-foreground">📍 {detailOrder.retailers.location}</p>
+                  )}
+                </div>
+              )}
+
               <div className="grid grid-cols-2 gap-3 text-sm">
                 <div>
                   <p className="text-muted-foreground">Status</p>
@@ -390,6 +442,18 @@ export default function AdminOrdersPage() {
                   <p className="text-muted-foreground">Payment</p>
                   <p className="mt-1 font-medium capitalize">
                     {detailOrder.payment_method}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Payment Status</p>
+                  <Badge variant="secondary" className={`mt-1 text-xs ${PAYMENT_STATUSES[detailOrder.payment_status]?.color ?? ""}`}>
+                    {PAYMENT_STATUSES[detailOrder.payment_status]?.label ?? detailOrder.payment_status}
+                  </Badge>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Paid</p>
+                  <p className="mt-1 font-medium">
+                    {formatPrice(detailOrder.amount_paid)} / {formatPrice(detailOrder.total)}
                   </p>
                 </div>
                 <div>

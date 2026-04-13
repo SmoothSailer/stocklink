@@ -11,11 +11,11 @@ export const metadata: Metadata = {
 };
 
 interface OrderConfirmPageProps {
-  searchParams: Promise<{ product?: string; qty?: string }>;
+  searchParams: Promise<{ product?: string; qty?: string; unit?: string; unitPrice?: string }>;
 }
 
 export default async function OrderConfirmPage({ searchParams }: OrderConfirmPageProps) {
-  const { product: productId, qty } = await searchParams;
+  const { product: productId, qty, unit, unitPrice } = await searchParams;
 
   if (!productId) {
     return (
@@ -44,6 +44,14 @@ export default async function OrderConfirmPage({ searchParams }: OrderConfirmPag
   }
 
   const quantity = qty ? parseInt(qty, 10) : undefined;
+  const parsedUnitPrice = unitPrice ? parseFloat(unitPrice) : undefined;
 
-  return <OrderConfirmClient product={product} quantity={quantity || undefined} />;
+  return (
+    <OrderConfirmClient
+      product={product}
+      quantity={quantity || undefined}
+      unit={unit || product.unit}
+      unitPrice={parsedUnitPrice || product.price}
+    />
+  );
 }

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import Image from "next/image";
 import {
   ArrowLeft,
@@ -21,9 +22,9 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { WhatsAppButton } from "@/components/shared/whatsapp-button";
 import { QuantitySelector } from "@/components/retailer/quantity-selector";
 import { formatPrice, getStockInfo, buildWhatsAppLink, getCategoryIcon } from "@/lib/utils";
+import { useAuth } from "@/hooks/use-auth";
 import type { Product, ProductUnitOption, ProductMedia } from "@/types/database";
 
 interface ProductDetailClientProps {
@@ -61,6 +62,9 @@ interface UnitChoice {
 }
 
 export default function ProductDetailClient({ product }: ProductDetailClientProps) {
+  const router = useRouter();
+  const { user } = useAuth();
+
   // Build media gallery from product_media or fallback to image_url
   const mediaList = (product.product_media ?? [])
     .sort((a, b) => a.sort_order - b.sort_order);
@@ -103,8 +107,20 @@ export default function ProductDetailClient({ product }: ProductDetailClientProp
       : activeUnit.price;
   const totalPrice = displayPrice * quantity;
 
-  const repName = salesRep?.name ?? "Ristoka";
-  const orderMessage = `🛒 *Bulk Order from Ristoka*\n\nHi ${repName}! 👋\n\n📦 Product: ${product.name}\n📊 Quantity: ${quantity} ${activeUnit.slug}s\n💰 Unit Price: KSh ${displayPrice.toLocaleString()} per ${activeUnit.slug}\n💵 Total: KSh ${totalPrice.toLocaleString()}\n📦 Min Order: ${moq} ${activeUnit.slug}s\n🏬 Supplier: ${wholesaler?.name ?? "Ristoka Wholesale"}\n\nPlease confirm availability and delivery.`;
+  function handleOrderClick() {
+    if (!user) {
+      const returnUrl = `/products/${product.id}?qty=${quantity}&unit=${selectedUnitIdx}`;
+      router.push("/login?next=" + encodeURIComponent(returnUrl));
+      return;
+    }
+    const params = new URLSearchParams({
+      product: product.id,
+      qty: String(quantity),
+      unit: activeUnit.slug,
+      unitPrice: String(displayPrice),
+    });
+    router.push(`/orders/confirm?${params.toString()}`);
+  }
 
   const shareMessage = `Check out ${product.name} on Ristoka!\n\nWholesale Price: KSh ${displayPrice.toLocaleString()} per ${activeUnit.slug}\nMin Order: ${moq} ${activeUnit.slug}s\n${activeUnit.stock > 0 ? "✅ In Stock" : "❌ Out of Stock"}`;
 
@@ -386,13 +402,14 @@ export default function ProductDetailClient({ product }: ProductDetailClientProp
                 {formatPrice(totalPrice)}
               </p>
             </div>
-            <WhatsAppButton
-              message={orderMessage}
-              phone={salesRep?.whatsapp_phone}
-              label={salesRep ? `Order with ${salesRep.name.split(" ")[0]}` : "Order via WhatsApp"}
+            <Button
               size="lg"
-              className="flex-1"
-            />
+              className="flex-1 gap-2 bg-[#25D366] font-semibold text-white shadow-md hover:bg-[#128C7E]"
+              onClick={handleOrderClick}
+            >
+              <MessageCircle className="h-5 w-5" />
+              {salesRep ? `Order with ${salesRep.name.split(" ")[0]}` : "Order via WhatsApp"}
+            </Button>
           </div>
         </div>
       </div>
