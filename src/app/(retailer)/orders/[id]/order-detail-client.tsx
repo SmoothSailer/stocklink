@@ -15,7 +15,7 @@ import type { Order, OrderStatusHistory, BnplPlan, BnplInstallment } from "@/typ
 
 interface OrderItem {
   id: string;
-  order_id: string;
+  order_id: string | null;
   product_id: string | null;
   quantity: number;
   unit_price: number;

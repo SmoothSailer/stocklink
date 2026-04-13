@@ -159,7 +159,7 @@ export async function placeOrder(data: {
     unit: string;
   }>;
   delivery_address: string;
-  payment_method: "mpesa" | "cash" | "card";
+  payment_method: "mpesa" | "cash" | "card" | "bnpl";
   notes?: string;
 }): Promise<{ order_id: string; error: string | null }> {
   const supabase = await createClient();
