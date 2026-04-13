@@ -683,6 +683,13 @@ export async function updateOrderStatus(
     .eq("id", id);
 
   if (error) return { error: error.message };
+
+  // Log status change in history
+  await supabase.from("order_status_history").insert({
+    order_id: id,
+    status,
+  });
+
   revalidatePath("/admin/orders");
   return { error: null };
 }

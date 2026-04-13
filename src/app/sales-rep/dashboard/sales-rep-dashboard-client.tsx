@@ -19,6 +19,12 @@ import {
   Minus,
   Factory,
   User,
+  CheckCircle2,
+  Truck,
+  XCircle,
+  Eye,
+  Loader2,
+  Banknote,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -32,7 +38,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { formatPrice, buildWhatsAppLink, timeAgo } from "@/lib/utils";
-import { ORDER_STATUSES } from "@/lib/constants";
+import { ORDER_STATUSES, PAYMENT_STATUSES, PAYMENT_METHODS } from "@/lib/constants";
 import { salesRepSignOut } from "@/app/sales-rep/auth/actions";
 import {
   repCreateWholesaler,
@@ -42,8 +48,11 @@ import {
   repCreateManufacturer,
   repUpdateManufacturer,
   repSaveProductUnitOptions,
+  repUpdateOrderStatus,
+  repRecordPayment,
+  getOrderPayments,
 } from "@/app/sales-rep/actions";
-import type { SalesRep, Wholesaler, Order, OrderStatus, Manufacturer } from "@/types/database";
+import type { SalesRep, Wholesaler, Order, OrderStatus, Manufacturer, PaymentRecord } from "@/types/database";
 
 interface UnitOptionRow {
   unit_slug: string;
@@ -212,7 +221,7 @@ export default function SalesRepDashboardClient({
         {activeTab === "manufacturers" && (
           <ManufacturersTab manufacturers={manufacturers} rep={rep} />
         )}
-        {activeTab === "orders" && <OrdersTab orders={orders} />}
+        {activeTab === "orders" && <OrdersTab orders={orders} rep={rep} />}
         {activeTab === "products" && (
           <ProductsTab
             products={products}
@@ -796,13 +805,71 @@ function ManufacturersTab({
    Orders Tab
    ════════════════════════════════════════════════════════════════ */
 
-function OrdersTab({ orders }: { orders: OrderWithItems[] }) {
+function OrdersTab({ orders, rep }: { orders: OrderWithItems[]; rep: SalesRep }) {
+  const router = useRouter();
   const [statusFilter, setStatusFilter] = useState<"all" | OrderStatus>("all");
+  const [detailOrder, setDetailOrder] = useState<OrderWithItems | null>(null);
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
+
+  // Payment recording state
+  const [paymentDialogOrder, setPaymentDialogOrder] = useState<OrderWithItems | null>(null);
+  const [paymentAmount, setPaymentAmount] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState<"mpesa" | "cash" | "card">("mpesa");
+  const [paymentReference, setPaymentReference] = useState("");
+  const [paymentNotes, setPaymentNotes] = useState("");
+  const [recordingPayment, setRecordingPayment] = useState(false);
+  const [paymentRecords, setPaymentRecords] = useState<PaymentRecord[]>([]);
+  const [loadingRecords, setLoadingRecords] = useState(false);
 
   const filteredOrders =
     statusFilter === "all"
       ? orders
       : orders.filter((o) => o.status === statusFilter);
+
+  async function handleStatusUpdate(orderId: string, status: "confirmed" | "out_for_delivery" | "delivered" | "cancelled") {
+    setUpdatingId(orderId);
+    await repUpdateOrderStatus(rep.id, orderId, status);
+    router.refresh();
+    setUpdatingId(null);
+    setDetailOrder(null);
+  }
+
+  async function openPaymentDialog(order: OrderWithItems) {
+    setPaymentDialogOrder(order);
+    setPaymentAmount("");
+    setPaymentMethod("mpesa");
+    setPaymentReference("");
+    setPaymentNotes("");
+    setLoadingRecords(true);
+    const records = await getOrderPayments(order.id);
+    setPaymentRecords(records as PaymentRecord[]);
+    setLoadingRecords(false);
+  }
+
+  async function handleRecordPayment() {
+    if (!paymentDialogOrder) return;
+    const amount = parseFloat(paymentAmount);
+    if (!amount || amount <= 0) return;
+
+    setRecordingPayment(true);
+    const result = await repRecordPayment(rep.id, paymentDialogOrder.id, {
+      amount,
+      method: paymentMethod,
+      reference: paymentReference.trim() || undefined,
+      notes: paymentNotes.trim() || undefined,
+    });
+
+    if (!result.error) {
+      // Refresh records
+      const records = await getOrderPayments(paymentDialogOrder.id);
+      setPaymentRecords(records as PaymentRecord[]);
+      setPaymentAmount("");
+      setPaymentReference("");
+      setPaymentNotes("");
+      router.refresh();
+    }
+    setRecordingPayment(false);
+  }
 
   if (orders.length === 0) {
     return (
@@ -857,9 +924,300 @@ function OrdersTab({ orders }: { orders: OrderWithItems[] }) {
         </p>
       ) : (
         filteredOrders.map((order) => (
-          <OrderCard key={order.id} order={order} expanded />
+          <OrderCard
+            key={order.id}
+            order={order}
+            expanded
+            onView={() => setDetailOrder(order)}
+            onStatusUpdate={handleStatusUpdate}
+            onRecordPayment={() => openPaymentDialog(order)}
+            updating={updatingId === order.id}
+          />
         ))
       )}
+
+      {/* Order detail dialog */}
+      <Dialog open={!!detailOrder} onOpenChange={() => setDetailOrder(null)}>
+        <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              Order #{detailOrder?.id.slice(0, 8)}
+            </DialogTitle>
+          </DialogHeader>
+          {detailOrder && (
+            <div className="space-y-4">
+              {/* Status */}
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">Status</span>
+                <Badge className={`text-xs ${ORDER_STATUSES[detailOrder.status as keyof typeof ORDER_STATUSES]?.color ?? ""}`}>
+                  {ORDER_STATUSES[detailOrder.status as keyof typeof ORDER_STATUSES]?.label ?? detailOrder.status}
+                </Badge>
+              </div>
+
+              {/* Order info */}
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Total</span>
+                  <span className="font-semibold">{formatPrice(detailOrder.total)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Payment</span>
+                  <span className="capitalize">{detailOrder.payment_method}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">Payment Status</span>
+                  <Badge className={`text-[10px] ${PAYMENT_STATUSES[detailOrder.payment_status as keyof typeof PAYMENT_STATUSES]?.color ?? ""}`}>
+                    {PAYMENT_STATUSES[detailOrder.payment_status as keyof typeof PAYMENT_STATUSES]?.label ?? detailOrder.payment_status}
+                  </Badge>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Paid</span>
+                  <span className="font-semibold">{formatPrice(detailOrder.amount_paid)} / {formatPrice(detailOrder.total)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Delivery</span>
+                  <span className="text-right max-w-[200px]">{detailOrder.delivery_address || "—"}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Placed</span>
+                  <span>{timeAgo(detailOrder.created_at)}</span>
+                </div>
+              </div>
+
+              {/* Items */}
+              <div className="space-y-2 border-t pt-3">
+                <p className="text-xs font-semibold text-muted-foreground">Items</p>
+                {detailOrder.order_items.map((item) => (
+                  <div key={item.id} className="flex items-center justify-between text-sm">
+                    <div>
+                      <p className="font-medium">{item.products?.name ?? "Unknown"}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {formatPrice(item.unit_price)} × {item.quantity}
+                      </p>
+                    </div>
+                    <span className="font-semibold">{formatPrice(item.total_price)}</span>
+                  </div>
+                ))}
+              </div>
+
+              {/* Record payment button */}
+              {detailOrder.payment_status !== "paid" && (
+                <div className="border-t pt-3">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="w-full gap-1.5"
+                    onClick={() => {
+                      setDetailOrder(null);
+                      openPaymentDialog(detailOrder);
+                    }}
+                  >
+                    <Banknote className="h-3.5 w-3.5" />
+                    Record Payment
+                  </Button>
+                </div>
+              )}
+
+              {/* Status actions */}
+              {detailOrder.status !== "delivered" && detailOrder.status !== "cancelled" && (
+                <div className="space-y-2 border-t pt-3">
+                  <p className="text-xs font-semibold text-muted-foreground">Update Status</p>
+                  <div className="flex flex-wrap gap-2">
+                    {detailOrder.status === "placed" && (
+                      <Button
+                        size="sm"
+                        className="gap-1.5"
+                        disabled={updatingId === detailOrder.id}
+                        onClick={() => handleStatusUpdate(detailOrder.id, "confirmed")}
+                      >
+                        {updatingId === detailOrder.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
+                        Confirm Order
+                      </Button>
+                    )}
+                    {detailOrder.status === "confirmed" && (
+                      <Button
+                        size="sm"
+                        className="gap-1.5"
+                        disabled={updatingId === detailOrder.id}
+                        onClick={() => handleStatusUpdate(detailOrder.id, "out_for_delivery")}
+                      >
+                        {updatingId === detailOrder.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Truck className="h-3.5 w-3.5" />}
+                        Out for Delivery
+                      </Button>
+                    )}
+                    {detailOrder.status === "out_for_delivery" && (
+                      <Button
+                        size="sm"
+                        className="gap-1.5"
+                        disabled={updatingId === detailOrder.id}
+                        onClick={() => handleStatusUpdate(detailOrder.id, "delivered")}
+                      >
+                        {updatingId === detailOrder.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
+                        Mark Delivered
+                      </Button>
+                    )}
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      className="gap-1.5"
+                      disabled={updatingId === detailOrder.id}
+                      onClick={() => handleStatusUpdate(detailOrder.id, "cancelled")}
+                    >
+                      {updatingId === detailOrder.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <XCircle className="h-3.5 w-3.5" />}
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Payment recording dialog */}
+      <Dialog open={!!paymentDialogOrder} onOpenChange={() => setPaymentDialogOrder(null)}>
+        <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Banknote className="h-4 w-4" />
+              Record Payment
+            </DialogTitle>
+          </DialogHeader>
+          {paymentDialogOrder && (
+            <div className="space-y-4">
+              {/* Order summary */}
+              <div className="rounded-lg bg-muted/50 p-3 space-y-1 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Order</span>
+                  <span className="font-mono">#{paymentDialogOrder.id.slice(0, 8)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Total</span>
+                  <span className="font-semibold">{formatPrice(paymentDialogOrder.total)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Paid so far</span>
+                  <span className="font-semibold text-primary">{formatPrice(paymentDialogOrder.amount_paid)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Balance</span>
+                  <span className="font-semibold text-destructive">
+                    {formatPrice(Math.max(0, paymentDialogOrder.total - paymentDialogOrder.amount_paid))}
+                  </span>
+                </div>
+              </div>
+
+              {/* Payment history */}
+              {loadingRecords ? (
+                <div className="flex items-center justify-center py-4">
+                  <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                </div>
+              ) : paymentRecords.length > 0 ? (
+                <div className="space-y-2">
+                  <p className="text-xs font-semibold text-muted-foreground">Payment History</p>
+                  {paymentRecords.map((rec) => (
+                    <div key={rec.id} className="flex items-center justify-between rounded border p-2 text-xs">
+                      <div>
+                        <p className="font-medium capitalize">{rec.method}</p>
+                        {rec.reference && <p className="text-muted-foreground font-mono">{rec.reference}</p>}
+                        {rec.notes && <p className="text-muted-foreground">{rec.notes}</p>}
+                        <p className="text-muted-foreground">{timeAgo(rec.created_at)}</p>
+                      </div>
+                      <span className="font-semibold text-primary">{formatPrice(rec.amount)}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+
+              {/* Record new payment form */}
+              {paymentDialogOrder.amount_paid < paymentDialogOrder.total && (
+                <div className="space-y-3 border-t pt-3">
+                  <p className="text-xs font-semibold text-muted-foreground">New Payment</p>
+
+                  {/* Amount */}
+                  <div>
+                    <label className="text-xs text-muted-foreground">Amount (KSh)</label>
+                    <Input
+                      type="number"
+                      placeholder={`Max: ${Math.max(0, paymentDialogOrder.total - paymentDialogOrder.amount_paid)}`}
+                      value={paymentAmount}
+                      onChange={(e) => setPaymentAmount(e.target.value)}
+                      min={1}
+                      max={paymentDialogOrder.total - paymentDialogOrder.amount_paid}
+                    />
+                  </div>
+
+                  {/* Quick fill: Full balance */}
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 text-xs"
+                    onClick={() => setPaymentAmount(String(Math.max(0, paymentDialogOrder.total - paymentDialogOrder.amount_paid)))}
+                  >
+                    Fill full balance ({formatPrice(Math.max(0, paymentDialogOrder.total - paymentDialogOrder.amount_paid))})
+                  </Button>
+
+                  {/* Payment method */}
+                  <div>
+                    <label className="text-xs text-muted-foreground">Method</label>
+                    <div className="flex gap-2 mt-1">
+                      {(["mpesa", "cash", "card"] as const).map((m) => (
+                        <button
+                          key={m}
+                          type="button"
+                          onClick={() => setPaymentMethod(m)}
+                          className={`flex-1 rounded-lg border px-2 py-2 text-xs font-medium transition-colors ${
+                            paymentMethod === m
+                              ? "border-primary bg-primary/10 text-primary"
+                              : "text-muted-foreground hover:bg-muted"
+                          }`}
+                        >
+                          {m === "mpesa" ? "📱 M-Pesa" : m === "cash" ? "💵 Cash" : "💳 Card"}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Reference (for M-Pesa / Card) */}
+                  {paymentMethod !== "cash" && (
+                    <div>
+                      <label className="text-xs text-muted-foreground">
+                        {paymentMethod === "mpesa" ? "M-Pesa Transaction Code" : "Card Receipt / Reference"}
+                      </label>
+                      <Input
+                        placeholder={paymentMethod === "mpesa" ? "e.g. SJK7ABCDEF" : "e.g. TXN-12345"}
+                        value={paymentReference}
+                        onChange={(e) => setPaymentReference(e.target.value.toUpperCase())}
+                      />
+                    </div>
+                  )}
+
+                  {/* Notes */}
+                  <div>
+                    <label className="text-xs text-muted-foreground">Notes (optional)</label>
+                    <Input
+                      placeholder="e.g. Installment 2 of 4"
+                      value={paymentNotes}
+                      onChange={(e) => setPaymentNotes(e.target.value)}
+                    />
+                  </div>
+
+                  {/* Submit */}
+                  <Button
+                    className="w-full gap-1.5"
+                    disabled={recordingPayment || !paymentAmount || parseFloat(paymentAmount) <= 0}
+                    onClick={handleRecordPayment}
+                  >
+                    {recordingPayment ? <Loader2 className="h-4 w-4 animate-spin" /> : <Banknote className="h-4 w-4" />}
+                    Confirm Payment
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -1384,12 +1742,22 @@ function StatCard({
 function OrderCard({
   order,
   expanded = false,
+  onView,
+  onStatusUpdate,
+  onRecordPayment,
+  updating = false,
 }: {
   order: OrderWithItems;
   expanded?: boolean;
+  onView?: () => void;
+  onStatusUpdate?: (orderId: string, status: "confirmed" | "out_for_delivery" | "delivered" | "cancelled") => void;
+  onRecordPayment?: () => void;
+  updating?: boolean;
 }) {
   const statusInfo =
     ORDER_STATUSES[order.status as keyof typeof ORDER_STATUSES];
+  const paymentInfo =
+    PAYMENT_STATUSES[order.payment_status as keyof typeof PAYMENT_STATUSES];
 
   return (
     <div className="rounded-lg border p-3">
@@ -1402,10 +1770,13 @@ function OrderCard({
             {timeAgo(order.created_at)}
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
           <p className="text-sm font-semibold">{formatPrice(order.total)}</p>
           <Badge className={`text-[10px] ${statusInfo?.color ?? ""}`}>
             {statusInfo?.label ?? order.status}
+          </Badge>
+          <Badge className={`text-[10px] ${paymentInfo?.color ?? ""}`}>
+            {paymentInfo?.label ?? order.payment_status}
           </Badge>
         </div>
       </div>
@@ -1425,6 +1796,69 @@ function OrderCard({
               </span>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Action buttons */}
+      {(onView || onStatusUpdate || onRecordPayment) && (
+        <div className="mt-2 flex items-center gap-1 border-t pt-2">
+          {onView && (
+            <Button variant="ghost" size="sm" className="h-7 gap-1 text-xs" onClick={onView}>
+              <Eye className="h-3 w-3" />
+              View
+            </Button>
+          )}
+          {onRecordPayment && order.payment_status !== "paid" && (
+            <Button variant="outline" size="sm" className="h-7 gap-1 text-xs" onClick={onRecordPayment}>
+              <Banknote className="h-3 w-3" />
+              Pay
+            </Button>
+          )}
+          {onStatusUpdate && order.status === "placed" && (
+            <Button
+              size="sm"
+              className="h-7 gap-1 text-xs"
+              disabled={updating}
+              onClick={() => onStatusUpdate(order.id, "confirmed")}
+            >
+              {updating ? <Loader2 className="h-3 w-3 animate-spin" /> : <CheckCircle2 className="h-3 w-3" />}
+              Confirm
+            </Button>
+          )}
+          {onStatusUpdate && order.status === "confirmed" && (
+            <Button
+              size="sm"
+              className="h-7 gap-1 text-xs"
+              disabled={updating}
+              onClick={() => onStatusUpdate(order.id, "out_for_delivery")}
+            >
+              {updating ? <Loader2 className="h-3 w-3 animate-spin" /> : <Truck className="h-3 w-3" />}
+              Dispatch
+            </Button>
+          )}
+          {onStatusUpdate && order.status === "out_for_delivery" && (
+            <Button
+              size="sm"
+              className="h-7 gap-1 text-xs"
+              disabled={updating}
+              onClick={() => onStatusUpdate(order.id, "delivered")}
+            >
+              {updating ? <Loader2 className="h-3 w-3 animate-spin" /> : <CheckCircle2 className="h-3 w-3" />}
+              Delivered
+            </Button>
+          )}
+          {onStatusUpdate && order.status !== "delivered" && order.status !== "cancelled" && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 gap-1 text-xs text-destructive hover:text-destructive"
+              disabled={updating}
+              onClick={() => onStatusUpdate(order.id, "cancelled")}
+            >
+              <XCircle className="h-3 w-3" />
+              Cancel
+            </Button>
+          )}
         </div>
       )}
     </div>

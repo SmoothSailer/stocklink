@@ -80,9 +80,22 @@ export async function getBulkStockProducts(limit = 4) {
 
 export async function getOrders() {
   const supabase = await createClient();
+
+  // Get current user's retailer record
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return [];
+
+  const { data: retailer } = await supabase
+    .from("retailers")
+    .select("id")
+    .eq("user_id", user.id)
+    .single();
+  if (!retailer) return [];
+
   const { data, error } = await supabase
     .from("orders")
     .select("*")
+    .eq("retailer_id", retailer.id)
     .order("created_at", { ascending: false });
   if (error) throw new Error(error.message);
   return data;
@@ -90,10 +103,23 @@ export async function getOrders() {
 
 export async function getOrderById(id: string) {
   const supabase = await createClient();
+
+  // Get current user's retailer record
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return null;
+
+  const { data: retailer } = await supabase
+    .from("retailers")
+    .select("id")
+    .eq("user_id", user.id)
+    .single();
+  if (!retailer) return null;
+
   const { data: order, error: orderError } = await supabase
     .from("orders")
     .select("*")
     .eq("id", id)
+    .eq("retailer_id", retailer.id)
     .single();
   if (orderError) return null;
 
@@ -103,7 +129,88 @@ export async function getOrderById(id: string) {
     .eq("order_id", id);
   if (itemsError) throw new Error(itemsError.message);
 
-  return { order, items: items ?? [] };
+  const { data: statusHistory } = await supabase
+    .from("order_status_history")
+    .select("*")
+    .eq("order_id", id)
+    .order("created_at", { ascending: true });
+
+  return { order, items: items ?? [], statusHistory: statusHistory ?? [] };
+}
+
+// ── Order Mutations ─────────────────────────────────────────────
+
+export async function placeOrder(data: {
+  items: Array<{
+    product_id: string;
+    quantity: number;
+    unit_price: number;
+    unit: string;
+  }>;
+  delivery_address: string;
+  payment_method: "mpesa" | "cash" | "card";
+  notes?: string;
+}): Promise<{ order_id: string; error: string | null }> {
+  const supabase = await createClient();
+
+  // Get current user
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { order_id: "", error: "Not authenticated" };
+
+  // Get retailer record
+  const { data: retailer } = await supabase
+    .from("retailers")
+    .select("id")
+    .eq("user_id", user.id)
+    .single();
+  if (!retailer) return { order_id: "", error: "Retailer profile not found" };
+
+  // Calculate total
+  const total = data.items.reduce(
+    (sum, item) => sum + item.unit_price * item.quantity,
+    0
+  );
+
+  // Insert order
+  const { data: order, error: orderError } = await supabase
+    .from("orders")
+    .insert({
+      retailer_id: retailer.id,
+      status: "placed",
+      total,
+      delivery_address: data.delivery_address,
+      payment_method: data.payment_method,
+      notes: data.notes ?? null,
+    })
+    .select("id")
+    .single();
+
+  if (orderError) return { order_id: "", error: orderError.message };
+
+  // Insert order items
+  const orderItems = data.items.map((item) => ({
+    order_id: order.id,
+    product_id: item.product_id,
+    quantity: item.quantity,
+    unit_price: item.unit_price,
+    total_price: item.unit_price * item.quantity,
+    unit: item.unit,
+  }));
+
+  const { error: itemsError } = await supabase
+    .from("order_items")
+    .insert(orderItems);
+
+  if (itemsError) return { order_id: "", error: itemsError.message };
+
+  // Record initial status in history
+  await supabase.from("order_status_history").insert({
+    order_id: order.id,
+    status: "placed",
+    changed_by: user.id,
+  });
+
+  return { order_id: order.id, error: null };
 }
 
 // ── Wholesaler Queries ──────────────────────────────────────────

@@ -362,7 +362,10 @@ export interface Database {
           status: "placed" | "confirmed" | "out_for_delivery" | "delivered" | "cancelled";
           total: number;
           delivery_address: string;
-          payment_method: "mpesa" | "cash" | "card";
+          payment_method: "mpesa" | "cash" | "card" | "bnpl";
+          payment_status: "pending" | "partial" | "paid" | "failed";
+          amount_paid: number;
+          paid_at: string | null;
           notes: string | null;
           created_at: string;
           updated_at: string;
@@ -373,7 +376,10 @@ export interface Database {
           status?: "placed" | "confirmed" | "out_for_delivery" | "delivered" | "cancelled";
           total: number;
           delivery_address: string;
-          payment_method?: "mpesa" | "cash" | "card";
+          payment_method?: "mpesa" | "cash" | "card" | "bnpl";
+          payment_status?: "pending" | "partial" | "paid" | "failed";
+          amount_paid?: number;
+          paid_at?: string | null;
           notes?: string | null;
           created_at?: string;
           updated_at?: string;
@@ -384,7 +390,10 @@ export interface Database {
           status?: "placed" | "confirmed" | "out_for_delivery" | "delivered" | "cancelled";
           total?: number;
           delivery_address?: string;
-          payment_method?: "mpesa" | "cash" | "card";
+          payment_method?: "mpesa" | "cash" | "card" | "bnpl";
+          payment_status?: "pending" | "partial" | "paid" | "failed";
+          amount_paid?: number;
+          paid_at?: string | null;
           notes?: string | null;
           created_at?: string;
           updated_at?: string;
@@ -592,6 +601,82 @@ export interface Database {
           },
         ];
       };
+      order_status_history: {
+        Row: {
+          id: string;
+          order_id: string;
+          status: "placed" | "confirmed" | "out_for_delivery" | "delivered" | "cancelled";
+          changed_by: string | null;
+          notes: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          order_id: string;
+          status: "placed" | "confirmed" | "out_for_delivery" | "delivered" | "cancelled";
+          changed_by?: string | null;
+          notes?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          order_id?: string;
+          status?: "placed" | "confirmed" | "out_for_delivery" | "delivered" | "cancelled";
+          changed_by?: string | null;
+          notes?: string | null;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "order_status_history_order_id_fkey";
+            columns: ["order_id"];
+            isOneToOne: false;
+            referencedRelation: "orders";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      payment_records: {
+        Row: {
+          id: string;
+          order_id: string;
+          amount: number;
+          method: "mpesa" | "cash" | "card";
+          reference: string | null;
+          notes: string | null;
+          recorded_by: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          order_id: string;
+          amount: number;
+          method?: "mpesa" | "cash" | "card";
+          reference?: string | null;
+          notes?: string | null;
+          recorded_by?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          order_id?: string;
+          amount?: number;
+          method?: "mpesa" | "cash" | "card";
+          reference?: string | null;
+          notes?: string | null;
+          recorded_by?: string | null;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "payment_records_order_id_fkey";
+            columns: ["order_id"];
+            isOneToOne: false;
+            referencedRelation: "orders";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
     };
     Views: {
       [_ in never]: never;
@@ -623,8 +708,11 @@ export type DemandRequest = Database["public"]["Tables"]["demand_requests"]["Row
 export type Affiliate = Database["public"]["Tables"]["affiliates"]["Row"];
 export type Referral = Database["public"]["Tables"]["referrals"]["Row"];
 export type ProductMedia = Database["public"]["Tables"]["product_media"]["Row"];
+export type OrderStatusHistory = Database["public"]["Tables"]["order_status_history"]["Row"];
+export type PaymentRecord = Database["public"]["Tables"]["payment_records"]["Row"];
 
 export type OrderStatus = Order["status"];
 export type PaymentMethod = Order["payment_method"];
+export type PaymentStatus = Order["payment_status"];
 export type AffiliateStatus = Affiliate["status"];
 export type ReferralStatus = Referral["status"];

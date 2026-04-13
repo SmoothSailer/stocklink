@@ -31,7 +31,7 @@ export function WhatsAppButton({
   const handleClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
     if (!user) {
       e.preventDefault();
-      router.push("/login?next=" + encodeURIComponent(window.location.pathname));
+      router.push("/login?next=" + encodeURIComponent(window.location.pathname + window.location.search));
     }
   };
 

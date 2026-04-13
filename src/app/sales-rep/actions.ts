@@ -87,7 +87,7 @@ export async function getRepProducts(repId: string) {
 }
 
 /**
- * Get orders that contain products from the rep's assigned wholesalers.
+ * Get orders that contain products from the rep's assigned wholesalers or manufacturers.
  */
 export async function getRepOrders(repId: string) {
   const supabase = await createClient();
@@ -98,15 +98,31 @@ export async function getRepOrders(repId: string) {
     .select("id")
     .eq("sales_rep_id", repId);
 
-  if (!wholesalers || wholesalers.length === 0) return [];
-
-  const wholesalerIds = wholesalers.map((w) => w.id);
-
-  // Get products for those wholesalers
-  const { data: products } = await supabase
-    .from("products")
+  // Get manufacturer IDs for this rep
+  const { data: manufacturers } = await supabase
+    .from("manufacturers")
     .select("id")
-    .in("wholesaler_id", wholesalerIds);
+    .eq("sales_rep_id", repId);
+
+  const wholesalerIds = wholesalers?.map((w) => w.id) ?? [];
+  const manufacturerIds = manufacturers?.map((m) => m.id) ?? [];
+
+  if (wholesalerIds.length === 0 && manufacturerIds.length === 0) return [];
+
+  // Get products for those wholesalers and manufacturers
+  let productsQuery = supabase.from("products").select("id");
+
+  if (wholesalerIds.length > 0 && manufacturerIds.length > 0) {
+    productsQuery = productsQuery.or(
+      `wholesaler_id.in.(${wholesalerIds.join(",")}),manufacturer_id.in.(${manufacturerIds.join(",")})`
+    );
+  } else if (wholesalerIds.length > 0) {
+    productsQuery = productsQuery.in("wholesaler_id", wholesalerIds);
+  } else {
+    productsQuery = productsQuery.in("manufacturer_id", manufacturerIds);
+  }
+
+  const { data: products } = await productsQuery;
 
   if (!products || products.length === 0) return [];
 
@@ -132,6 +148,84 @@ export async function getRepOrders(repId: string) {
     .limit(50);
 
   return orders ?? [];
+}
+
+/**
+ * Update order status — sales rep can confirm, mark out_for_delivery, delivered, or cancel.
+ * Verifies the order contains products belonging to the rep's wholesalers/manufacturers.
+ */
+export async function repUpdateOrderStatus(
+  repId: string,
+  orderId: string,
+  status: "confirmed" | "out_for_delivery" | "delivered" | "cancelled"
+) {
+  if (!(await verifyRepOwnership(repId))) {
+    return { error: "Unauthorized" };
+  }
+
+  const supabase = await createClient();
+
+  // Verify this order belongs to the rep's products
+  const { data: wholesalers } = await supabase
+    .from("wholesalers")
+    .select("id")
+    .eq("sales_rep_id", repId);
+
+  const { data: manufacturers } = await supabase
+    .from("manufacturers")
+    .select("id")
+    .eq("sales_rep_id", repId);
+
+  const wholesalerIds = wholesalers?.map((w) => w.id) ?? [];
+  const manufacturerIds = manufacturers?.map((m) => m.id) ?? [];
+
+  if (wholesalerIds.length === 0 && manufacturerIds.length === 0) {
+    return { error: "No wholesalers or manufacturers assigned" };
+  }
+
+  // Check that at least one order item has a product from this rep's scope
+  const { data: orderItems } = await supabase
+    .from("order_items")
+    .select("product_id, products(wholesaler_id, manufacturer_id)")
+    .eq("order_id", orderId);
+
+  if (!orderItems || orderItems.length === 0) {
+    return { error: "Order not found or has no items" };
+  }
+
+  const hasAccess = orderItems.some((item) => {
+    const p = item.products as { wholesaler_id: string | null; manufacturer_id: string | null } | null;
+    if (!p) return false;
+    return (
+      (p.wholesaler_id && wholesalerIds.includes(p.wholesaler_id)) ||
+      (p.manufacturer_id && manufacturerIds.includes(p.manufacturer_id))
+    );
+  });
+
+  if (!hasAccess) {
+    return { error: "You don't have permission to manage this order" };
+  }
+
+  // Update order status
+  const { error } = await supabase
+    .from("orders")
+    .update({ status })
+    .eq("id", orderId);
+
+  if (error) return { error: error.message };
+
+  // Get current user for history
+  const { data: { user } } = await supabase.auth.getUser();
+
+  // Log status change in history
+  await supabase.from("order_status_history").insert({
+    order_id: orderId,
+    status,
+    changed_by: user?.id ?? null,
+  });
+
+  revalidatePath("/sales-rep/dashboard");
+  return { error: null };
 }
 
 /**
@@ -612,4 +706,124 @@ export async function repUpdateProduct(
   revalidatePath("/sales-rep/dashboard");
   revalidatePath("/");
   return { error: null };
+}
+
+// ── Payment Tracking Actions ────────────────────────────────────
+
+/**
+ * Record a payment against an order.
+ * Updates order's amount_paid, payment_status, and paid_at.
+ */
+export async function repRecordPayment(
+  repId: string,
+  orderId: string,
+  payment: {
+    amount: number;
+    method: "mpesa" | "cash" | "card";
+    reference?: string;
+    notes?: string;
+  }
+) {
+  if (!(await verifyRepOwnership(repId))) {
+    return { error: "Unauthorized" };
+  }
+
+  const supabase = await createClient();
+
+  // Verify ownership of the order (same check as repUpdateOrderStatus)
+  const { data: wholesalers } = await supabase
+    .from("wholesalers")
+    .select("id")
+    .eq("sales_rep_id", repId);
+
+  const { data: manufacturers } = await supabase
+    .from("manufacturers")
+    .select("id")
+    .eq("sales_rep_id", repId);
+
+  const wholesalerIds = wholesalers?.map((w) => w.id) ?? [];
+  const manufacturerIds = manufacturers?.map((m) => m.id) ?? [];
+
+  if (wholesalerIds.length === 0 && manufacturerIds.length === 0) {
+    return { error: "No wholesalers or manufacturers assigned" };
+  }
+
+  const { data: orderItems } = await supabase
+    .from("order_items")
+    .select("product_id, products(wholesaler_id, manufacturer_id)")
+    .eq("order_id", orderId);
+
+  if (!orderItems || orderItems.length === 0) {
+    return { error: "Order not found or has no items" };
+  }
+
+  const hasAccess = orderItems.some((item) => {
+    const p = item.products as { wholesaler_id: string | null; manufacturer_id: string | null } | null;
+    if (!p) return false;
+    return (
+      (p.wholesaler_id && wholesalerIds.includes(p.wholesaler_id)) ||
+      (p.manufacturer_id && manufacturerIds.includes(p.manufacturer_id))
+    );
+  });
+
+  if (!hasAccess) {
+    return { error: "You don't have permission to manage this order" };
+  }
+
+  // Get the order to calculate new amount_paid
+  const { data: order } = await supabase
+    .from("orders")
+    .select("total, amount_paid")
+    .eq("id", orderId)
+    .single();
+
+  if (!order) return { error: "Order not found" };
+
+  const { data: { user } } = await supabase.auth.getUser();
+
+  // Insert payment record
+  const { error: insertError } = await supabase.from("payment_records").insert({
+    order_id: orderId,
+    amount: payment.amount,
+    method: payment.method,
+    reference: payment.reference || null,
+    notes: payment.notes || null,
+    recorded_by: user?.id ?? null,
+  });
+
+  if (insertError) return { error: insertError.message };
+
+  // Update order totals
+  const newAmountPaid = (order.amount_paid ?? 0) + payment.amount;
+  const isPaid = newAmountPaid >= order.total;
+  const paymentStatus: "pending" | "partial" | "paid" =
+    newAmountPaid <= 0 ? "pending" : isPaid ? "paid" : "partial";
+
+  const { error: updateError } = await supabase
+    .from("orders")
+    .update({
+      amount_paid: newAmountPaid,
+      payment_status: paymentStatus,
+      ...(isPaid ? { paid_at: new Date().toISOString() } : {}),
+    })
+    .eq("id", orderId);
+
+  if (updateError) return { error: updateError.message };
+
+  revalidatePath("/sales-rep/dashboard");
+  return { error: null };
+}
+
+/**
+ * Get payment records for an order.
+ */
+export async function getOrderPayments(orderId: string) {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("payment_records")
+    .select("*")
+    .eq("order_id", orderId)
+    .order("created_at", { ascending: true });
+
+  return data ?? [];
 }

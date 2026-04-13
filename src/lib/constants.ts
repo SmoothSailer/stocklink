@@ -41,8 +41,17 @@ export const ORDER_STATUSES = {
 export const PAYMENT_METHODS = [
   { value: "mpesa", label: "M-Pesa", icon: "📱" },
   { value: "cash", label: "Cash on Delivery", icon: "💵" },
+  { value: "bnpl", label: "BNPL (Murabaha)", icon: "🕌" },
   { value: "card", label: "Card Payment", icon: "💳" },
 ] as const;
+
+// Payment statuses
+export const PAYMENT_STATUSES = {
+  pending: { label: "Unpaid", color: "bg-yellow-100 text-yellow-800" },
+  partial: { label: "Partial", color: "bg-orange-100 text-orange-800" },
+  paid: { label: "Paid", color: "bg-green-100 text-green-800" },
+  failed: { label: "Failed", color: "bg-red-100 text-red-800" },
+} as const;
 
 // Price formatting
 export const CURRENCY = "KSh";

@@ -1,14 +1,16 @@
 "use client";
 
 import { useState } from "react";
-import { CheckCircle2, MapPin, CreditCard, UserCheck, MessageCircle } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { CheckCircle2, MapPin, CreditCard, UserCheck, MessageCircle, Loader2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
-import { WhatsAppButton } from "@/components/shared/whatsapp-button";
 import { PAYMENT_METHODS } from "@/lib/constants";
 import { cn, formatPrice, buildWhatsAppLink, getCategoryIcon } from "@/lib/utils";
+import { placeOrder } from "../../actions";
 import type { Product } from "@/types/database";
 
 interface OrderConfirmClientProps {
@@ -30,33 +32,84 @@ interface OrderConfirmClientProps {
     } | null;
   };
   quantity?: number;
+  unit: string;
+  unitPrice: number;
 }
 
-export default function OrderConfirmClient({ product, quantity: initialQty }: OrderConfirmClientProps) {
-  const [selectedPayment, setSelectedPayment] = useState("mpesa");
-  const [confirmed, setConfirmed] = useState(false);
+export default function OrderConfirmClient({
+  product,
+  quantity: initialQty,
+  unit,
+  unitPrice,
+}: OrderConfirmClientProps) {
+  const router = useRouter();
+  const [selectedPayment, setSelectedPayment] = useState<"mpesa" | "cash" | "card" | "bnpl">("mpesa");
+  const [deliveryAddress, setDeliveryAddress] = useState("");
+  const [notes, setNotes] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [confirmedOrder, setConfirmedOrder] = useState<{ id: string } | null>(null);
 
   const wholesaler = product.wholesalers;
   const salesRep = wholesaler?.sales_reps ?? null;
   const moq = product.min_order_qty ?? 1;
-  const quantity = initialQty ?? moq * 2;
-  const totalPrice = product.price * quantity;
+  const quantity = initialQty ?? moq;
+  const totalPrice = unitPrice * quantity;
 
-  const repName = salesRep?.name ?? "Ristoka";
-  const orderMessage = `🛒 *Bulk Order Confirmation — Ristoka*\n\nHi ${repName}! 👋\n\n📦 ${product.name} × ${quantity} ${product.unit}s\n💰 Unit Price: KSh ${product.price.toLocaleString()} per ${product.unit}\n💵 Total: KSh ${totalPrice.toLocaleString()}\n💳 Payment: ${PAYMENT_METHODS.find((m) => m.value === selectedPayment)?.label}\n📍 Delivery: Shop 12, Gikomba Market, Nairobi\n🏬 Supplier: ${wholesaler?.name ?? "Ristoka Wholesale"}\n\nPlease confirm order.`;
+  async function handlePlaceOrder() {
+    if (!deliveryAddress.trim()) {
+      setError("Please enter a delivery address");
+      return;
+    }
 
-  if (confirmed) {
+    setSubmitting(true);
+    setError(null);
+
+    const result = await placeOrder({
+      items: [
+        {
+          product_id: product.id,
+          quantity,
+          unit_price: unitPrice,
+          unit,
+        },
+      ],
+      delivery_address: deliveryAddress.trim(),
+      payment_method: selectedPayment,
+      notes: notes.trim() || undefined,
+    });
+
+    if (result.error) {
+      setError(result.error);
+      setSubmitting(false);
+      return;
+    }
+
+    setConfirmedOrder({ id: result.order_id });
+
+    // Build and open WhatsApp message with order reference
+    const repName = salesRep?.name ?? "Ristoka";
+    const orderRef = result.order_id.slice(0, 6).toUpperCase();
+    const paymentLabel = PAYMENT_METHODS.find((m) => m.value === selectedPayment)?.label ?? selectedPayment;
+    const orderMessage = `🛒 *Order Confirmation — Ristoka*\n\nHi ${repName}! 👋\n\n📋 Order #${orderRef}\n📦 ${product.name} × ${quantity} ${unit}s\n💰 Unit Price: KSh ${unitPrice.toLocaleString()} per ${unit}\n💵 Total: KSh ${totalPrice.toLocaleString()}\n💳 Payment: ${paymentLabel}\n📍 Delivery: ${deliveryAddress.trim()}\n🏬 Supplier: ${wholesaler?.name ?? "Ristoka Wholesale"}\n\nPlease confirm order.`;
+
+    const waLink = buildWhatsAppLink(orderMessage, salesRep?.whatsapp_phone);
+    window.open(waLink, "_blank");
+  }
+
+  if (confirmedOrder) {
+    const orderRef = confirmedOrder.id.slice(0, 6).toUpperCase();
     return (
       <div className="mx-auto max-w-lg px-4 py-12 text-center">
         <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-green-100">
           <CheckCircle2 className="h-8 w-8 text-primary" />
         </div>
         <h1 className="text-xl font-bold text-foreground">
-          Order Confirmed! 🎉
+          Order Placed! 🎉
         </h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Your order has been sent via WhatsApp. You&apos;ll receive updates on the
-          delivery status.
+          Your order #{orderRef} has been placed and sent via WhatsApp.
+          You&apos;ll receive updates on the delivery status.
         </p>
 
         {/* WhatsApp-style confirmation bubble */}
@@ -64,17 +117,16 @@ export default function OrderConfirmClient({ product, quantity: initialQty }: Or
           <div className="rounded-2xl rounded-bl-sm bg-green-50 p-4 text-left shadow-sm">
             <p className="text-xs font-semibold text-primary">Ristoka</p>
             <p className="mt-1 text-sm text-foreground">
-              ✅ Order #{Math.random().toString(36).slice(2, 8).toUpperCase()}{" "}
-              confirmed!
+              ✅ Order #{orderRef} placed!
             </p>
             <p className="mt-1 text-sm text-foreground">
-              📦 {product.name} × {quantity} {product.unit}s
+              📦 {product.name} × {quantity} {unit}s
             </p>
             <p className="text-sm text-foreground">
               💵 {formatPrice(totalPrice)}
             </p>
             <p className="mt-2 text-sm text-foreground">
-              🚚 Estimated delivery: Today by 5:00 PM
+              📍 {deliveryAddress}
             </p>
             <p className="mt-1 text-[10px] text-muted-foreground">
               {new Date().toLocaleTimeString("en-KE", {
@@ -85,15 +137,24 @@ export default function OrderConfirmClient({ product, quantity: initialQty }: Or
           </div>
         </div>
 
-        <a
-          href="/orders"
-          className={cn(
-            buttonVariants({ variant: "outline" }),
-            "mt-6"
-          )}
-        >
-          View My Orders
-        </a>
+        <div className="mt-6 flex flex-col gap-2">
+          <a
+            href={`/orders/${confirmedOrder.id}`}
+            className={cn(
+              buttonVariants({ variant: "default" }),
+            )}
+          >
+            Track Order
+          </a>
+          <a
+            href="/orders"
+            className={cn(
+              buttonVariants({ variant: "outline" }),
+            )}
+          >
+            View All Orders
+          </a>
+        </div>
       </div>
     );
   }
@@ -116,7 +177,7 @@ export default function OrderConfirmClient({ product, quantity: initialQty }: Or
               <div>
                 <p className="text-sm font-medium">{product.name}</p>
                 <p className="text-xs text-muted-foreground">
-                  {formatPrice(product.price)}/{product.unit} × {quantity} {product.unit}s
+                  {formatPrice(unitPrice)}/{unit} × {quantity} {unit}s
                 </p>
               </div>
             </div>
@@ -146,9 +207,15 @@ export default function OrderConfirmClient({ product, quantity: initialQty }: Or
             Delivery Address
           </CardTitle>
         </CardHeader>
-        <CardContent>
-          <p className="text-sm text-foreground">Shop 12, Gikomba Market</p>
-          <p className="text-xs text-muted-foreground">Nairobi, Kenya</p>
+        <CardContent className="space-y-2">
+          <Input
+            placeholder="e.g. Shop 12, Gikomba Market, Nairobi"
+            value={deliveryAddress}
+            onChange={(e) => setDeliveryAddress(e.target.value)}
+          />
+          <p className="text-xs text-muted-foreground">
+            Enter your shop or delivery location
+          </p>
         </CardContent>
       </Card>
 
@@ -165,7 +232,7 @@ export default function OrderConfirmClient({ product, quantity: initialQty }: Or
             <button
               key={method.value}
               type="button"
-              onClick={() => setSelectedPayment(method.value)}
+              onClick={() => setSelectedPayment(method.value as "mpesa" | "cash" | "card" | "bnpl")}
               className={`flex w-full items-center gap-3 rounded-lg border p-3 text-left transition-colors ${
                 selectedPayment === method.value
                   ? "border-primary bg-primary/5"
@@ -183,6 +250,29 @@ export default function OrderConfirmClient({ product, quantity: initialQty }: Or
           ))}
         </CardContent>
       </Card>
+
+      {/* Notes */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm font-semibold">
+            Notes (optional)
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Input
+            placeholder="Any special instructions..."
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+          />
+        </CardContent>
+      </Card>
+
+      {/* Error message */}
+      {error && (
+        <div className="rounded-lg bg-red-50 p-3 text-sm text-red-700">
+          {error}
+        </div>
+      )}
 
       {/* Confirm CTA */}
       <div className="space-y-2 pt-2">
@@ -213,18 +303,22 @@ export default function OrderConfirmClient({ product, quantity: initialQty }: Or
           </Card>
         )}
 
-        <WhatsAppButton
-          message={orderMessage}
-          phone={salesRep?.whatsapp_phone}
-          label={salesRep ? `Confirm with ${salesRep.name.split(" ")[0]} — ${formatPrice(totalPrice)}` : `Confirm & Pay ${formatPrice(totalPrice)}`}
-          className="w-full"
-        />
         <Button
-          variant="ghost"
-          className="w-full text-sm text-muted-foreground"
-          onClick={() => setConfirmed(true)}
+          className="w-full gap-2 bg-[#25D366] font-semibold text-white shadow-md hover:bg-[#128C7E]"
+          size="lg"
+          disabled={submitting}
+          onClick={handlePlaceOrder}
         >
-          Preview confirmation
+          {submitting ? (
+            <Loader2 className="h-5 w-5 animate-spin" />
+          ) : (
+            <MessageCircle className="h-5 w-5" />
+          )}
+          {submitting
+            ? "Placing order..."
+            : salesRep
+              ? `Place Order with ${salesRep.name.split(" ")[0]} — ${formatPrice(totalPrice)}`
+              : `Place Order — ${formatPrice(totalPrice)}`}
         </Button>
       </div>
     </div>
