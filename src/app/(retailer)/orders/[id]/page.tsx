@@ -36,6 +36,7 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
       order={result.order}
       items={result.items}
       statusHistory={result.statusHistory}
+      bnplPlan={result.bnplPlan}
     />
   );
 }

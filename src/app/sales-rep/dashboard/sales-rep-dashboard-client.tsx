@@ -25,6 +25,7 @@ import {
   Eye,
   Loader2,
   Banknote,
+  Calendar,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -51,8 +52,11 @@ import {
   repUpdateOrderStatus,
   repRecordPayment,
   getOrderPayments,
+  repCreateBnplPlan,
+  getOrderBnplPlan,
+  repPayBnplInstallment,
 } from "@/app/sales-rep/actions";
-import type { SalesRep, Wholesaler, Order, OrderStatus, Manufacturer, PaymentRecord } from "@/types/database";
+import type { SalesRep, Wholesaler, Order, OrderStatus, Manufacturer, PaymentRecord, BnplPlan, BnplInstallment } from "@/types/database";
 
 interface UnitOptionRow {
   unit_slug: string;
@@ -76,6 +80,13 @@ interface ProductWithWholesaler {
 }
 
 interface OrderWithItems extends Order {
+  retailers: {
+    id: string;
+    name: string;
+    business_name: string | null;
+    phone: string;
+    location: string | null;
+  } | null;
   order_items: {
     id: string;
     quantity: number;
@@ -821,6 +832,21 @@ function OrdersTab({ orders, rep }: { orders: OrderWithItems[]; rep: SalesRep })
   const [paymentRecords, setPaymentRecords] = useState<PaymentRecord[]>([]);
   const [loadingRecords, setLoadingRecords] = useState(false);
 
+  // BNPL state
+  type BnplPlanWithInstallments = BnplPlan & { bnpl_installments: BnplInstallment[] };
+  const [bnplPlan, setBnplPlan] = useState<BnplPlanWithInstallments | null>(null);
+  const [showBnplSetup, setShowBnplSetup] = useState(false);
+  const [bnplCostPrice, setBnplCostPrice] = useState("");
+  const [bnplMarkup, setBnplMarkup] = useState("");
+  const [bnplInstallments, setBnplInstallments] = useState("3");
+  const [bnplFirstDue, setBnplFirstDue] = useState("");
+  const [bnplInterval, setBnplInterval] = useState("30");
+  const [creatingBnpl, setCreatingBnpl] = useState(false);
+  const [payingInstallmentId, setPayingInstallmentId] = useState<string | null>(null);
+  const [instPayMethod, setInstPayMethod] = useState<"mpesa" | "cash" | "card">("mpesa");
+  const [instPayRef, setInstPayRef] = useState("");
+  const [showInstPayForm, setShowInstPayForm] = useState<string | null>(null);
+
   const filteredOrders =
     statusFilter === "all"
       ? orders
@@ -840,9 +866,25 @@ function OrdersTab({ orders, rep }: { orders: OrderWithItems[]; rep: SalesRep })
     setPaymentMethod("mpesa");
     setPaymentReference("");
     setPaymentNotes("");
+    setBnplPlan(null);
+    setShowBnplSetup(false);
+    setShowInstPayForm(null);
     setLoadingRecords(true);
+
     const records = await getOrderPayments(order.id);
     setPaymentRecords(records as PaymentRecord[]);
+
+    // Load BNPL plan if applicable
+    if (order.payment_method === "bnpl") {
+      const plan = await getOrderBnplPlan(order.id);
+      if (plan) {
+        setBnplPlan(plan as BnplPlanWithInstallments);
+      } else {
+        setShowBnplSetup(true);
+        setBnplCostPrice(String(order.total));
+      }
+    }
+
     setLoadingRecords(false);
   }
 
@@ -869,6 +911,57 @@ function OrdersTab({ orders, rep }: { orders: OrderWithItems[]; rep: SalesRep })
       router.refresh();
     }
     setRecordingPayment(false);
+  }
+
+  async function handleCreateBnplPlan() {
+    if (!paymentDialogOrder) return;
+    const costPrice = parseFloat(bnplCostPrice);
+    const markup = parseFloat(bnplMarkup);
+    const numInst = parseInt(bnplInstallments);
+    const interval = parseInt(bnplInterval);
+    if (!costPrice || isNaN(markup) || markup < 0 || !numInst || !bnplFirstDue || !interval) return;
+
+    setCreatingBnpl(true);
+    const result = await repCreateBnplPlan(rep.id, paymentDialogOrder.id, {
+      cost_price: costPrice,
+      markup_amount: markup,
+      num_installments: numInst,
+      first_due_date: bnplFirstDue,
+      interval_days: interval,
+    });
+
+    if (result.error) {
+      alert(result.error);
+      setCreatingBnpl(false);
+      return;
+    }
+
+    const plan = await getOrderBnplPlan(paymentDialogOrder.id);
+    if (plan) {
+      setBnplPlan(plan as BnplPlanWithInstallments);
+      setShowBnplSetup(false);
+    }
+    router.refresh();
+    setCreatingBnpl(false);
+  }
+
+  async function handlePayInstallment(installmentId: string) {
+    setPayingInstallmentId(installmentId);
+    const result = await repPayBnplInstallment(rep.id, installmentId, {
+      method: instPayMethod,
+      reference: instPayRef.trim() || undefined,
+    });
+
+    if (!result.error && paymentDialogOrder) {
+      const plan = await getOrderBnplPlan(paymentDialogOrder.id);
+      if (plan) setBnplPlan(plan as BnplPlanWithInstallments);
+      const records = await getOrderPayments(paymentDialogOrder.id);
+      setPaymentRecords(records as PaymentRecord[]);
+      setShowInstPayForm(null);
+      setInstPayRef("");
+      router.refresh();
+    }
+    setPayingInstallmentId(null);
   }
 
   if (orders.length === 0) {
@@ -946,6 +1039,56 @@ function OrdersTab({ orders, rep }: { orders: OrderWithItems[]; rep: SalesRep })
           </DialogHeader>
           {detailOrder && (
             <div className="space-y-4">
+              {/* Retailer info */}
+              {detailOrder.retailers && (
+                <div className="rounded-lg bg-muted/50 p-3 space-y-2">
+                  <p className="text-xs font-semibold text-muted-foreground">Customer</p>
+                  <div className="space-y-1 text-sm">
+                    <p className="font-medium">{detailOrder.retailers.name}</p>
+                    {detailOrder.retailers.business_name && (
+                      <p className="text-xs text-muted-foreground">{detailOrder.retailers.business_name}</p>
+                    )}
+                    <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                      <Phone className="h-3 w-3" />
+                      {detailOrder.retailers.phone}
+                    </p>
+                    {detailOrder.retailers.location && (
+                      <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                        <MapPin className="h-3 w-3" />
+                        {detailOrder.retailers.location}
+                      </p>
+                    )}
+                  </div>
+                  <div className="flex gap-2 pt-1">
+                    <a
+                      href={buildWhatsAppLink(
+                        `Hi ${detailOrder.retailers.name}, following up on your order #${detailOrder.id.slice(0, 6).toUpperCase()} (${formatPrice(detailOrder.total)}). ${
+                          detailOrder.payment_status === "pending"
+                            ? "Kindly confirm payment."
+                            : detailOrder.payment_status === "partial"
+                              ? `Balance remaining: ${formatPrice(detailOrder.total - detailOrder.amount_paid)}.`
+                              : "Thank you for your payment!"
+                        }`,
+                        detailOrder.retailers.phone
+                      )}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 rounded-md bg-green-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-green-700 transition-colors"
+                    >
+                      <MessageCircle className="h-3 w-3" />
+                      Follow Up
+                    </a>
+                    <a
+                      href={`tel:${detailOrder.retailers.phone}`}
+                      className="inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-xs font-medium hover:bg-muted transition-colors"
+                    >
+                      <Phone className="h-3 w-3" />
+                      Call
+                    </a>
+                  </div>
+                </div>
+              )}
+
               {/* Status */}
               <div className="flex items-center justify-between">
                 <span className="text-sm text-muted-foreground">Status</span>
@@ -1080,7 +1223,7 @@ function OrdersTab({ orders, rep }: { orders: OrderWithItems[]; rep: SalesRep })
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Banknote className="h-4 w-4" />
-              Record Payment
+              {paymentDialogOrder?.payment_method === "bnpl" ? "Murabaha Plan" : "Record Payment"}
             </DialogTitle>
           </DialogHeader>
           {paymentDialogOrder && (
@@ -1107,112 +1250,318 @@ function OrdersTab({ orders, rep }: { orders: OrderWithItems[]; rep: SalesRep })
                 </div>
               </div>
 
-              {/* Payment history */}
-              {loadingRecords ? (
-                <div className="flex items-center justify-center py-4">
-                  <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                </div>
-              ) : paymentRecords.length > 0 ? (
-                <div className="space-y-2">
-                  <p className="text-xs font-semibold text-muted-foreground">Payment History</p>
-                  {paymentRecords.map((rec) => (
-                    <div key={rec.id} className="flex items-center justify-between rounded border p-2 text-xs">
-                      <div>
-                        <p className="font-medium capitalize">{rec.method}</p>
-                        {rec.reference && <p className="text-muted-foreground font-mono">{rec.reference}</p>}
-                        {rec.notes && <p className="text-muted-foreground">{rec.notes}</p>}
-                        <p className="text-muted-foreground">{timeAgo(rec.created_at)}</p>
-                      </div>
-                      <span className="font-semibold text-primary">{formatPrice(rec.amount)}</span>
+              {/* ─── BNPL Section ─── */}
+              {paymentDialogOrder.payment_method === "bnpl" && (
+                <>
+                  {loadingRecords ? (
+                    <div className="flex items-center justify-center py-4">
+                      <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
                     </div>
-                  ))}
-                </div>
-              ) : null}
+                  ) : showBnplSetup ? (
+                    /* BNPL Plan Setup Form */
+                    <div className="space-y-3 border-t pt-3">
+                      <div className="rounded-lg border border-orange-200 bg-orange-50 p-3">
+                        <p className="text-xs font-semibold text-orange-800">🕌 Murabaha Financing</p>
+                        <p className="text-xs text-orange-700 mt-1">
+                          30% down payment required upfront. The remaining 70% (cost + markup) is split into equal installments.
+                        </p>
+                      </div>
 
-              {/* Record new payment form */}
-              {paymentDialogOrder.amount_paid < paymentDialogOrder.total && (
-                <div className="space-y-3 border-t pt-3">
-                  <p className="text-xs font-semibold text-muted-foreground">New Payment</p>
+                      <div>
+                        <label className="text-xs text-muted-foreground">Cost Price (KSh)</label>
+                        <Input
+                          type="number"
+                          value={bnplCostPrice}
+                          onChange={(e) => setBnplCostPrice(e.target.value)}
+                          min={1}
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs text-muted-foreground">Markup / Profit (KSh)</label>
+                        <Input
+                          type="number"
+                          placeholder="e.g. 500"
+                          value={bnplMarkup}
+                          onChange={(e) => setBnplMarkup(e.target.value)}
+                          min={0}
+                        />
+                      </div>
 
-                  {/* Amount */}
-                  <div>
-                    <label className="text-xs text-muted-foreground">Amount (KSh)</label>
-                    <Input
-                      type="number"
-                      placeholder={`Max: ${Math.max(0, paymentDialogOrder.total - paymentDialogOrder.amount_paid)}`}
-                      value={paymentAmount}
-                      onChange={(e) => setPaymentAmount(e.target.value)}
-                      min={1}
-                      max={paymentDialogOrder.total - paymentDialogOrder.amount_paid}
-                    />
-                  </div>
+                      {/* Price breakdown preview */}
+                      {bnplCostPrice && bnplMarkup !== "" && (
+                        <div className="rounded-lg bg-muted/50 p-3 space-y-1 text-xs">
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Total (cost + markup)</span>
+                            <span className="font-semibold">{formatPrice(parseFloat(bnplCostPrice) + parseFloat(bnplMarkup || "0"))}</span>
+                          </div>
+                          <div className="flex justify-between text-primary">
+                            <span>⬇ 30% Down Payment</span>
+                            <span className="font-semibold">{formatPrice(Math.ceil((parseFloat(bnplCostPrice) + parseFloat(bnplMarkup || "0")) * 0.3 * 100) / 100)}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Remaining (70%)</span>
+                            <span>{formatPrice(Math.floor((parseFloat(bnplCostPrice) + parseFloat(bnplMarkup || "0")) * 0.7 * 100) / 100)}</span>
+                          </div>
+                        </div>
+                      )}
 
-                  {/* Quick fill: Full balance */}
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="h-7 text-xs"
-                    onClick={() => setPaymentAmount(String(Math.max(0, paymentDialogOrder.total - paymentDialogOrder.amount_paid)))}
-                  >
-                    Fill full balance ({formatPrice(Math.max(0, paymentDialogOrder.total - paymentDialogOrder.amount_paid))})
-                  </Button>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="text-xs text-muted-foreground">Installments</label>
+                          <Input
+                            type="number"
+                            value={bnplInstallments}
+                            onChange={(e) => setBnplInstallments(e.target.value)}
+                            min={2}
+                            max={24}
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs text-muted-foreground">Interval (days)</label>
+                          <Input
+                            type="number"
+                            value={bnplInterval}
+                            onChange={(e) => setBnplInterval(e.target.value)}
+                            min={7}
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <label className="text-xs text-muted-foreground">First Installment Due</label>
+                        <Input
+                          type="date"
+                          value={bnplFirstDue}
+                          onChange={(e) => setBnplFirstDue(e.target.value)}
+                          min={new Date().toISOString().split("T")[0]}
+                        />
+                      </div>
+                      {bnplCostPrice && bnplMarkup !== "" && bnplInstallments && (
+                        <p className="text-xs text-muted-foreground">
+                          ≈ {formatPrice(Math.ceil(((parseFloat(bnplCostPrice) + parseFloat(bnplMarkup || "0")) * 0.7 / parseInt(bnplInstallments)) * 100) / 100)} per installment × {bnplInstallments} payments
+                        </p>
+                      )}
+                      <Button
+                        className="w-full gap-1.5"
+                        disabled={creatingBnpl || !bnplCostPrice || bnplMarkup === "" || !bnplFirstDue}
+                        onClick={handleCreateBnplPlan}
+                      >
+                        {creatingBnpl ? <Loader2 className="h-4 w-4 animate-spin" /> : <Calendar className="h-4 w-4" />}
+                        Create Installment Plan
+                      </Button>
+                    </div>
+                  ) : bnplPlan ? (
+                    /* BNPL Installment Schedule */
+                    <div className="space-y-3 border-t pt-3">
+                      <div className="rounded-lg bg-muted/50 p-2 text-xs space-y-1">
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Cost Price</span>
+                          <span>{formatPrice(bnplPlan.cost_price)}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Markup</span>
+                          <span>{formatPrice(bnplPlan.markup_amount)}</span>
+                        </div>
+                        <div className="flex justify-between font-semibold">
+                          <span>Total (Murabaha)</span>
+                          <span>{formatPrice(bnplPlan.total_with_markup)}</span>
+                        </div>
+                        <div className="flex justify-between text-primary">
+                          <span>30% Down Payment</span>
+                          <span className="font-semibold">{formatPrice(bnplPlan.down_payment)}</span>
+                        </div>
+                      </div>
 
-                  {/* Payment method */}
-                  <div>
-                    <label className="text-xs text-muted-foreground">Method</label>
-                    <div className="flex gap-2 mt-1">
-                      {(["mpesa", "cash", "card"] as const).map((m) => (
-                        <button
-                          key={m}
-                          type="button"
-                          onClick={() => setPaymentMethod(m)}
-                          className={`flex-1 rounded-lg border px-2 py-2 text-xs font-medium transition-colors ${
-                            paymentMethod === m
-                              ? "border-primary bg-primary/10 text-primary"
-                              : "text-muted-foreground hover:bg-muted"
-                          }`}
-                        >
-                          {m === "mpesa" ? "📱 M-Pesa" : m === "cash" ? "💵 Cash" : "💳 Card"}
-                        </button>
+                      <p className="text-xs font-semibold text-muted-foreground">
+                        Installment Schedule ({bnplPlan.num_installments} payments of remaining 70%)
+                      </p>
+                      {(bnplPlan.bnpl_installments ?? [])
+                        .sort((a, b) => a.installment_number - b.installment_number)
+                        .map((inst) => (
+                        <div key={inst.id} className="rounded border p-2 space-y-2">
+                          <div className="flex items-center justify-between text-xs">
+                            <div>
+                              <p className="font-medium">#{inst.installment_number} — {formatPrice(inst.amount)}</p>
+                              <p className="text-muted-foreground flex items-center gap-1">
+                                <Calendar className="h-3 w-3" />
+                                Due: {new Date(inst.due_date).toLocaleDateString("en-KE", { day: "numeric", month: "short", year: "numeric" })}
+                              </p>
+                            </div>
+                            <Badge className={`text-[10px] ${
+                              inst.status === "paid" ? "bg-green-100 text-green-800" :
+                              inst.status === "overdue" ? "bg-red-100 text-red-800" :
+                              inst.status === "due" ? "bg-yellow-100 text-yellow-800" :
+                              "bg-gray-100 text-gray-800"
+                            }`}>
+                              {inst.status === "paid" ? "Paid" : inst.status === "overdue" ? "Overdue" : inst.status === "due" ? "Due" : "Upcoming"}
+                            </Badge>
+                          </div>
+
+                          {inst.status !== "paid" && (
+                            <>
+                              {showInstPayForm === inst.id ? (
+                                <div className="space-y-2 pt-1 border-t">
+                                  <div className="flex gap-1.5">
+                                    {(["mpesa", "cash", "card"] as const).map((m) => (
+                                      <button
+                                        key={m}
+                                        type="button"
+                                        onClick={() => setInstPayMethod(m)}
+                                        className={`flex-1 rounded border px-1.5 py-1 text-[10px] font-medium ${
+                                          instPayMethod === m ? "border-primary bg-primary/10 text-primary" : "text-muted-foreground"
+                                        }`}
+                                      >
+                                        {m === "mpesa" ? "M-Pesa" : m === "cash" ? "Cash" : "Card"}
+                                      </button>
+                                    ))}
+                                  </div>
+                                  {instPayMethod !== "cash" && (
+                                    <Input
+                                      className="h-8 text-xs"
+                                      placeholder={instPayMethod === "mpesa" ? "M-Pesa code" : "Receipt ref"}
+                                      value={instPayRef}
+                                      onChange={(e) => setInstPayRef(e.target.value.toUpperCase())}
+                                    />
+                                  )}
+                                  <div className="flex gap-2">
+                                    <Button
+                                      size="sm"
+                                      className="h-7 flex-1 gap-1 text-xs"
+                                      disabled={payingInstallmentId === inst.id}
+                                      onClick={() => handlePayInstallment(inst.id)}
+                                    >
+                                      {payingInstallmentId === inst.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <CheckCircle2 className="h-3 w-3" />}
+                                      Confirm
+                                    </Button>
+                                    <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setShowInstPayForm(null)}>
+                                      Cancel
+                                    </Button>
+                                  </div>
+                                </div>
+                              ) : (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="h-7 w-full gap-1 text-xs"
+                                  onClick={() => { setShowInstPayForm(inst.id); setInstPayRef(""); setInstPayMethod("mpesa"); }}
+                                >
+                                  <Banknote className="h-3 w-3" />
+                                  Mark Paid
+                                </Button>
+                              )}
+                            </>
+                          )}
+                        </div>
                       ))}
                     </div>
-                  </div>
+                  ) : null}
+                </>
+              )}
 
-                  {/* Reference (for M-Pesa / Card) */}
-                  {paymentMethod !== "cash" && (
-                    <div>
-                      <label className="text-xs text-muted-foreground">
-                        {paymentMethod === "mpesa" ? "M-Pesa Transaction Code" : "Card Receipt / Reference"}
-                      </label>
-                      <Input
-                        placeholder={paymentMethod === "mpesa" ? "e.g. SJK7ABCDEF" : "e.g. TXN-12345"}
-                        value={paymentReference}
-                        onChange={(e) => setPaymentReference(e.target.value.toUpperCase())}
-                      />
+              {/* ─── Regular Payment Section (non-BNPL) ─── */}
+              {paymentDialogOrder.payment_method !== "bnpl" && (
+                <>
+                  {/* Payment history */}
+                  {loadingRecords ? (
+                    <div className="flex items-center justify-center py-4">
+                      <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                    </div>
+                  ) : paymentRecords.length > 0 ? (
+                    <div className="space-y-2">
+                      <p className="text-xs font-semibold text-muted-foreground">Payment History</p>
+                      {paymentRecords.map((rec) => (
+                        <div key={rec.id} className="flex items-center justify-between rounded border p-2 text-xs">
+                          <div>
+                            <p className="font-medium capitalize">{rec.method}</p>
+                            {rec.reference && <p className="text-muted-foreground font-mono">{rec.reference}</p>}
+                            {rec.notes && <p className="text-muted-foreground">{rec.notes}</p>}
+                            <p className="text-muted-foreground">{timeAgo(rec.created_at)}</p>
+                          </div>
+                          <span className="font-semibold text-primary">{formatPrice(rec.amount)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : null}
+
+                  {/* Record new payment form */}
+                  {paymentDialogOrder.amount_paid < paymentDialogOrder.total && (
+                    <div className="space-y-3 border-t pt-3">
+                      <p className="text-xs font-semibold text-muted-foreground">New Payment</p>
+
+                      <div>
+                        <label className="text-xs text-muted-foreground">Amount (KSh)</label>
+                        <Input
+                          type="number"
+                          placeholder={`Max: ${Math.max(0, paymentDialogOrder.total - paymentDialogOrder.amount_paid)}`}
+                          value={paymentAmount}
+                          onChange={(e) => setPaymentAmount(e.target.value)}
+                          min={1}
+                          max={paymentDialogOrder.total - paymentDialogOrder.amount_paid}
+                        />
+                      </div>
+
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 text-xs"
+                        onClick={() => setPaymentAmount(String(Math.max(0, paymentDialogOrder.total - paymentDialogOrder.amount_paid)))}
+                      >
+                        Fill full balance ({formatPrice(Math.max(0, paymentDialogOrder.total - paymentDialogOrder.amount_paid))})
+                      </Button>
+
+                      <div>
+                        <label className="text-xs text-muted-foreground">Method</label>
+                        <div className="flex gap-2 mt-1">
+                          {(["mpesa", "cash", "card"] as const).map((m) => (
+                            <button
+                              key={m}
+                              type="button"
+                              onClick={() => setPaymentMethod(m)}
+                              className={`flex-1 rounded-lg border px-2 py-2 text-xs font-medium transition-colors ${
+                                paymentMethod === m
+                                  ? "border-primary bg-primary/10 text-primary"
+                                  : "text-muted-foreground hover:bg-muted"
+                              }`}
+                            >
+                              {m === "mpesa" ? "📱 M-Pesa" : m === "cash" ? "💵 Cash" : "💳 Card"}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {paymentMethod !== "cash" && (
+                        <div>
+                          <label className="text-xs text-muted-foreground">
+                            {paymentMethod === "mpesa" ? "M-Pesa Transaction Code" : "Card Receipt / Reference"}
+                          </label>
+                          <Input
+                            placeholder={paymentMethod === "mpesa" ? "e.g. SJK7ABCDEF" : "e.g. TXN-12345"}
+                            value={paymentReference}
+                            onChange={(e) => setPaymentReference(e.target.value.toUpperCase())}
+                          />
+                        </div>
+                      )}
+
+                      <div>
+                        <label className="text-xs text-muted-foreground">Notes (optional)</label>
+                        <Input
+                          placeholder="e.g. Installment 2 of 4"
+                          value={paymentNotes}
+                          onChange={(e) => setPaymentNotes(e.target.value)}
+                        />
+                      </div>
+
+                      <Button
+                        className="w-full gap-1.5"
+                        disabled={recordingPayment || !paymentAmount || parseFloat(paymentAmount) <= 0}
+                        onClick={handleRecordPayment}
+                      >
+                        {recordingPayment ? <Loader2 className="h-4 w-4 animate-spin" /> : <Banknote className="h-4 w-4" />}
+                        Confirm Payment
+                      </Button>
                     </div>
                   )}
-
-                  {/* Notes */}
-                  <div>
-                    <label className="text-xs text-muted-foreground">Notes (optional)</label>
-                    <Input
-                      placeholder="e.g. Installment 2 of 4"
-                      value={paymentNotes}
-                      onChange={(e) => setPaymentNotes(e.target.value)}
-                    />
-                  </div>
-
-                  {/* Submit */}
-                  <Button
-                    className="w-full gap-1.5"
-                    disabled={recordingPayment || !paymentAmount || parseFloat(paymentAmount) <= 0}
-                    onClick={handleRecordPayment}
-                  >
-                    {recordingPayment ? <Loader2 className="h-4 w-4 animate-spin" /> : <Banknote className="h-4 w-4" />}
-                    Confirm Payment
-                  </Button>
-                </div>
+                </>
               )}
             </div>
           )}
@@ -1766,6 +2115,11 @@ function OrderCard({
           <p className="font-mono text-xs text-muted-foreground">
             #{order.id.slice(0, 8)}
           </p>
+          {order.retailers && (
+            <p className="mt-0.5 text-xs font-medium truncate">
+              {order.retailers.business_name ?? order.retailers.name}
+            </p>
+          )}
           <p className="mt-0.5 text-xs text-muted-foreground">
             {timeAgo(order.created_at)}
           </p>

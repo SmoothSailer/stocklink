@@ -248,6 +248,14 @@ export default function OrderConfirmClient({
               )}
             </button>
           ))}
+          {selectedPayment === "bnpl" && (
+            <div className="rounded-lg border border-orange-200 bg-orange-50 p-3 mt-1">
+              <p className="text-xs font-semibold text-orange-800">🕌 Murabaha — Buy Now Pay Later</p>
+              <p className="text-xs text-orange-700 mt-1">
+                A 30% down payment is required upfront. The remaining 70% (plus agreed markup) will be split into equal installments. Your sales rep will set up the payment plan after order confirmation.
+              </p>
+            </div>
+          )}
         </CardContent>
       </Card>
 

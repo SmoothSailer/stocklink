@@ -8,8 +8,10 @@ import { Separator } from "@/components/ui/separator";
 import { OrderTimeline } from "@/components/retailer/order-timeline";
 import { WhatsAppButton } from "@/components/shared/whatsapp-button";
 import { formatPrice, getCategoryIcon } from "@/lib/utils";
+import { PAYMENT_STATUSES } from "@/lib/constants";
 import { createClient } from "@/lib/supabase/client";
-import type { Order, OrderStatusHistory } from "@/types/database";
+import { Badge } from "@/components/ui/badge";
+import type { Order, OrderStatusHistory, BnplPlan, BnplInstallment } from "@/types/database";
 
 interface OrderItem {
   id: string;
@@ -32,6 +34,7 @@ interface OrderDetailClientProps {
   order: Order;
   items: OrderItem[];
   statusHistory: OrderStatusHistory[];
+  bnplPlan?: (BnplPlan & { bnpl_installments: BnplInstallment[] }) | null;
 }
 
 const STATUS_MESSAGES: Record<string, string> = {
@@ -46,6 +49,7 @@ export default function OrderDetailClient({
   order: initialOrder,
   items,
   statusHistory: initialHistory,
+  bnplPlan,
 }: OrderDetailClientProps) {
   const [order, setOrder] = useState(initialOrder);
   const [statusHistory, setStatusHistory] = useState(initialHistory);
@@ -180,6 +184,18 @@ export default function OrderDetailClient({
             <span className="text-sm text-muted-foreground">Payment</span>
             <span className="text-sm capitalize">{order.payment_method}</span>
           </div>
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-muted-foreground">Payment Status</span>
+            <Badge className={`text-[10px] ${PAYMENT_STATUSES[order.payment_status as keyof typeof PAYMENT_STATUSES]?.color ?? ""}`}>
+              {PAYMENT_STATUSES[order.payment_status as keyof typeof PAYMENT_STATUSES]?.label ?? order.payment_status}
+            </Badge>
+          </div>
+          {order.amount_paid > 0 && (
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-muted-foreground">Paid</span>
+              <span className="text-sm font-medium text-primary">{formatPrice(order.amount_paid)} / {formatPrice(order.total)}</span>
+            </div>
+          )}
           {order.delivery_address && (
             <div className="flex items-center justify-between">
               <span className="text-sm text-muted-foreground">Delivery</span>
@@ -194,6 +210,65 @@ export default function OrderDetailClient({
           </div>
         </CardContent>
       </Card>
+
+      {/* BNPL Installment Schedule */}
+      {bnplPlan && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-semibold">🕌 Murabaha Payment Plan</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="rounded-lg bg-muted/50 p-3 space-y-1 text-xs">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Cost Price</span>
+                <span>{formatPrice(bnplPlan.cost_price)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Agreed Markup</span>
+                <span>{formatPrice(bnplPlan.markup_amount)}</span>
+              </div>
+              <div className="flex justify-between font-semibold text-sm">
+                <span>Total</span>
+                <span>{formatPrice(bnplPlan.total_with_markup)}</span>
+              </div>
+              {bnplPlan.down_payment > 0 && (
+                <div className="flex justify-between text-primary font-medium border-t pt-1 mt-1">
+                  <span>⬇ Down Payment ({Math.round(bnplPlan.down_payment_rate * 100)}%)</span>
+                  <span>{formatPrice(bnplPlan.down_payment)}</span>
+                </div>
+              )}
+            </div>
+
+            <p className="text-xs font-semibold text-muted-foreground">
+              {bnplPlan.num_installments} Installments (remaining {Math.round((1 - bnplPlan.down_payment_rate) * 100)}%)
+            </p>
+
+            {(bnplPlan.bnpl_installments ?? [])
+              .sort((a, b) => a.installment_number - b.installment_number)
+              .map((inst) => (
+              <div key={inst.id} className="flex items-center justify-between rounded border p-2.5 text-xs">
+                <div>
+                  <p className="font-medium">Installment #{inst.installment_number}</p>
+                  <p className="text-muted-foreground">
+                    Due: {new Date(inst.due_date).toLocaleDateString("en-KE", { day: "numeric", month: "short", year: "numeric" })}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className="font-semibold">{formatPrice(inst.amount)}</p>
+                  <Badge className={`text-[10px] ${
+                    inst.status === "paid" ? "bg-green-100 text-green-800" :
+                    inst.status === "overdue" ? "bg-red-100 text-red-800" :
+                    inst.status === "due" ? "bg-yellow-100 text-yellow-800" :
+                    "bg-gray-100 text-gray-800"
+                  }`}>
+                    {inst.status === "paid" ? "Paid" : inst.status === "overdue" ? "Overdue" : inst.status === "due" ? "Due" : "Upcoming"}
+                  </Badge>
+                </div>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Contact */}
       <WhatsAppButton

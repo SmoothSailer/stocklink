@@ -135,7 +135,18 @@ export async function getOrderById(id: string) {
     .eq("order_id", id)
     .order("created_at", { ascending: true });
 
-  return { order, items: items ?? [], statusHistory: statusHistory ?? [] };
+  // Fetch BNPL plan if applicable
+  let bnplPlan = null;
+  if (order.payment_method === "bnpl") {
+    const { data } = await supabase
+      .from("bnpl_plans")
+      .select("*, bnpl_installments(*)")
+      .eq("order_id", id)
+      .maybeSingle();
+    bnplPlan = data;
+  }
+
+  return { order, items: items ?? [], statusHistory: statusHistory ?? [], bnplPlan };
 }
 
 // ── Order Mutations ─────────────────────────────────────────────

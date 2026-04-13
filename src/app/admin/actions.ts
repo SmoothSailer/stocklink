@@ -666,7 +666,7 @@ export async function getOrders() {
   const supabase = createAdminClient();
   const { data, error } = await supabase
     .from("orders")
-    .select("*, order_items(*, products(name, unit))")
+    .select("*, retailers(id, name, business_name, phone, location), order_items(*, products(name, unit))")
     .order("created_at", { ascending: false });
   if (error) throw new Error(error.message);
   return data;

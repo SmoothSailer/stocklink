@@ -52,6 +52,13 @@ interface OrderWithItems {
   notes: string | null;
   created_at: string;
   updated_at: string;
+  retailers: {
+    id: string;
+    name: string;
+    business_name: string | null;
+    phone: string;
+    location: string | null;
+  } | null;
   order_items: {
     id: string;
     quantity: number;
@@ -260,6 +267,11 @@ export default function AdminOrdersPage() {
                         <p className="font-mono text-sm font-semibold">
                           #{order.id.slice(0, 6).toUpperCase()}
                         </p>
+                        {order.retailers && (
+                          <p className="mt-0.5 text-xs font-medium">
+                            {order.retailers.business_name ?? order.retailers.name}
+                          </p>
+                        )}
                         <p className="mt-0.5 text-xs text-muted-foreground">
                           {timeAgo(order.created_at)}
                         </p>
@@ -316,6 +328,7 @@ export default function AdminOrdersPage() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Order ID</TableHead>
+                    <TableHead>Customer</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Items</TableHead>
                     <TableHead>Address</TableHead>
@@ -332,6 +345,16 @@ export default function AdminOrdersPage() {
                       <TableRow key={order.id}>
                         <TableCell className="font-mono text-sm font-medium">
                           #{order.id.slice(0, 6).toUpperCase()}
+                        </TableCell>
+                        <TableCell className="text-sm">
+                          {order.retailers ? (
+                            <div>
+                              <p className="font-medium">{order.retailers.business_name ?? order.retailers.name}</p>
+                              <p className="text-xs text-muted-foreground">{order.retailers.phone}</p>
+                            </div>
+                          ) : (
+                            <span className="text-muted-foreground">—</span>
+                          )}
                         </TableCell>
                         <TableCell>
                           <Badge
@@ -390,6 +413,21 @@ export default function AdminOrdersPage() {
           </DialogHeader>
           {detailOrder && (
             <div className="space-y-4">
+              {/* Customer info */}
+              {detailOrder.retailers && (
+                <div className="rounded-lg bg-muted/50 p-3 space-y-1">
+                  <p className="text-xs font-semibold text-muted-foreground">Customer</p>
+                  <p className="text-sm font-medium">{detailOrder.retailers.name}</p>
+                  {detailOrder.retailers.business_name && (
+                    <p className="text-xs text-muted-foreground">{detailOrder.retailers.business_name}</p>
+                  )}
+                  <p className="text-xs text-muted-foreground">{detailOrder.retailers.phone}</p>
+                  {detailOrder.retailers.location && (
+                    <p className="text-xs text-muted-foreground">📍 {detailOrder.retailers.location}</p>
+                  )}
+                </div>
+              )}
+
               <div className="grid grid-cols-2 gap-3 text-sm">
                 <div>
                   <p className="text-muted-foreground">Status</p>

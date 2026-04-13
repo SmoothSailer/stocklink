@@ -677,6 +677,103 @@ export interface Database {
           },
         ];
       };
+      bnpl_plans: {
+        Row: {
+          id: string;
+          order_id: string;
+          cost_price: number;
+          markup_amount: number;
+          total_with_markup: number;
+          num_installments: number;
+          installment_amount: number;
+          down_payment_rate: number;
+          down_payment: number;
+          agreed_at: string;
+          created_by: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          order_id: string;
+          cost_price: number;
+          markup_amount: number;
+          total_with_markup: number;
+          num_installments: number;
+          installment_amount: number;
+          down_payment_rate?: number;
+          down_payment: number;
+          agreed_at?: string;
+          created_by?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          order_id?: string;
+          cost_price?: number;
+          markup_amount?: number;
+          total_with_markup?: number;
+          num_installments?: number;
+          installment_amount?: number;
+          down_payment_rate?: number;
+          down_payment?: number;
+          agreed_at?: string;
+          created_by?: string | null;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "bnpl_plans_order_id_fkey";
+            columns: ["order_id"];
+            isOneToOne: true;
+            referencedRelation: "orders";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      bnpl_installments: {
+        Row: {
+          id: string;
+          plan_id: string;
+          installment_number: number;
+          amount: number;
+          due_date: string;
+          status: "upcoming" | "due" | "paid" | "overdue";
+          paid_at: string | null;
+          payment_record_id: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          plan_id: string;
+          installment_number: number;
+          amount: number;
+          due_date: string;
+          status?: "upcoming" | "due" | "paid" | "overdue";
+          paid_at?: string | null;
+          payment_record_id?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          plan_id?: string;
+          installment_number?: number;
+          amount?: number;
+          due_date?: string;
+          status?: "upcoming" | "due" | "paid" | "overdue";
+          paid_at?: string | null;
+          payment_record_id?: string | null;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "bnpl_installments_plan_id_fkey";
+            columns: ["plan_id"];
+            isOneToOne: false;
+            referencedRelation: "bnpl_plans";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
     };
     Views: {
       [_ in never]: never;
@@ -710,6 +807,8 @@ export type Referral = Database["public"]["Tables"]["referrals"]["Row"];
 export type ProductMedia = Database["public"]["Tables"]["product_media"]["Row"];
 export type OrderStatusHistory = Database["public"]["Tables"]["order_status_history"]["Row"];
 export type PaymentRecord = Database["public"]["Tables"]["payment_records"]["Row"];
+export type BnplPlan = Database["public"]["Tables"]["bnpl_plans"]["Row"];
+export type BnplInstallment = Database["public"]["Tables"]["bnpl_installments"]["Row"];
 
 export type OrderStatus = Order["status"];
 export type PaymentMethod = Order["payment_method"];

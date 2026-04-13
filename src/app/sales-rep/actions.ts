@@ -142,7 +142,7 @@ export async function getRepOrders(repId: string) {
 
   const { data: orders } = await supabase
     .from("orders")
-    .select("*, order_items(*, products(name, unit, wholesaler_id, wholesalers(name)))")
+    .select("*, retailers(id, name, business_name, phone, location), order_items(*, products(name, unit, wholesaler_id, wholesalers(name)))")
     .in("id", orderIds)
     .order("created_at", { ascending: false })
     .limit(50);
@@ -826,4 +826,195 @@ export async function getOrderPayments(orderId: string) {
     .order("created_at", { ascending: true });
 
   return data ?? [];
+}
+
+// ── Murabaha BNPL Actions ───────────────────────────────────────
+
+/**
+ * Create a Murabaha BNPL plan for an order.
+ * Sets up the installment schedule with due dates.
+ */
+export async function repCreateBnplPlan(
+  repId: string,
+  orderId: string,
+  plan: {
+    cost_price: number;
+    markup_amount: number;
+    num_installments: number;
+    first_due_date: string;
+    interval_days: number;
+  }
+) {
+  if (!(await verifyRepOwnership(repId))) {
+    return { error: "Unauthorized" };
+  }
+
+  const supabase = await createClient();
+
+  // Check no plan exists already
+  const { data: existingPlan } = await supabase
+    .from("bnpl_plans")
+    .select("id")
+    .eq("order_id", orderId)
+    .maybeSingle();
+
+  if (existingPlan) {
+    return { error: "A BNPL plan already exists for this order" };
+  }
+
+  const DOWN_PAYMENT_RATE = 0.3;
+  const totalWithMarkup = plan.cost_price + plan.markup_amount;
+  const downPayment = Math.ceil(totalWithMarkup * DOWN_PAYMENT_RATE * 100) / 100;
+  const remainingAmount = totalWithMarkup - downPayment;
+  const installmentAmount = Math.ceil((remainingAmount / plan.num_installments) * 100) / 100;
+
+  const { data: { user } } = await supabase.auth.getUser();
+
+  // Create the plan
+  const { data: bnplPlan, error: planError } = await supabase
+    .from("bnpl_plans")
+    .insert({
+      order_id: orderId,
+      cost_price: plan.cost_price,
+      markup_amount: plan.markup_amount,
+      total_with_markup: totalWithMarkup,
+      num_installments: plan.num_installments,
+      installment_amount: installmentAmount,
+      down_payment_rate: DOWN_PAYMENT_RATE,
+      down_payment: downPayment,
+      created_by: user?.id ?? null,
+    })
+    .select("id")
+    .single();
+
+  if (planError) return { error: planError.message };
+
+  // Create installment schedule (only the remaining 70%)
+  const installments = [];
+  const firstDue = new Date(plan.first_due_date);
+  for (let i = 0; i < plan.num_installments; i++) {
+    const dueDate = new Date(firstDue);
+    dueDate.setDate(dueDate.getDate() + i * plan.interval_days);
+    // Last installment gets the remainder to avoid rounding issues
+    const amount = i === plan.num_installments - 1
+      ? remainingAmount - installmentAmount * (plan.num_installments - 1)
+      : installmentAmount;
+    installments.push({
+      plan_id: bnplPlan.id,
+      installment_number: i + 1,
+      amount,
+      due_date: dueDate.toISOString().split("T")[0],
+      status: "upcoming" as const,
+    });
+  }
+
+  const { error: instError } = await supabase
+    .from("bnpl_installments")
+    .insert(installments);
+
+  if (instError) return { error: instError.message };
+
+  // Update the order total to reflect the markup
+  await supabase
+    .from("orders")
+    .update({ total: totalWithMarkup })
+    .eq("id", orderId);
+
+  revalidatePath("/sales-rep/dashboard");
+  return { error: null };
+}
+
+/**
+ * Get the BNPL plan and installments for an order.
+ */
+export async function getOrderBnplPlan(orderId: string) {
+  const supabase = await createClient();
+
+  const { data: plan } = await supabase
+    .from("bnpl_plans")
+    .select("*, bnpl_installments(*)")
+    .eq("order_id", orderId)
+    .maybeSingle();
+
+  return plan;
+}
+
+/**
+ * Mark a BNPL installment as paid by linking it to a payment record.
+ */
+export async function repPayBnplInstallment(
+  repId: string,
+  installmentId: string,
+  payment: {
+    method: "mpesa" | "cash" | "card";
+    reference?: string;
+    notes?: string;
+  }
+) {
+  if (!(await verifyRepOwnership(repId))) {
+    return { error: "Unauthorized" };
+  }
+
+  const supabase = await createClient();
+
+  const { data: installment } = await supabase
+    .from("bnpl_installments")
+    .select("*, bnpl_plans(order_id, total_with_markup)")
+    .eq("id", installmentId)
+    .single();
+
+  if (!installment) return { error: "Installment not found" };
+  if (installment.status === "paid") return { error: "Installment already paid" };
+
+  const plan = installment.bnpl_plans as { order_id: string; total_with_markup: number };
+  const { data: { user } } = await supabase.auth.getUser();
+
+  // Create payment record
+  const { data: paymentRecord, error: payError } = await supabase
+    .from("payment_records")
+    .insert({
+      order_id: plan.order_id,
+      amount: installment.amount,
+      method: payment.method,
+      reference: payment.reference || null,
+      notes: payment.notes || `Installment ${installment.installment_number}`,
+      recorded_by: user?.id ?? null,
+    })
+    .select("id")
+    .single();
+
+  if (payError) return { error: payError.message };
+
+  // Mark installment as paid
+  await supabase
+    .from("bnpl_installments")
+    .update({
+      status: "paid",
+      paid_at: new Date().toISOString(),
+      payment_record_id: paymentRecord.id,
+    })
+    .eq("id", installmentId);
+
+  // Update order amount_paid and payment_status
+  const { data: order } = await supabase
+    .from("orders")
+    .select("total, amount_paid")
+    .eq("id", plan.order_id)
+    .single();
+
+  if (order) {
+    const newAmountPaid = (order.amount_paid ?? 0) + installment.amount;
+    const isPaid = newAmountPaid >= order.total;
+    await supabase
+      .from("orders")
+      .update({
+        amount_paid: newAmountPaid,
+        payment_status: isPaid ? "paid" : "partial",
+        ...(isPaid ? { paid_at: new Date().toISOString() } : {}),
+      })
+      .eq("id", plan.order_id);
+  }
+
+  revalidatePath("/sales-rep/dashboard");
+  return { error: null };
 }
