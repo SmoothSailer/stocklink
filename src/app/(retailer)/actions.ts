@@ -1,6 +1,86 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+
+// ── Retailer Profile ────────────────────────────────────────────
+
+export async function getRetailerProfile() {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return null;
+
+  const { data } = await supabase
+    .from("retailers")
+    .select("*")
+    .eq("user_id", user.id)
+    .single();
+
+  return data;
+}
+
+export async function updateRetailerProfile(updates: {
+  name?: string;
+  business_name?: string;
+  phone?: string;
+  location?: string;
+  id_number?: string;
+  business_reg_number?: string;
+}): Promise<{ error: string | null }> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Not authenticated" };
+
+  const { error } = await supabase
+    .from("retailers")
+    .update(updates)
+    .eq("user_id", user.id);
+
+  if (error) return { error: error.message };
+  revalidatePath("/account");
+  return { error: null };
+}
+
+export async function submitForVerification(docUrls: {
+  id_front_url?: string;
+  id_back_url?: string;
+  business_cert_url?: string;
+}): Promise<{ error: string | null }> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Not authenticated" };
+
+  const { data: retailer } = await supabase
+    .from("retailers")
+    .select("id, verification_status, id_number, business_reg_number")
+    .eq("user_id", user.id)
+    .single();
+
+  if (!retailer) return { error: "Retailer profile not found" };
+
+  if (retailer.verification_status === "verified") {
+    return { error: "Account is already verified" };
+  }
+
+  if (!retailer.id_number) {
+    return { error: "Please enter your ID number before submitting" };
+  }
+
+  // Store document URLs in verification_notes as JSON for admin to review
+  const docInfo = JSON.stringify(docUrls);
+
+  const { error } = await supabase
+    .from("retailers")
+    .update({
+      verification_status: "pending",
+      verification_notes: docInfo,
+    })
+    .eq("id", retailer.id);
+
+  if (error) return { error: error.message };
+  revalidatePath("/account");
+  return { error: null };
+}
 
 // ── Category Queries ────────────────────────────────────────────
 
@@ -149,6 +229,71 @@ export async function getOrderById(id: string) {
   return { order, items: items ?? [], statusHistory: statusHistory ?? [], bnplPlan };
 }
 
+// ── BNPL Eligibility ────────────────────────────────────────────
+
+export async function checkBnplEligibility(): Promise<{
+  eligible: boolean;
+  reason?: string;
+  credit_limit: number;
+  credit_used: number;
+  available_credit: number;
+  verification_status: string;
+}> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { eligible: false, reason: "Not authenticated", credit_limit: 0, credit_used: 0, available_credit: 0, verification_status: "unverified" };
+
+  const { data: retailer } = await supabase
+    .from("retailers")
+    .select("id, verification_status, credit_limit, bnpl_enabled")
+    .eq("user_id", user.id)
+    .single();
+
+  if (!retailer) return { eligible: false, reason: "Retailer profile not found", credit_limit: 0, credit_used: 0, available_credit: 0, verification_status: "unverified" };
+
+  if (retailer.verification_status !== "verified") {
+    return { eligible: false, reason: "Your account must be verified before using BNPL", credit_limit: retailer.credit_limit, credit_used: 0, available_credit: 0, verification_status: retailer.verification_status };
+  }
+
+  if (!retailer.bnpl_enabled) {
+    return { eligible: false, reason: "BNPL is not enabled for your account", credit_limit: retailer.credit_limit, credit_used: 0, available_credit: 0, verification_status: retailer.verification_status };
+  }
+
+  if (retailer.credit_limit <= 0) {
+    return { eligible: false, reason: "No credit limit has been set for your account", credit_limit: 0, credit_used: 0, available_credit: 0, verification_status: retailer.verification_status };
+  }
+
+  // Check outstanding BNPL exposure
+  const { data: exposure } = await supabase.rpc("get_retailer_bnpl_exposure", { p_retailer_id: retailer.id });
+  const creditUsed = typeof exposure === "number" ? exposure : 0;
+  const availableCredit = retailer.credit_limit - creditUsed;
+
+  // Check for overdue installments
+  const { count: overdueCount } = await supabase
+    .from("bnpl_installments")
+    .select("id", { count: "exact", head: true })
+    .eq("status", "overdue")
+    .in("plan_id",
+      (await supabase
+        .from("bnpl_plans")
+        .select("id")
+        .in("order_id",
+          (await supabase
+            .from("orders")
+            .select("id")
+            .eq("retailer_id", retailer.id)
+          ).data?.map(o => o.id) ?? []
+        )
+      ).data?.map(p => p.id) ?? []
+    );
+
+  if (overdueCount && overdueCount > 0) {
+    return { eligible: false, reason: "You have overdue installments. Please clear them before using BNPL again.", credit_limit: retailer.credit_limit, credit_used: creditUsed, available_credit: availableCredit, verification_status: retailer.verification_status };
+  }
+
+  return { eligible: true, credit_limit: retailer.credit_limit, credit_used: creditUsed, available_credit: availableCredit, verification_status: retailer.verification_status };
+}
+
 // ── Order Mutations ─────────────────────────────────────────────
 
 export async function placeOrder(data: {
@@ -175,6 +320,22 @@ export async function placeOrder(data: {
     .eq("user_id", user.id)
     .single();
   if (!retailer) return { order_id: "", error: "Retailer profile not found" };
+
+  // BNPL eligibility gate
+  if (data.payment_method === "bnpl") {
+    const eligibility = await checkBnplEligibility();
+    if (!eligibility.eligible) {
+      return { order_id: "", error: eligibility.reason || "Not eligible for BNPL" };
+    }
+    // Check if order total exceeds available credit
+    const total = data.items.reduce(
+      (sum, item) => sum + item.unit_price * item.quantity,
+      0
+    );
+    if (total > eligibility.available_credit) {
+      return { order_id: "", error: `Order total (KSh ${total.toLocaleString()}) exceeds your available BNPL credit (KSh ${eligibility.available_credit.toLocaleString()})` };
+    }
+  }
 
   // Calculate total
   const total = data.items.reduce(

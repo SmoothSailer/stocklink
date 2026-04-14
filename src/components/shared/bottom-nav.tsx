@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, ShoppingBag, ClipboardList, Flame, Users } from "lucide-react";
+import { Home, ShoppingBag, ClipboardList, Flame, UserCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const navItems = [
@@ -10,7 +10,7 @@ const navItems = [
   { href: "/products", label: "Products", icon: ShoppingBag },
   { href: "/orders", label: "Orders", icon: ClipboardList },
   { href: "/deals", label: "Deals", icon: Flame },
-  { href: "/affiliate/join", label: "Earn", icon: Users },
+  { href: "/account", label: "Account", icon: UserCircle },
 ];
 
 export function BottomNav() {

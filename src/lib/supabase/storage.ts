@@ -72,3 +72,36 @@ export function getMediaType(url: string): "image" | "video" {
   const ext = url.split(".").pop()?.toLowerCase().split("?")[0] ?? "";
   return ["mp4", "webm", "mov", "avi", "mkv"].includes(ext) ? "video" : "image";
 }
+
+const RETAILER_DOCS_BUCKET = "retailer-docs";
+
+/**
+ * Upload a KYC document for a retailer. Files are stored under {userId}/{docType}-{timestamp}.ext
+ */
+export async function uploadRetailerDoc(
+  file: File,
+  userId: string,
+  docType: "id_front" | "id_back" | "business_cert"
+): Promise<string> {
+  const supabase = createClient();
+
+  const ext = file.name.split(".").pop() ?? "jpg";
+  const filename = `${docType}-${Date.now()}.${ext}`;
+  const path = `${userId}/${filename}`;
+
+  const { error } = await supabase.storage
+    .from(RETAILER_DOCS_BUCKET)
+    .upload(path, file, {
+      cacheControl: "3600",
+      upsert: true,
+      contentType: file.type,
+    });
+
+  if (error) throw new Error(`Upload failed: ${error.message}`);
+
+  const {
+    data: { publicUrl },
+  } = supabase.storage.from(RETAILER_DOCS_BUCKET).getPublicUrl(path);
+
+  return publicUrl;
+}

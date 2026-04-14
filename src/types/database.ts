@@ -331,6 +331,14 @@ export interface Database {
           phone: string;
           email: string | null;
           location: string | null;
+          id_number: string | null;
+          business_reg_number: string | null;
+          verification_status: "unverified" | "pending" | "verified" | "rejected";
+          verified_at: string | null;
+          verified_by: string | null;
+          credit_limit: number;
+          bnpl_enabled: boolean;
+          verification_notes: string | null;
           created_at: string;
         };
         Insert: {
@@ -341,6 +349,14 @@ export interface Database {
           phone: string;
           email?: string | null;
           location?: string | null;
+          id_number?: string | null;
+          business_reg_number?: string | null;
+          verification_status?: "unverified" | "pending" | "verified" | "rejected";
+          verified_at?: string | null;
+          verified_by?: string | null;
+          credit_limit?: number;
+          bnpl_enabled?: boolean;
+          verification_notes?: string | null;
           created_at?: string;
         };
         Update: {
@@ -351,6 +367,14 @@ export interface Database {
           phone?: string;
           email?: string | null;
           location?: string | null;
+          id_number?: string | null;
+          business_reg_number?: string | null;
+          verification_status?: "unverified" | "pending" | "verified" | "rejected";
+          verified_at?: string | null;
+          verified_by?: string | null;
+          credit_limit?: number;
+          bnpl_enabled?: boolean;
+          verification_notes?: string | null;
           created_at?: string;
         };
         Relationships: [];
@@ -689,6 +713,9 @@ export interface Database {
           down_payment_rate: number;
           down_payment: number;
           down_payment_paid_at: string | null;
+          status: "pending" | "active" | "completed" | "defaulted";
+          approved_at: string | null;
+          approved_by: string | null;
           agreed_at: string;
           created_by: string | null;
           created_at: string;
@@ -704,6 +731,9 @@ export interface Database {
           down_payment_rate?: number;
           down_payment: number;
           down_payment_paid_at?: string | null;
+          status?: "pending" | "active" | "completed" | "defaulted";
+          approved_at?: string | null;
+          approved_by?: string | null;
           agreed_at?: string;
           created_by?: string | null;
           created_at?: string;
@@ -719,6 +749,9 @@ export interface Database {
           down_payment_rate?: number;
           down_payment?: number;
           down_payment_paid_at?: string | null;
+          status?: "pending" | "active" | "completed" | "defaulted";
+          approved_at?: string | null;
+          approved_by?: string | null;
           agreed_at?: string;
           created_by?: string | null;
           created_at?: string;
@@ -782,7 +815,14 @@ export interface Database {
       [_ in never]: never;
     };
     Functions: {
-      [_ in never]: never;
+      get_retailer_bnpl_exposure: {
+        Args: { p_retailer_id: string };
+        Returns: number;
+      };
+      advance_installment_statuses: {
+        Args: Record<string, never>;
+        Returns: number;
+      };
     };
     Enums: {
       [_ in never]: never;

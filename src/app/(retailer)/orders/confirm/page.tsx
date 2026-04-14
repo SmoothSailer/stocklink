@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { getProductById } from "../../actions";
+import { getProductById, checkBnplEligibility } from "../../actions";
 import OrderConfirmClient from "./order-confirm-client";
 
 export const dynamic = "force-dynamic";
@@ -46,12 +46,16 @@ export default async function OrderConfirmPage({ searchParams }: OrderConfirmPag
   const quantity = qty ? parseInt(qty, 10) : undefined;
   const parsedUnitPrice = unitPrice ? parseFloat(unitPrice) : undefined;
 
+  // Check BNPL eligibility for the current retailer
+  const bnplEligibility = await checkBnplEligibility();
+
   return (
     <OrderConfirmClient
       product={product}
       quantity={quantity || undefined}
       unit={unit || product.unit}
       unitPrice={parsedUnitPrice || product.price}
+      bnplEligibility={bnplEligibility}
     />
   );
 }
