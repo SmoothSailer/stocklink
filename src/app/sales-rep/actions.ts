@@ -851,6 +851,105 @@ export async function repCreateBnplPlan(
 
   const supabase = await createClient();
 
+  // Verify order exists and belongs to rep's wholesalers/manufacturers
+  const { data: wholesalers } = await supabase
+    .from("wholesalers")
+    .select("id")
+    .eq("sales_rep_id", repId);
+
+  const { data: manufacturers } = await supabase
+    .from("manufacturers")
+    .select("id")
+    .eq("sales_rep_id", repId);
+
+  const wholesalerIds = wholesalers?.map((w) => w.id) ?? [];
+  const manufacturerIds = manufacturers?.map((m) => m.id) ?? [];
+
+  const { data: orderItems } = await supabase
+    .from("order_items")
+    .select("product_id, products(wholesaler_id, manufacturer_id)")
+    .eq("order_id", orderId);
+
+  if (!orderItems || orderItems.length === 0) {
+    return { error: "Order not found or has no items" };
+  }
+
+  const hasAccess = orderItems.some((item) => {
+    const p = item.products as { wholesaler_id: string | null; manufacturer_id: string | null } | null;
+    if (!p) return false;
+    return (
+      (p.wholesaler_id && wholesalerIds.includes(p.wholesaler_id)) ||
+      (p.manufacturer_id && manufacturerIds.includes(p.manufacturer_id))
+    );
+  });
+
+  if (!hasAccess) {
+    return { error: "You don't have permission to manage this order" };
+  }
+
+  // Get the order to check retailer eligibility
+  const { data: order } = await supabase
+    .from("orders")
+    .select("retailer_id")
+    .eq("id", orderId)
+    .single();
+
+  if (!order?.retailer_id) {
+    return { error: "Order has no associated retailer" };
+  }
+
+  // Check retailer BNPL eligibility
+  const { data: retailer } = await supabase
+    .from("retailers")
+    .select("id, verification_status, credit_limit, bnpl_enabled")
+    .eq("id", order.retailer_id)
+    .single();
+
+  if (!retailer) return { error: "Retailer not found" };
+  if (retailer.verification_status !== "verified") {
+    return { error: "Retailer is not verified — BNPL cannot be created" };
+  }
+  if (!retailer.bnpl_enabled) {
+    return { error: "BNPL is not enabled for this retailer" };
+  }
+
+  // Check credit limit
+  const { data: exposure } = await supabase.rpc("get_retailer_bnpl_exposure", { p_retailer_id: retailer.id });
+  const creditUsed = typeof exposure === "number" ? exposure : 0;
+  const totalWithMarkupCheck = plan.cost_price + plan.markup_amount;
+  const availableCredit = retailer.credit_limit - creditUsed;
+
+  if (totalWithMarkupCheck > availableCredit) {
+    return { error: `Plan total (KSh ${totalWithMarkupCheck.toLocaleString()}) exceeds retailer's available credit (KSh ${Math.floor(availableCredit).toLocaleString()})` };
+  }
+
+  // Check for overdue installments
+  const { data: retailerOrders } = await supabase
+    .from("orders")
+    .select("id")
+    .eq("retailer_id", retailer.id);
+
+  const retailerOrderIds = retailerOrders?.map(o => o.id) ?? [];
+  if (retailerOrderIds.length > 0) {
+    const { data: existingPlans } = await supabase
+      .from("bnpl_plans")
+      .select("id")
+      .in("order_id", retailerOrderIds);
+
+    const planIds = existingPlans?.map(p => p.id) ?? [];
+    if (planIds.length > 0) {
+      const { count: overdueCount } = await supabase
+        .from("bnpl_installments")
+        .select("id", { count: "exact", head: true })
+        .eq("status", "overdue")
+        .in("plan_id", planIds);
+
+      if (overdueCount && overdueCount > 0) {
+        return { error: "Retailer has overdue installments — cannot create new BNPL plan" };
+      }
+    }
+  }
+
   // Check no plan exists already
   const { data: existingPlan } = await supabase
     .from("bnpl_plans")

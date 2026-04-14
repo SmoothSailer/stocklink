@@ -715,3 +715,74 @@ export async function getDashboardStats() {
     salesReps: salesRepsRes.data ?? [],
   };
 }
+
+// ── Retailer Management ─────────────────────────────────────────
+
+export async function getRetailers() {
+  const supabase = createAdminClient();
+  const { data, error } = await supabase
+    .from("retailers")
+    .select("*")
+    .order("created_at", { ascending: false });
+  if (error) throw new Error(error.message);
+  return data;
+}
+
+export async function verifyRetailer(
+  retailerId: string,
+  action: "verify" | "reject",
+  options: {
+    credit_limit?: number;
+    bnpl_enabled?: boolean;
+    verification_notes?: string;
+  } = {}
+) {
+  const supabase = createAdminClient();
+
+  const { data: { user } } = await supabase.auth.getUser();
+
+  const updateData: Record<string, unknown> = {
+    verification_status: action === "verify" ? "verified" : "rejected",
+    verified_at: new Date().toISOString(),
+    verified_by: user?.id ?? null,
+    verification_notes: options.verification_notes || null,
+  };
+
+  if (action === "verify") {
+    if (options.credit_limit !== undefined) {
+      updateData.credit_limit = options.credit_limit;
+    }
+    if (options.bnpl_enabled !== undefined) {
+      updateData.bnpl_enabled = options.bnpl_enabled;
+    }
+  }
+
+  const { error } = await supabase
+    .from("retailers")
+    .update(updateData)
+    .eq("id", retailerId);
+
+  if (error) return { error: error.message };
+  revalidatePath("/admin/retailers");
+  return { error: null };
+}
+
+export async function updateRetailerCredit(
+  retailerId: string,
+  creditLimit: number,
+  bnplEnabled: boolean
+) {
+  const supabase = createAdminClient();
+
+  const { error } = await supabase
+    .from("retailers")
+    .update({
+      credit_limit: creditLimit,
+      bnpl_enabled: bnplEnabled,
+    })
+    .eq("id", retailerId);
+
+  if (error) return { error: error.message };
+  revalidatePath("/admin/retailers");
+  return { error: null };
+}

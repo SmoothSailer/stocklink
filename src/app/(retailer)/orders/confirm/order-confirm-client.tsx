@@ -13,6 +13,15 @@ import { cn, formatPrice, buildWhatsAppLink, getCategoryIcon } from "@/lib/utils
 import { placeOrder } from "../../actions";
 import type { Product } from "@/types/database";
 
+interface BnplEligibility {
+  eligible: boolean;
+  reason?: string;
+  credit_limit: number;
+  credit_used: number;
+  available_credit: number;
+  verification_status: string;
+}
+
 interface OrderConfirmClientProps {
   product: Product & {
     wholesalers: {
@@ -34,6 +43,7 @@ interface OrderConfirmClientProps {
   quantity?: number;
   unit: string;
   unitPrice: number;
+  bnplEligibility: BnplEligibility;
 }
 
 export default function OrderConfirmClient({
@@ -41,6 +51,7 @@ export default function OrderConfirmClient({
   quantity: initialQty,
   unit,
   unitPrice,
+  bnplEligibility,
 }: OrderConfirmClientProps) {
   const router = useRouter();
   const [selectedPayment, setSelectedPayment] = useState<"mpesa" | "cash" | "card" | "bnpl">("mpesa");
@@ -228,31 +239,46 @@ export default function OrderConfirmClient({
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-2">
-          {PAYMENT_METHODS.map((method) => (
+          {PAYMENT_METHODS.map((method) => {
+            const isBnpl = method.value === "bnpl";
+            const bnplDisabled = isBnpl && !bnplEligibility.eligible;
+            return (
             <button
               key={method.value}
               type="button"
-              onClick={() => setSelectedPayment(method.value as "mpesa" | "cash" | "card" | "bnpl")}
+              disabled={bnplDisabled}
+              onClick={() => !bnplDisabled && setSelectedPayment(method.value as "mpesa" | "cash" | "card" | "bnpl")}
               className={`flex w-full items-center gap-3 rounded-lg border p-3 text-left transition-colors ${
-                selectedPayment === method.value
-                  ? "border-primary bg-primary/5"
-                  : "border-border hover:bg-muted/50"
+                bnplDisabled
+                  ? "border-border opacity-50 cursor-not-allowed"
+                  : selectedPayment === method.value
+                    ? "border-primary bg-primary/5"
+                    : "border-border hover:bg-muted/50"
               }`}
             >
               <span className="text-xl">{method.icon}</span>
-              <span className="text-sm font-medium">{method.label}</span>
+              <div className="flex-1">
+                <span className="text-sm font-medium">{method.label}</span>
+                {bnplDisabled && (
+                  <p className="text-[10px] text-red-600 mt-0.5">{bnplEligibility.reason}</p>
+                )}
+              </div>
               {selectedPayment === method.value && (
                 <Badge className="ml-auto" variant="default">
                   Selected
                 </Badge>
               )}
             </button>
-          ))}
-          {selectedPayment === "bnpl" && (
-            <div className="rounded-lg border border-orange-200 bg-orange-50 p-3 mt-1">
+            );
+          })}
+          {selectedPayment === "bnpl" && bnplEligibility.eligible && (
+            <div className="rounded-lg border border-orange-200 bg-orange-50 p-3 mt-1 space-y-1">
               <p className="text-xs font-semibold text-orange-800">🕌 Murabaha — Buy Now Pay Later</p>
-              <p className="text-xs text-orange-700 mt-1">
+              <p className="text-xs text-orange-700">
                 A 30% down payment is required upfront. The remaining 70% (plus agreed markup) will be split into equal installments. Your sales rep will set up the payment plan after order confirmation.
+              </p>
+              <p className="text-xs text-orange-700">
+                Available credit: <span className="font-semibold">KSh {bnplEligibility.available_credit.toLocaleString()}</span>
               </p>
             </div>
           )}

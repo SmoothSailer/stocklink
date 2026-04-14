@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ShoppingBag, LogOut, User, Users } from "lucide-react";
+import { ShoppingBag, LogOut, User, Users, UserCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { APP_NAME } from "@/lib/constants";
 import { useAuth } from "@/hooks/use-auth";
@@ -42,10 +42,10 @@ export function Navbar() {
             Orders
           </Link>
           <Link
-            href="/affiliate/join"
+            href="/account"
             className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
           >
-            Earn
+            Account
           </Link>
         </nav>
 
@@ -59,10 +59,13 @@ export function Navbar() {
               <Users className="h-3 w-3" />
               Affiliate
             </Link>
-            <div className="hidden items-center gap-1.5 text-xs text-muted-foreground lg:flex">
-              <User className="h-3.5 w-3.5" />
+            <Link
+              href="/account"
+              className="hidden items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground lg:flex"
+            >
+              <UserCircle className="h-3.5 w-3.5" />
               <span>{email}</span>
-            </div>
+            </Link>
             <Button
               variant="ghost"
               size="icon"
