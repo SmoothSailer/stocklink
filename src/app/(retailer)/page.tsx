@@ -66,7 +66,7 @@ export default async function HomePage() {
           Welcome to <span className="text-primary">Ristoka</span>
         </h1>
         <p className="text-sm text-muted-foreground">
-          Wholesale prices for retailers — buy in bulk, save more
+          Stocking you up, backing you up
         </p>
       </div>
 

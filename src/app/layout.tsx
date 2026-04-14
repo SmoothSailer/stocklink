@@ -50,7 +50,7 @@ export const metadata: Metadata = {
     locale: "en_KE",
     url: siteUrl,
     siteName: "Ristoka",
-    title: "Ristoka — Wholesale Supply Made Easy",
+    title: "Ristoka — Stocking You Up, Backing You Up",
     description:
       "Browse wholesale products, compare prices, and order via WhatsApp. Real-time stock visibility, fast delivery, and M-Pesa payments.",
     images: [
@@ -58,13 +58,13 @@ export const metadata: Metadata = {
         url: "/og-image.png",
         width: 1200,
         height: 630,
-        alt: "Ristoka — Wholesale Supply Made Easy",
+        alt: "Ristoka — Stocking You Up, Backing You Up",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Ristoka — Wholesale Supply Made Easy",
+    title: "Ristoka — Stocking You Up, Backing You Up",
     description:
       "Browse wholesale products, compare prices, and order via WhatsApp. Real-time stock, fast delivery.",
     images: ["/og-image.png"],
