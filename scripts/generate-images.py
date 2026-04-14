@@ -96,7 +96,7 @@ def generate_og_image():
 
     # Tagline
     font_tag = get_font(30)
-    draw.text((cx, cy + 90), "Wholesale Supply Made Easy", fill=GREEN_START, font=font_tag)
+    draw.text((cx, cy + 90), "Stocking You Up, Backing You Up", fill=GREEN_START, font=font_tag)
 
     # Description
     font_desc = get_font(24)
