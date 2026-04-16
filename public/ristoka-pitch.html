@@ -1,0 +1,915 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ristoka — Investor Presentation</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --green: #16A34A;
+    --green-dark: #15803D;
+    --green-light: #DCFCE7;
+    --orange: #F97316;
+    --gray-50: #F9FAFB;
+    --gray-100: #F3F4F6;
+    --gray-200: #E5E7EB;
+    --gray-500: #6B7280;
+    --gray-700: #374151;
+    --gray-800: #1F2937;
+    --gray-900: #111827;
+    --red: #EF4444;
+    --blue: #3B82F6;
+  }
+
+  body {
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    background: var(--gray-900);
+    color: var(--gray-800);
+    overflow: hidden;
+    height: 100vh;
+    width: 100vw;
+  }
+
+  /* Slide system */
+  .slide {
+    display: none;
+    width: 100vw;
+    height: 100vh;
+    padding: 60px 80px;
+    position: absolute;
+    top: 0; left: 0;
+    flex-direction: column;
+    justify-content: center;
+  }
+  .slide.active { display: flex; }
+
+  /* Backgrounds */
+  .bg-white { background: #fff; }
+  .bg-gray { background: var(--gray-50); }
+  .bg-green { background: var(--green); color: #fff; }
+  .bg-green-dark { background: var(--green-dark); color: #fff; }
+  .bg-dark { background: var(--gray-900); color: #fff; }
+  .bg-gradient {
+    background: linear-gradient(135deg, var(--green) 0%, var(--green-dark) 100%);
+    color: #fff;
+  }
+
+  /* Typography */
+  .slide-number {
+    position: absolute;
+    bottom: 30px; right: 40px;
+    font-size: 14px;
+    color: var(--gray-500);
+    font-weight: 500;
+  }
+  .bg-green .slide-number,
+  .bg-green-dark .slide-number,
+  .bg-dark .slide-number,
+  .bg-gradient .slide-number { color: rgba(255,255,255,0.5); }
+
+  .brand-tag {
+    position: absolute;
+    bottom: 30px; left: 40px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--gray-500);
+    letter-spacing: 0.5px;
+  }
+  .bg-green .brand-tag,
+  .bg-green-dark .brand-tag,
+  .bg-dark .brand-tag,
+  .bg-gradient .brand-tag { color: rgba(255,255,255,0.4); }
+
+  .section-label {
+    font-size: 13px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    margin-bottom: 16px;
+    color: var(--green);
+  }
+  .bg-green .section-label,
+  .bg-gradient .section-label { color: rgba(255,255,255,0.7); }
+  .bg-dark .section-label { color: var(--green); }
+
+  h1 { font-size: 56px; font-weight: 800; line-height: 1.1; margin-bottom: 24px; }
+  h2 { font-size: 44px; font-weight: 700; line-height: 1.15; margin-bottom: 20px; }
+  h3 { font-size: 32px; font-weight: 700; line-height: 1.2; margin-bottom: 16px; }
+
+  .subtitle {
+    font-size: 22px;
+    font-weight: 400;
+    line-height: 1.5;
+    color: var(--gray-500);
+    max-width: 700px;
+  }
+  .bg-green .subtitle,
+  .bg-gradient .subtitle { color: rgba(255,255,255,0.85); }
+  .bg-dark .subtitle { color: var(--gray-500); }
+
+  .big-number {
+    font-size: 72px;
+    font-weight: 800;
+    color: var(--green);
+    line-height: 1;
+  }
+  .bg-green .big-number,
+  .bg-gradient .big-number { color: #fff; }
+
+  /* Layout helpers */
+  .flex { display: flex; }
+  .flex-col { flex-direction: column; }
+  .gap-40 { gap: 40px; }
+  .gap-60 { gap: 60px; }
+  .gap-24 { gap: 24px; }
+  .gap-16 { gap: 16px; }
+  .gap-12 { gap: 12px; }
+  .items-center { align-items: center; }
+  .justify-center { justify-content: center; }
+  .flex-1 { flex: 1; }
+  .text-center { text-align: center; }
+  .w-full { width: 100%; }
+  .mx-auto { margin-left: auto; margin-right: auto; }
+  .max-w-900 { max-width: 900px; }
+  .max-w-1000 { max-width: 1000px; }
+
+  /* Cards / Boxes */
+  .stat-card {
+    background: #fff;
+    border-radius: 16px;
+    padding: 32px;
+    flex: 1;
+    min-width: 200px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    border: 1px solid var(--gray-200);
+  }
+  .bg-dark .stat-card {
+    background: rgba(255,255,255,0.06);
+    border-color: rgba(255,255,255,0.1);
+  }
+  .stat-card .stat-value {
+    font-size: 36px;
+    font-weight: 800;
+    color: var(--green);
+    margin-bottom: 8px;
+  }
+  .bg-dark .stat-card .stat-value { color: #4ADE80; }
+  .stat-card .stat-label {
+    font-size: 15px;
+    color: var(--gray-500);
+    font-weight: 500;
+  }
+
+  .problem-card {
+    background: #fff;
+    border-radius: 16px;
+    padding: 28px 32px;
+    border-left: 4px solid var(--red);
+    flex: 1;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  }
+  .problem-card .problem-icon {
+    font-size: 28px;
+    margin-bottom: 12px;
+  }
+  .problem-card h4 {
+    font-size: 18px;
+    font-weight: 700;
+    margin-bottom: 8px;
+    color: var(--gray-900);
+  }
+  .problem-card p {
+    font-size: 15px;
+    color: var(--gray-500);
+    line-height: 1.5;
+  }
+
+  .solution-card {
+    background: #fff;
+    border-radius: 16px;
+    padding: 28px 32px;
+    border-left: 4px solid var(--green);
+    flex: 1;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  }
+  .solution-card .sol-icon {
+    font-size: 28px;
+    margin-bottom: 12px;
+  }
+  .solution-card h4 {
+    font-size: 18px;
+    font-weight: 700;
+    margin-bottom: 8px;
+    color: var(--gray-900);
+  }
+  .solution-card p {
+    font-size: 15px;
+    color: var(--gray-500);
+    line-height: 1.5;
+  }
+
+  /* Flow diagram */
+  .flow-step {
+    text-align: center;
+    flex: 1;
+  }
+  .flow-step .flow-num {
+    width: 48px; height: 48px;
+    background: var(--green);
+    color: #fff;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    font-weight: 700;
+    margin-bottom: 14px;
+  }
+  .flow-step h4 {
+    font-size: 17px;
+    font-weight: 700;
+    margin-bottom: 6px;
+    color: var(--gray-900);
+  }
+  .flow-step p {
+    font-size: 14px;
+    color: var(--gray-500);
+    line-height: 1.4;
+  }
+  .flow-arrow {
+    font-size: 28px;
+    color: var(--gray-300);
+    align-self: center;
+    margin-top: -20px;
+  }
+
+  /* Table */
+  .clean-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 17px;
+  }
+  .clean-table th {
+    text-align: left;
+    padding: 14px 20px;
+    background: var(--gray-100);
+    font-weight: 600;
+    color: var(--gray-700);
+    border-bottom: 2px solid var(--gray-200);
+  }
+  .clean-table td {
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--gray-200);
+    color: var(--gray-700);
+  }
+  .clean-table .highlight {
+    color: var(--green);
+    font-weight: 700;
+  }
+
+  /* Progress bar for use of funds */
+  .fund-bar {
+    height: 40px;
+    border-radius: 8px;
+    overflow: hidden;
+    display: flex;
+    margin-bottom: 20px;
+  }
+  .fund-bar div {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    font-weight: 600;
+    color: #fff;
+  }
+
+  /* Bullet list */
+  .bullet-list {
+    list-style: none;
+    padding: 0;
+  }
+  .bullet-list li {
+    padding: 10px 0;
+    font-size: 18px;
+    color: var(--gray-700);
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    line-height: 1.4;
+  }
+  .bullet-list li::before {
+    content: "✓";
+    color: var(--green);
+    font-weight: 700;
+    font-size: 18px;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+  .bg-dark .bullet-list li { color: rgba(255,255,255,0.8); }
+  .bg-dark .bullet-list li::before { color: #4ADE80; }
+
+  .risk-list li::before {
+    content: "⛨";
+    color: var(--orange);
+  }
+
+  /* Logo */
+  .logo-mark {
+    width: 64px; height: 64px;
+    background: var(--green);
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 32px;
+    font-weight: 800;
+    color: #fff;
+    margin-bottom: 24px;
+    box-shadow: 0 4px 12px rgba(22,163,74,0.3);
+  }
+  .bg-gradient .logo-mark,
+  .bg-green .logo-mark {
+    background: rgba(255,255,255,0.2);
+    box-shadow: none;
+  }
+
+  /* BNPL flow */
+  .bnpl-step {
+    background: rgba(255,255,255,0.08);
+    border-radius: 12px;
+    padding: 24px;
+    flex: 1;
+    text-align: center;
+  }
+  .bnpl-step .bnpl-emoji { font-size: 32px; margin-bottom: 10px; }
+  .bnpl-step h4 { font-size: 16px; font-weight: 700; margin-bottom: 6px; }
+  .bnpl-step p { font-size: 14px; opacity: 0.7; line-height: 1.4; }
+
+  /* Keyboard nav hint */
+  .nav-hint {
+    position: fixed;
+    top: 20px; right: 20px;
+    background: rgba(0,0,0,0.6);
+    color: #fff;
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-size: 13px;
+    opacity: 0;
+    transition: opacity 0.3s;
+    pointer-events: none;
+    z-index: 100;
+  }
+  .nav-hint.show { opacity: 1; }
+
+  /* Print */
+  @media print {
+    .slide { display: flex !important; position: relative; page-break-after: always; height: auto; min-height: 100vh; }
+    .nav-hint { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="nav-hint" id="navHint">Use ← → arrow keys or click to navigate</div>
+
+<!-- ============================================ -->
+<!-- SLIDE 1: TITLE -->
+<!-- ============================================ -->
+<div class="slide bg-gradient active" data-slide="1">
+  <div class="logo-mark">R</div>
+  <h1>Ristoka</h1>
+  <p class="subtitle" style="font-size: 28px; font-weight: 500; margin-bottom: 32px;">
+    Stocking you up, backing you up.
+  </p>
+  <p class="subtitle" style="font-size: 18px; opacity: 0.7;">
+    The supply + financing platform for African retailers
+  </p>
+  <div class="slide-number">1 / 14</div>
+</div>
+
+<!-- ============================================ -->
+<!-- SLIDE 2: THE PROBLEM -->
+<!-- ============================================ -->
+<div class="slide bg-gray" data-slide="2">
+  <p class="section-label">The Problem</p>
+  <h2 style="margin-bottom: 40px;">Retailers are stuck in a cycle of scarcity</h2>
+  <div class="flex gap-24" style="flex-wrap: wrap;">
+    <div class="problem-card">
+      <div class="problem-icon">💰</div>
+      <h4>No Working Capital</h4>
+      <p>Retailers buy 2 bags when they could sell 10. Banks won't lend to them. M-Shwari caps at KSh 5,000. They need KSh 30,000–50,000/week.</p>
+    </div>
+    <div class="problem-card">
+      <div class="problem-icon">🔗</div>
+      <h4>Middleman Tax</h4>
+      <p>No direct access to wholesalers or manufacturers. Every layer adds 10-20% markup. A KSh 3,200 bag of rice costs her KSh 3,800.</p>
+    </div>
+    <div class="problem-card">
+      <div class="problem-icon">🌍</div>
+      <h4>No Global Access</h4>
+      <p>High-margin international products (snacks, cosmetics, electronics) are completely inaccessible. No logistics, no contacts, no capital.</p>
+    </div>
+  </div>
+  <div class="brand-tag">RISTOKA</div>
+  <div class="slide-number">2 / 14</div>
+</div>
+
+<!-- ============================================ -->
+<!-- SLIDE 3: THE OPPORTUNITY -->
+<!-- ============================================ -->
+<div class="slide bg-dark" data-slide="3">
+  <p class="section-label">The Opportunity</p>
+  <h2 style="margin-bottom: 48px;">A massive, underserved market</h2>
+  <div class="flex gap-40" style="flex-wrap: wrap;">
+    <div class="stat-card">
+      <div class="stat-value">$200B+</div>
+      <div class="stat-label">Africa's informal retail market</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value">80%</div>
+      <div class="stat-label">Of retail is informal / small shops</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value">~$0</div>
+      <div class="stat-label">Credit available to micro-retailers</div>
+    </div>
+  </div>
+  <p style="margin-top: 40px; font-size: 18px; color: var(--gray-500); max-width: 700px;">
+    Every retailer who can stock more, sells more. The constraint isn't demand — it's supply and capital.
+  </p>
+  <div class="brand-tag">RISTOKA</div>
+  <div class="slide-number">3 / 14</div>
+</div>
+
+<!-- ============================================ -->
+<!-- SLIDE 4: OUR SOLUTION -->
+<!-- ============================================ -->
+<div class="slide bg-white" data-slide="4">
+  <p class="section-label">Our Solution</p>
+  <h2 style="margin-bottom: 40px;">Supply + Capital in one platform</h2>
+  <div class="flex gap-24" style="flex-wrap: wrap;">
+    <div class="solution-card">
+      <div class="sol-icon">📦</div>
+      <h4>Supply Platform</h4>
+      <p>Aggregated catalog from local wholesalers, manufacturers, and international suppliers. Real prices, real stock, real-time.</p>
+    </div>
+    <div class="solution-card">
+      <div class="sol-icon">🏦</div>
+      <h4>Embedded Financing (BNPL)</h4>
+      <p>Murabaha-based model — we buy inventory and sell to retailers at a transparent markup. Not interest. 30% down, rest in installments.</p>
+    </div>
+    <div class="solution-card">
+      <div class="sol-icon">🌐</div>
+      <h4>Global Sourcing</h4>
+      <p>Products from UK, Turkey, UAE with logistics handled. Retailers access international goods they couldn't reach on their own.</p>
+    </div>
+  </div>
+  <div class="brand-tag">RISTOKA</div>
+  <div class="slide-number">4 / 14</div>
+</div>
+
+<!-- ============================================ -->
+<!-- SLIDE 5: HOW IT WORKS -->
+<!-- ============================================ -->
+<div class="slide bg-gray" data-slide="5">
+  <p class="section-label">How It Works</p>
+  <h2 style="margin-bottom: 48px;">Simple flow, real transactions</h2>
+  <div class="flex items-center gap-16" style="flex-wrap: nowrap;">
+    <div class="flow-step">
+      <div class="flow-num">1</div>
+      <h4>Browse & Order</h4>
+      <p>Retailer searches products, selects quantity & unit, confirms order</p>
+    </div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step">
+      <div class="flow-num">2</div>
+      <h4>Choose Payment</h4>
+      <p>M-Pesa, Cash, Card, or BNPL (Buy Now Pay Later)</p>
+    </div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step">
+      <div class="flow-num">3</div>
+      <h4>WhatsApp Confirm</h4>
+      <p>Order goes to assigned sales rep via WhatsApp for fulfillment</p>
+    </div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step">
+      <div class="flow-num">4</div>
+      <h4>Track & Pay</h4>
+      <p>Real-time order tracking. BNPL installments managed in-app</p>
+    </div>
+  </div>
+  <p style="margin-top: 48px; font-size: 16px; color: var(--gray-500); text-align: center;">
+    WhatsApp-first UX — meets retailers where they already are
+  </p>
+  <div class="brand-tag">RISTOKA</div>
+  <div class="slide-number">5 / 14</div>
+</div>
+
+<!-- ============================================ -->
+<!-- SLIDE 6: THE PRODUCT IS BUILT -->
+<!-- ============================================ -->
+<div class="slide bg-white" data-slide="6">
+  <p class="section-label">Product</p>
+  <h2 style="margin-bottom: 32px;">This is live, not a prototype</h2>
+  <div class="flex gap-40" style="align-items: flex-start;">
+    <div class="flex-1">
+      <ul class="bullet-list" style="margin-bottom: 32px;">
+        <li>Full product catalog with categories, search, filters</li>
+        <li>Multi-unit pricing (pieces, boxes, cartons)</li>
+        <li>Flash deals with countdown timers</li>
+        <li>Order tracking with real-time status updates</li>
+        <li>BNPL with KYC verification & credit limits</li>
+        <li>Admin dashboard — orders, inventory, retailers</li>
+        <li>Sales rep portal — onboarding, order management, payments</li>
+        <li>Wholesaler read-only inventory view</li>
+        <li>Affiliate referral system</li>
+      </ul>
+      <p style="font-size: 15px; color: var(--gray-500); border-left: 3px solid var(--green); padding-left: 16px;">
+        Built with Next.js, Supabase, TypeScript.<br>
+        Mobile-first. 33 routes. Zero external dependencies for core flow.
+      </p>
+    </div>
+    <div style="flex: 0 0 320px; background: var(--gray-100); border-radius: 20px; padding: 20px; text-align: center;">
+      <div style="background: var(--green); color: #fff; border-radius: 12px; padding: 40px 20px; margin-bottom: 16px;">
+        <div style="font-size: 40px; font-weight: 800; margin-bottom: 8px;">R</div>
+        <div style="font-size: 14px; opacity: 0.8;">Live Demo Available</div>
+      </div>
+      <p style="font-size: 13px; color: var(--gray-500);">
+        Retailer app • Admin dashboard • Sales rep portal
+      </p>
+    </div>
+  </div>
+  <div class="brand-tag">RISTOKA</div>
+  <div class="slide-number">6 / 14</div>
+</div>
+
+<!-- ============================================ -->
+<!-- SLIDE 7: BNPL / MURABAHA MODEL -->
+<!-- ============================================ -->
+<div class="slide bg-green-dark" data-slide="7">
+  <p class="section-label">BNPL Model</p>
+  <h2 style="margin-bottom: 40px;">Murabaha — Transparent, Ethical Financing</h2>
+  <div class="flex gap-24" style="margin-bottom: 40px; flex-wrap: wrap;">
+    <div class="bnpl-step">
+      <div class="bnpl-emoji">🔍</div>
+      <h4>KYC Verification</h4>
+      <p>ID upload, business docs, admin review. Credit limit set per retailer.</p>
+    </div>
+    <div class="bnpl-step">
+      <div class="bnpl-emoji">📦</div>
+      <h4>We Buy Inventory</h4>
+      <p>Ristoka purchases stock at wholesale cost on behalf of the retailer.</p>
+    </div>
+    <div class="bnpl-step">
+      <div class="bnpl-emoji">💵</div>
+      <h4>30% Down Payment</h4>
+      <p>Retailer pays 30% upfront. Reduces our risk exposure immediately.</p>
+    </div>
+    <div class="bnpl-step">
+      <div class="bnpl-emoji">📅</div>
+      <h4>Installments</h4>
+      <p>Remaining 70% + markup spread over 2-4 weekly installments.</p>
+    </div>
+  </div>
+  <p style="font-size: 18px; opacity: 0.85; max-width: 700px;">
+    This is cost-plus, not interest. The markup is transparent and agreed upfront.<br>
+    Shariah-compliant. Trust-building. Retailer-friendly.
+  </p>
+  <div class="brand-tag">RISTOKA</div>
+  <div class="slide-number">7 / 14</div>
+</div>
+
+<!-- ============================================ -->
+<!-- SLIDE 8: UNIT ECONOMICS -->
+<!-- ============================================ -->
+<div class="slide bg-white" data-slide="8">
+  <p class="section-label">Unit Economics</p>
+  <h2 style="margin-bottom: 36px;">Every transaction generates revenue</h2>
+  <div class="max-w-900 mx-auto">
+    <table class="clean-table">
+      <thead>
+        <tr>
+          <th></th>
+          <th>Cash Order</th>
+          <th>BNPL Order</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Order Value (10 bags rice)</td>
+          <td>KSh 35,000</td>
+          <td>KSh 35,000</td>
+        </tr>
+        <tr>
+          <td>Our Cost (wholesale)</td>
+          <td>KSh 32,000</td>
+          <td>KSh 32,000</td>
+        </tr>
+        <tr>
+          <td>Supply Margin (8-15%)</td>
+          <td class="highlight">KSh 3,000</td>
+          <td class="highlight">KSh 3,000</td>
+        </tr>
+        <tr>
+          <td>BNPL Markup (10-15%)</td>
+          <td>—</td>
+          <td class="highlight">KSh 3,500</td>
+        </tr>
+        <tr>
+          <td style="font-weight: 700;">Total Revenue</td>
+          <td style="font-weight: 700;" class="highlight">KSh 3,000</td>
+          <td style="font-weight: 700;" class="highlight">KSh 6,500</td>
+        </tr>
+        <tr>
+          <td style="font-weight: 700;">Return on Capital</td>
+          <td style="font-weight: 700;" class="highlight">9.4%</td>
+          <td style="font-weight: 700;" class="highlight">20.3%</td>
+        </tr>
+        <tr>
+          <td>Cycle Time</td>
+          <td>Immediate</td>
+          <td>2-4 weeks</td>
+        </tr>
+      </tbody>
+    </table>
+    <p style="margin-top: 24px; font-size: 15px; color: var(--gray-500);">
+      Capital deployed into inventory generates 9-20% returns per cycle. Cycles repeat every 2-4 weeks.
+    </p>
+  </div>
+  <div class="brand-tag">RISTOKA</div>
+  <div class="slide-number">8 / 14</div>
+</div>
+
+<!-- ============================================ -->
+<!-- SLIDE 9: REVENUE MODEL -->
+<!-- ============================================ -->
+<div class="slide bg-gray" data-slide="9">
+  <p class="section-label">Revenue Model</p>
+  <h2 style="margin-bottom: 40px;">Three revenue streams, all transactional</h2>
+  <div class="flex gap-40 max-w-1000 mx-auto" style="flex-wrap: wrap;">
+    <div style="flex: 1; min-width: 250px;">
+      <div style="font-size: 48px; font-weight: 800; color: var(--green); margin-bottom: 8px;">①</div>
+      <h3 style="font-size: 22px; margin-bottom: 8px;">Supply Margin</h3>
+      <p style="font-size: 16px; color: var(--gray-500); line-height: 1.5;">
+        Buy wholesale, sell to retailers at 8-15% markup. Traditional distribution economics.
+      </p>
+    </div>
+    <div style="flex: 1; min-width: 250px;">
+      <div style="font-size: 48px; font-weight: 800; color: var(--green); margin-bottom: 8px;">②</div>
+      <h3 style="font-size: 22px; margin-bottom: 8px;">BNPL Markup</h3>
+      <p style="font-size: 16px; color: var(--gray-500); line-height: 1.5;">
+        Murabaha markup of 10-15% on financed orders. Revenue recognized on delivery.
+      </p>
+    </div>
+    <div style="flex: 1; min-width: 250px;">
+      <div style="font-size: 48px; font-weight: 800; color: var(--green); margin-bottom: 8px;">③</div>
+      <h3 style="font-size: 22px; margin-bottom: 8px;">Global Sourcing</h3>
+      <p style="font-size: 16px; color: var(--gray-500); line-height: 1.5;">
+        Higher margins on international products (20-40%). UK, Turkey, UAE sourcing.
+      </p>
+    </div>
+  </div>
+  <div style="margin-top: 48px; background: var(--green-light); border-radius: 12px; padding: 20px 28px; max-width: 800px; margin-left: auto; margin-right: auto;">
+    <p style="font-size: 16px; color: var(--green-dark); font-weight: 600; text-align: center;">
+      💡 Key insight: The capital itself is productive. Every shilling deployed generates margin revenue.
+    </p>
+  </div>
+  <div class="brand-tag">RISTOKA</div>
+  <div class="slide-number">9 / 14</div>
+</div>
+
+<!-- ============================================ -->
+<!-- SLIDE 10: RISK MITIGATION -->
+<!-- ============================================ -->
+<div class="slide bg-white" data-slide="10">
+  <p class="section-label">Risk Mitigation</p>
+  <h2 style="margin-bottom: 36px;">Built-in safeguards at every layer</h2>
+  <div class="flex gap-60" style="align-items: flex-start;">
+    <div class="flex-1">
+      <ul class="bullet-list" style="font-size: 17px;">
+        <li><strong>30% mandatory down payment</strong> — immediate capital recovery on every BNPL order</li>
+        <li><strong>KYC verification</strong> — ID, business docs, admin review before credit access</li>
+        <li><strong>Individual credit limits</strong> — set per retailer, tracked in real-time</li>
+        <li><strong>Overdue detection</strong> — retailers with overdue installments are blocked from new BNPL</li>
+        <li><strong>Inventory as collateral</strong> — worst case, stock is liquidatable physical goods</li>
+        <li><strong>Short cycles</strong> — 2-4 week repayment windows, not months</li>
+      </ul>
+    </div>
+    <div style="flex: 0 0 300px; background: var(--gray-50); border-radius: 16px; padding: 28px; border: 1px solid var(--gray-200);">
+      <h4 style="font-size: 16px; font-weight: 700; margin-bottom: 16px; color: var(--gray-800);">Default Scenario</h4>
+      <p style="font-size: 14px; color: var(--gray-500); line-height: 1.6; margin-bottom: 16px;">
+        If a retailer defaults after paying 30% down on a KSh 35,000 order:
+      </p>
+      <div style="display: flex; justify-content: space-between; font-size: 14px; margin-bottom: 8px;">
+        <span style="color: var(--gray-500);">Down payment collected</span>
+        <span style="color: var(--green); font-weight: 700;">KSh 10,500</span>
+      </div>
+      <div style="display: flex; justify-content: space-between; font-size: 14px; margin-bottom: 8px;">
+        <span style="color: var(--gray-500);">Max exposure</span>
+        <span style="color: var(--orange); font-weight: 700;">KSh 24,500</span>
+      </div>
+      <div style="display: flex; justify-content: space-between; font-size: 14px;">
+        <span style="color: var(--gray-500);">Our cost was</span>
+        <span style="font-weight: 600;">KSh 32,000</span>
+      </div>
+      <p style="font-size: 13px; color: var(--gray-500); margin-top: 12px; border-top: 1px solid var(--gray-200); padding-top: 12px;">
+        Risk buffer (5-10% of fund) covers this scenario.
+      </p>
+    </div>
+  </div>
+  <div class="brand-tag">RISTOKA</div>
+  <div class="slide-number">10 / 14</div>
+</div>
+
+<!-- ============================================ -->
+<!-- SLIDE 11: THE ASK -->
+<!-- ============================================ -->
+<div class="slide bg-gradient" data-slide="11">
+  <p class="section-label">The Ask</p>
+  <h1 style="margin-bottom: 16px;">$30,000 – $60,000</h1>
+  <p class="subtitle" style="font-size: 24px; margin-bottom: 48px;">
+    Seed investment for 20% equity
+  </p>
+  <div class="flex gap-24" style="max-width: 800px; flex-wrap: wrap;">
+    <div style="flex: 1; min-width: 200px;">
+      <p style="font-size: 14px; opacity: 0.6; margin-bottom: 4px;">Structure Option A</p>
+      <h3 style="font-size: 20px; margin-bottom: 8px;">Pure Equity</h3>
+      <p style="font-size: 15px; opacity: 0.8;">20% ownership. Returns via company growth and future liquidity events.</p>
+    </div>
+    <div style="width: 1px; background: rgba(255,255,255,0.2);"></div>
+    <div style="flex: 1; min-width: 200px;">
+      <p style="font-size: 14px; opacity: 0.6; margin-bottom: 4px;">Structure Option B</p>
+      <h3 style="font-size: 20px; margin-bottom: 8px;">Hybrid</h3>
+      <p style="font-size: 15px; opacity: 0.8;">Equity + profit-share on BNPL revenue until 1.5x invested capital is returned. Then equity upside continues.</p>
+    </div>
+  </div>
+  <div class="brand-tag">RISTOKA</div>
+  <div class="slide-number">11 / 14</div>
+</div>
+
+<!-- ============================================ -->
+<!-- SLIDE 12: USE OF FUNDS -->
+<!-- ============================================ -->
+<div class="slide bg-white" data-slide="12">
+  <p class="section-label">Use of Funds</p>
+  <h2 style="margin-bottom: 32px;">Capital goes where it generates returns</h2>
+  <div class="max-w-900 mx-auto">
+    <div class="fund-bar">
+      <div style="width: 65%; background: var(--green);">Inventory 65%</div>
+      <div style="width: 12%; background: var(--blue);">Logistics 12%</div>
+      <div style="width: 12%; background: var(--orange);">Sales 12%</div>
+      <div style="width: 6%; background: var(--gray-700);">Tech 6%</div>
+      <div style="width: 5%; background: var(--red);">Buffer 5%</div>
+    </div>
+    <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px; margin-top: 32px;">
+      <div>
+        <div style="width: 12px; height: 12px; background: var(--green); border-radius: 3px; margin-bottom: 8px;"></div>
+        <p style="font-size: 14px; font-weight: 700; color: var(--gray-800);">Inventory</p>
+        <p style="font-size: 13px; color: var(--gray-500);">Purchase stock for retailer orders & BNPL financing</p>
+      </div>
+      <div>
+        <div style="width: 12px; height: 12px; background: var(--blue); border-radius: 3px; margin-bottom: 8px;"></div>
+        <p style="font-size: 14px; font-weight: 700; color: var(--gray-800);">Logistics</p>
+        <p style="font-size: 13px; color: var(--gray-500);">Delivery infrastructure & Sambaza integration</p>
+      </div>
+      <div>
+        <div style="width: 12px; height: 12px; background: var(--orange); border-radius: 3px; margin-bottom: 8px;"></div>
+        <p style="font-size: 14px; font-weight: 700; color: var(--gray-800);">Sales</p>
+        <p style="font-size: 13px; color: var(--gray-500);">Sales reps on ground, retailer acquisition</p>
+      </div>
+      <div>
+        <div style="width: 12px; height: 12px; background: var(--gray-700); border-radius: 3px; margin-bottom: 8px;"></div>
+        <p style="font-size: 14px; font-weight: 700; color: var(--gray-800);">Technology</p>
+        <p style="font-size: 13px; color: var(--gray-500);">Hosting, M-Pesa STK Push, payment infra</p>
+      </div>
+      <div>
+        <div style="width: 12px; height: 12px; background: var(--red); border-radius: 3px; margin-bottom: 8px;"></div>
+        <p style="font-size: 14px; font-weight: 700; color: var(--gray-800);">Risk Buffer</p>
+        <p style="font-size: 13px; color: var(--gray-500);">Default protection, unexpected costs</p>
+      </div>
+    </div>
+    <div style="margin-top: 40px; background: var(--green-light); border-radius: 12px; padding: 20px 28px;">
+      <p style="font-size: 16px; color: var(--green-dark); font-weight: 600; text-align: center;">
+        This is not a cash-burn startup. 65% of investment goes into revenue-generating inventory from day one.
+      </p>
+    </div>
+  </div>
+  <div class="brand-tag">RISTOKA</div>
+  <div class="slide-number">12 / 14</div>
+</div>
+
+<!-- ============================================ -->
+<!-- SLIDE 13: ROADMAP -->
+<!-- ============================================ -->
+<div class="slide bg-white" data-slide="13">
+  <p class="section-label">Roadmap</p>
+  <h2 style="margin-bottom: 48px;">90-day plan post-investment</h2>
+  <div class="flex gap-40" style="flex-wrap: wrap;">
+    <div style="flex: 1; min-width: 240px; background: var(--gray-50); border-radius: 16px; padding: 28px 32px; border-top: 3px solid var(--green); border: 1px solid var(--gray-200); border-top: 3px solid var(--green);">
+      <div style="font-size: 13px; font-weight: 700; color: var(--green); margin-bottom: 12px;">MONTH 1</div>
+      <div style="font-size: 16px; color: var(--gray-700);">
+        <strong style="color: var(--gray-900);">Launch Operations</strong><br><br>
+        • First inventory purchase<br>
+        • Hire 2 sales reps<br>
+        • Onboard 10 wholesalers<br>
+        • Activate M-Pesa payments<br>
+        • First 20 retailer orders
+      </div>
+    </div>
+    <div style="flex: 1; min-width: 240px; background: var(--gray-50); border-radius: 16px; padding: 28px 32px; border: 1px solid var(--gray-200); border-top: 3px solid var(--blue);">
+      <div style="font-size: 13px; font-weight: 700; color: var(--blue); margin-bottom: 12px;">MONTH 2</div>
+      <div style="font-size: 16px; color: var(--gray-700);">
+        <strong style="color: var(--gray-900);">Scale & BNPL</strong><br><br>
+        • KYC first cohort of retailers<br>
+        • Launch BNPL to verified retailers<br>
+        • First international product imports<br>
+        • 50+ active retailers<br>
+        • Track default rates
+      </div>
+    </div>
+    <div style="flex: 1; min-width: 240px; background: var(--gray-50); border-radius: 16px; padding: 28px 32px; border: 1px solid var(--gray-200); border-top: 3px solid var(--orange);">
+      <div style="font-size: 13px; font-weight: 700; color: var(--orange); margin-bottom: 12px;">MONTH 3</div>
+      <div style="font-size: 16px; color: var(--gray-700);">
+        <strong style="color: var(--gray-900);">Optimize & Grow</strong><br><br>
+        • Expand product catalog<br>
+        • Add delivery logistics<br>
+        • 100+ active retailers<br>
+        • Revenue run-rate data<br>
+        • Prepare for seed round
+      </div>
+    </div>
+  </div>
+  <div class="brand-tag">RISTOKA</div>
+  <div class="slide-number">13 / 14</div>
+</div>
+
+<!-- ============================================ -->
+<!-- SLIDE 14: CLOSING -->
+<!-- ============================================ -->
+<div class="slide bg-gradient" data-slide="14">
+  <div class="logo-mark" style="width: 80px; height: 80px; font-size: 40px; margin-bottom: 32px;">R</div>
+  <h1 style="font-size: 48px; margin-bottom: 24px;">Stocking them up.<br>Backing them up.</h1>
+  <p class="subtitle" style="font-size: 22px; margin-bottom: 48px; max-width: 600px;">
+    The product is built. The model works. The market is massive. What we need is capital to move inventory.
+  </p>
+  <div style="background: rgba(255,255,255,0.15); border-radius: 12px; padding: 24px 36px; display: inline-block;">
+    <p style="font-size: 18px; font-weight: 600;">Let's talk.</p>
+    <p style="font-size: 15px; opacity: 0.7; margin-top: 4px;">ristoka.com</p>
+  </div>
+  <div class="brand-tag">RISTOKA</div>
+  <div class="slide-number">14 / 14</div>
+</div>
+
+<script>
+  let current = 1;
+  const total = document.querySelectorAll('.slide').length;
+
+  // Show nav hint briefly
+  const hint = document.getElementById('navHint');
+  hint.classList.add('show');
+  setTimeout(() => hint.classList.remove('show'), 3000);
+
+  function goTo(n) {
+    if (n < 1 || n > total) return;
+    document.querySelector('.slide.active').classList.remove('active');
+    document.querySelector(`[data-slide="${n}"]`).classList.add('active');
+    current = n;
+  }
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); goTo(current + 1); }
+    if (e.key === 'ArrowLeft') { e.preventDefault(); goTo(current - 1); }
+    if (e.key === 'Home') { e.preventDefault(); goTo(1); }
+    if (e.key === 'End') { e.preventDefault(); goTo(total); }
+    // Press F for fullscreen
+    if (e.key === 'f' || e.key === 'F') {
+      if (!document.fullscreenElement) document.documentElement.requestFullscreen();
+      else document.exitFullscreen();
+    }
+  });
+
+  // Click left/right halves to navigate
+  document.addEventListener('click', (e) => {
+    if (e.target.tagName === 'A') return;
+    if (e.clientX > window.innerWidth / 2) goTo(current + 1);
+    else goTo(current - 1);
+  });
+
+  // Touch swipe
+  let touchStartX = 0;
+  document.addEventListener('touchstart', (e) => { touchStartX = e.changedTouches[0].screenX; });
+  document.addEventListener('touchend', (e) => {
+    const diff = touchStartX - e.changedTouches[0].screenX;
+    if (Math.abs(diff) > 50) {
+      if (diff > 0) goTo(current + 1);
+      else goTo(current - 1);
+    }
+  });
+</script>
+</body>
+</html>
