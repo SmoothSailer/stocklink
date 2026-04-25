@@ -941,6 +941,15 @@ export interface Database {
           type: "visit" | "call" | "whatsapp" | "order_follow_up" | "payment_collection" | "onboarding" | "note";
           notes: string | null;
           outcome: string | null;
+      product_waitlist: {
+        Row: {
+          id: string;
+          product_id: string;
+          retailer_id: string;
+          quantity_interested: number;
+          notes: string | null;
+          notified: boolean;
+          notified_at: string | null;
           created_at: string;
         };
         Insert: {
@@ -951,6 +960,12 @@ export interface Database {
           type: "visit" | "call" | "whatsapp" | "order_follow_up" | "payment_collection" | "onboarding" | "note";
           notes?: string | null;
           outcome?: string | null;
+          product_id: string;
+          retailer_id: string;
+          quantity_interested?: number;
+          notes?: string | null;
+          notified?: boolean;
+          notified_at?: string | null;
           created_at?: string;
         };
         Update: {
@@ -961,6 +976,12 @@ export interface Database {
           type?: "visit" | "call" | "whatsapp" | "order_follow_up" | "payment_collection" | "onboarding" | "note";
           notes?: string | null;
           outcome?: string | null;
+          product_id?: string;
+          retailer_id?: string;
+          quantity_interested?: number;
+          notes?: string | null;
+          notified?: boolean;
+          notified_at?: string | null;
           created_at?: string;
         };
         Relationships: [
@@ -973,6 +994,14 @@ export interface Database {
           },
           {
             foreignKeyName: "rep_activities_retailer_id_fkey";
+            foreignKeyName: "product_waitlist_product_id_fkey";
+            columns: ["product_id"];
+            isOneToOne: false;
+            referencedRelation: "products";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "product_waitlist_retailer_id_fkey";
             columns: ["retailer_id"];
             isOneToOne: false;
             referencedRelation: "retailers";
@@ -1046,6 +1075,7 @@ export type BnplInstallment = Database["public"]["Tables"]["bnpl_installments"][
 export type ProductWaitlist = Database["public"]["Tables"]["product_waitlist"]["Row"];
 export type Lead = Database["public"]["Tables"]["leads"]["Row"];
 export type RepActivity = Database["public"]["Tables"]["rep_activities"]["Row"];
+export type ProductWaitlist = Database["public"]["Tables"]["product_waitlist"]["Row"];
 
 export type OrderStatus = Order["status"];
 export type PaymentMethod = Order["payment_method"];
