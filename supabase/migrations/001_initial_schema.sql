@@ -2,17 +2,12 @@
 -- Run this in Supabase SQL Editor: Dashboard → SQL Editor → New Query
 
 -- ============================================
--- 1. EXTENSIONS
--- ============================================
-create extension if not exists "uuid-ossp";
-
--- ============================================
 -- 2. TABLES
 -- ============================================
 
 -- Categories
 create table if not exists public.categories (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   name text not null unique,
   slug text not null unique,
   icon text not null default '📦',
@@ -23,7 +18,7 @@ create table if not exists public.categories (
 
 -- Product Units
 create table if not exists public.product_units (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   name text not null unique,
   slug text not null unique,
   plural_name text not null,
@@ -35,7 +30,7 @@ create table if not exists public.product_units (
 
 -- Sales Representatives
 create table if not exists public.sales_reps (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   name text not null,
   phone text not null,
   whatsapp_phone text not null,
@@ -48,7 +43,7 @@ create table if not exists public.sales_reps (
 
 -- Wholesalers
 create table if not exists public.wholesalers (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   name text not null,
   location text,
   phone text,
@@ -58,7 +53,7 @@ create table if not exists public.wholesalers (
 
 -- Products
 create table if not exists public.products (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   name text not null,
   description text,
   category text not null,
@@ -79,7 +74,7 @@ create table if not exists public.products (
 
 -- Retailers
 create table if not exists public.retailers (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   user_id uuid unique references auth.users(id) on delete cascade,
   name text not null,
   business_name text,
@@ -91,7 +86,7 @@ create table if not exists public.retailers (
 
 -- Orders
 create table if not exists public.orders (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   retailer_id uuid references public.retailers(id) on delete set null,
   status text not null default 'placed'
     check (status in ('placed', 'confirmed', 'out_for_delivery', 'delivered', 'cancelled')),
@@ -106,7 +101,7 @@ create table if not exists public.orders (
 
 -- Order Items
 create table if not exists public.order_items (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   order_id uuid references public.orders(id) on delete cascade,
   product_id uuid references public.products(id) on delete set null,
   quantity integer not null check (quantity > 0),
@@ -116,7 +111,7 @@ create table if not exists public.order_items (
 
 -- Demand Requests
 create table if not exists public.demand_requests (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   retailer_id uuid references public.retailers(id) on delete set null,
   product_name text not null,
   category text,
@@ -126,7 +121,7 @@ create table if not exists public.demand_requests (
 
 -- Affiliates
 create table if not exists public.affiliates (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users(id) on delete cascade,
   code text not null unique,
   name text not null,
@@ -143,7 +138,7 @@ create table if not exists public.affiliates (
 
 -- Referrals
 create table if not exists public.referrals (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   affiliate_id uuid not null references public.affiliates(id) on delete cascade,
   order_id uuid references public.orders(id) on delete set null,
   referred_user_id uuid references auth.users(id) on delete set null,

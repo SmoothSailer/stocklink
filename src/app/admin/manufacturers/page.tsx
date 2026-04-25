@@ -15,6 +15,7 @@ import {
   Mail,
   UserCheck,
   User,
+  Plane,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -42,21 +43,26 @@ import {
   deleteManufacturer,
 } from "@/app/admin/actions";
 import type { Manufacturer, SalesRep } from "@/types/database";
+import { COUNTRIES, CURRENCIES, INCOTERMS } from "@/lib/constants";
 
 type ManufacturerWithRep = Manufacturer & {
   sales_reps: { id: string; name: string } | null;
 };
 
+type FilterTab = "all" | "domestic" | "international";
+
 export default function ManufacturersPage() {
   const [manufacturers, setManufacturers] = useState<ManufacturerWithRep[]>([]);
   const [salesReps, setSalesReps] = useState<SalesRep[]>([]);
   const [search, setSearch] = useState("");
+  const [filterTab, setFilterTab] = useState<FilterTab>("all");
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<ManufacturerWithRep | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [isInternational, setIsInternational] = useState(false);
 
   const loadData = useCallback(async () => {
     try {
@@ -78,6 +84,8 @@ export default function ManufacturersPage() {
   }, [loadData]);
 
   const filtered = manufacturers.filter((m) => {
+    if (filterTab === "domestic" && m.is_international) return false;
+    if (filterTab === "international" && !m.is_international) return false;
     if (!search) return true;
     const q = search.toLowerCase();
     return (
@@ -85,13 +93,15 @@ export default function ManufacturersPage() {
       m.slug.toLowerCase().includes(q) ||
       (m.location ?? "").toLowerCase().includes(q) ||
       (m.contact_person ?? "").toLowerCase().includes(q) ||
-      (m.sales_reps?.name ?? "").toLowerCase().includes(q)
+      (m.sales_reps?.name ?? "").toLowerCase().includes(q) ||
+      (m.country ?? "").toLowerCase().includes(q)
     );
   });
 
   const totalManufacturers = manufacturers.length;
   const activeManufacturers = manufacturers.filter((m) => m.is_active).length;
-  const inactiveManufacturers = totalManufacturers - activeManufacturers;
+  const internationalCount = manufacturers.filter((m) => m.is_international).length;
+  const domesticCount = totalManufacturers - internationalCount;
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -143,18 +153,29 @@ export default function ManufacturersPage() {
     formData.set("contact_email", mfr.contact_email ?? "");
     formData.set("sales_rep_id", mfr.sales_rep_id ?? "");
     formData.set("is_active", mfr.is_active ? "false" : "true");
+    formData.set("is_international", mfr.is_international ? "true" : "false");
+    formData.set("country", mfr.country ?? "KE");
+    formData.set("country_code", mfr.country_code ?? "KE");
+    formData.set("default_currency", mfr.default_currency ?? "KES");
+    formData.set("default_incoterms", mfr.default_incoterms ?? "");
+    formData.set("default_port_of_origin", mfr.default_port_of_origin ?? "");
+    formData.set("payment_terms", mfr.payment_terms ?? "");
+    formData.set("lead_time_days", mfr.lead_time_days?.toString() ?? "");
+    formData.set("tax_id", mfr.tax_id ?? "");
     await updateManufacturer(mfr.id, formData);
     await loadData();
   }
 
   function openEdit(mfr: ManufacturerWithRep) {
     setEditing(mfr);
+    setIsInternational(mfr.is_international);
     setFormError(null);
     setDialogOpen(true);
   }
 
   function openAdd() {
     setEditing(null);
+    setIsInternational(false);
     setFormError(null);
     setDialogOpen(true);
   }
@@ -208,33 +229,50 @@ export default function ManufacturersPage() {
               <CheckCircle className="h-4 w-4 text-green-600 sm:h-5 sm:w-5" />
             </div>
             <div className="min-w-0">
-              <p className="text-lg font-bold sm:text-2xl">{activeManufacturers}</p>
-              <p className="truncate text-[10px] text-muted-foreground sm:text-xs">Active</p>
+              <p className="text-lg font-bold sm:text-2xl">{domesticCount}</p>
+              <p className="truncate text-[10px] text-muted-foreground sm:text-xs">Domestic</p>
             </div>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="flex items-center gap-2 p-3 sm:gap-3 sm:p-4">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gray-100 sm:h-10 sm:w-10">
-              <XCircle className="h-4 w-4 text-gray-500 sm:h-5 sm:w-5" />
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-100 sm:h-10 sm:w-10">
+              <Plane className="h-4 w-4 text-blue-600 sm:h-5 sm:w-5" />
             </div>
             <div className="min-w-0">
-              <p className="text-lg font-bold sm:text-2xl">{inactiveManufacturers}</p>
-              <p className="truncate text-[10px] text-muted-foreground sm:text-xs">Inactive</p>
+              <p className="text-lg font-bold sm:text-2xl">{internationalCount}</p>
+              <p className="truncate text-[10px] text-muted-foreground sm:text-xs">International</p>
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Search */}
-      <div className="relative sm:max-w-sm">
-        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          placeholder="Search manufacturers..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="pl-10"
-        />
+      {/* Filter tabs + Search */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex gap-1 rounded-lg border border-border p-1">
+          {(["all", "domestic", "international"] as const).map((tab) => (
+            <button
+              key={tab}
+              onClick={() => setFilterTab(tab)}
+              className={`rounded-md px-3 py-1.5 text-xs font-medium capitalize transition-colors ${
+                filterTab === tab
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {tab}
+            </button>
+          ))}
+        </div>
+        <div className="relative sm:max-w-sm sm:flex-1">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            placeholder="Search manufacturers..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-10"
+          />
+        </div>
       </div>
 
       {/* ─── Mobile Card List ─── */}
@@ -260,6 +298,11 @@ export default function ManufacturersPage() {
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
                       <p className="truncate text-sm font-semibold">{mfr.name}</p>
+                      {mfr.is_international && (
+                        <Badge variant="outline" className="shrink-0 gap-0.5 text-[10px]">
+                          {COUNTRIES.find((c) => c.value === mfr.country_code)?.flag ?? "🌍"} Intl
+                        </Badge>
+                      )}
                       <Badge
                         variant={mfr.is_active ? "default" : "secondary"}
                         className="shrink-0 cursor-pointer text-[10px]"
@@ -331,9 +374,9 @@ export default function ManufacturersPage() {
           <TableHeader>
             <TableRow>
               <TableHead>Name</TableHead>
+              <TableHead>Country</TableHead>
               <TableHead>Contact Person</TableHead>
               <TableHead>Location</TableHead>
-              <TableHead>Phone / Email</TableHead>
               <TableHead>Sales Rep</TableHead>
               <TableHead>Status</TableHead>
               <TableHead className="text-right">Actions</TableHead>
@@ -364,6 +407,15 @@ export default function ManufacturersPage() {
                     </div>
                   </TableCell>
                   <TableCell>
+                    <div className="flex items-center gap-1.5 text-sm">
+                      <span>{COUNTRIES.find((c) => c.value === mfr.country_code)?.flag ?? "🏳️"}</span>
+                      <span>{COUNTRIES.find((c) => c.value === mfr.country_code)?.label ?? mfr.country}</span>
+                      {mfr.is_international && (
+                        <Badge variant="outline" className="text-[10px] px-1 py-0">Intl</Badge>
+                      )}
+                    </div>
+                  </TableCell>
+                  <TableCell>
                     {mfr.contact_person ? (
                       <span className="flex items-center gap-1 text-sm">
                         <User className="h-3.5 w-3.5 text-muted-foreground" />
@@ -382,25 +434,6 @@ export default function ManufacturersPage() {
                     ) : (
                       <span className="text-sm text-muted-foreground">—</span>
                     )}
-                  </TableCell>
-                  <TableCell>
-                    <div className="space-y-0.5 text-sm">
-                      {mfr.contact_phone && (
-                        <span className="flex items-center gap-1">
-                          <Phone className="h-3 w-3 text-muted-foreground" />
-                          {mfr.contact_phone}
-                        </span>
-                      )}
-                      {mfr.contact_email && (
-                        <span className="flex items-center gap-1">
-                          <Mail className="h-3 w-3 text-muted-foreground" />
-                          {mfr.contact_email}
-                        </span>
-                      )}
-                      {!mfr.contact_phone && !mfr.contact_email && (
-                        <span className="text-muted-foreground">—</span>
-                      )}
-                    </div>
                   </TableCell>
                   <TableCell>
                     {mfr.sales_reps ? (
@@ -495,6 +528,123 @@ export default function ManufacturersPage() {
                 defaultValue={editing?.description ?? ""}
               />
             </div>
+
+            {/* International toggle */}
+            <div className="flex items-center gap-3 rounded-lg border border-border p-3">
+              <input
+                type="checkbox"
+                name="is_international"
+                value="true"
+                checked={isInternational}
+                onChange={(e) => setIsInternational(e.target.checked)}
+                className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+              />
+              <div>
+                <p className="text-sm font-medium">International Manufacturer</p>
+                <p className="text-xs text-muted-foreground">Ships goods into Kenya via Sambaza cargo</p>
+              </div>
+            </div>
+
+            {/* Country & Currency (shown for all, defaults differ) */}
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Country</label>
+                <select
+                  name="country_code"
+                  className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                  defaultValue={editing?.country_code ?? "KE"}
+                  onChange={(e) => {
+                    // Also update hidden country name field
+                    const el = e.target.form?.querySelector<HTMLInputElement>('[name="country"]');
+                    if (el) el.value = COUNTRIES.find((c) => c.value === e.target.value)?.label ?? e.target.value;
+                  }}
+                >
+                  {COUNTRIES.map((c) => (
+                    <option key={c.value} value={c.value}>
+                      {c.flag} {c.label}
+                    </option>
+                  ))}
+                </select>
+                <input type="hidden" name="country" defaultValue={editing?.country ?? "Kenya"} />
+              </div>
+              {isInternational && (
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Default Currency</label>
+                  <select
+                    name="default_currency"
+                    className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                    defaultValue={editing?.default_currency ?? "USD"}
+                  >
+                    {CURRENCIES.map((c) => (
+                      <option key={c.value} value={c.value}>
+                        {c.symbol} {c.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+            </div>
+
+            {/* International-only fields */}
+            {isInternational && (
+              <>
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Default Incoterms</label>
+                    <select
+                      name="default_incoterms"
+                      className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                      defaultValue={editing?.default_incoterms ?? ""}
+                    >
+                      <option value="">Select incoterms</option>
+                      {INCOTERMS.map((i) => (
+                        <option key={i.value} value={i.value}>
+                          {i.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Port of Origin</label>
+                    <Input
+                      name="default_port_of_origin"
+                      placeholder="e.g. Shanghai, Dubai"
+                      defaultValue={editing?.default_port_of_origin ?? ""}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Payment Terms</label>
+                    <Input
+                      name="payment_terms"
+                      placeholder="e.g. Net 30, LC at sight"
+                      defaultValue={editing?.payment_terms ?? ""}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Lead Time (days)</label>
+                    <Input
+                      name="lead_time_days"
+                      type="number"
+                      min="0"
+                      placeholder="e.g. 45"
+                      defaultValue={editing?.lead_time_days?.toString() ?? ""}
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Tax / Registration ID</label>
+                  <Input
+                    name="tax_id"
+                    placeholder="Foreign tax or registration number"
+                    defaultValue={editing?.tax_id ?? ""}
+                  />
+                </div>
+              </>
+            )}
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="space-y-2">

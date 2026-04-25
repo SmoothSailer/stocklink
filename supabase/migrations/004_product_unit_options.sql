@@ -6,7 +6,7 @@
 -- Rows in this table represent ADDITIONAL unit options.
 
 create table if not exists public.product_unit_options (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   product_id uuid not null references public.products(id) on delete cascade,
   unit_slug text not null,
   price numeric not null check (price >= 0),

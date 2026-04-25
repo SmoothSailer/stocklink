@@ -19,7 +19,7 @@ alter table public.orders
 
 -- 3. Create payment_records table
 create table if not exists public.payment_records (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   order_id uuid not null references public.orders(id) on delete cascade,
   amount numeric not null check (amount > 0),
   method text not null default 'mpesa'

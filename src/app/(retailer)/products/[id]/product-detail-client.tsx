@@ -47,6 +47,8 @@ interface ProductDetailClientProps {
     manufacturers: {
       id: string;
       name: string;
+      is_international?: boolean;
+      country_code?: string;
     } | null;
     product_unit_options?: ProductUnitOption[];
     product_media?: ProductMedia[];
@@ -297,6 +299,11 @@ export default function ProductDetailClient({ product }: ProductDetailClientProp
             <Badge variant="outline" className="gap-1">
               <Factory className="h-3 w-3" />
               {product.manufacturers.name}
+            </Badge>
+          )}
+          {product.manufacturers?.is_international && (
+            <Badge className="gap-1 bg-blue-100 text-blue-800 hover:bg-blue-100">
+              🌍 Imported via Sambaza
             </Badge>
           )}
           {product.location && (

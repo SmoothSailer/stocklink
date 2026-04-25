@@ -1,7 +1,7 @@
 -- Product media table for multiple images and short videos per product
 
 create table if not exists public.product_media (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   product_id uuid not null references public.products(id) on delete cascade,
   url text not null,
   type text not null default 'image' check (type in ('image', 'video')),

@@ -48,6 +48,16 @@ export interface Database {
           contact_email: string | null;
           sales_rep_id: string | null;
           is_active: boolean;
+          country: string;
+          country_code: string;
+          is_international: boolean;
+          default_currency: string;
+          default_incoterms: string | null;
+          default_port_of_origin: string | null;
+          payment_terms: string | null;
+          lead_time_days: number | null;
+          tax_id: string | null;
+          bank_details: Record<string, unknown> | null;
           created_at: string;
         };
         Insert: {
@@ -63,6 +73,16 @@ export interface Database {
           contact_email?: string | null;
           sales_rep_id?: string | null;
           is_active?: boolean;
+          country?: string;
+          country_code?: string;
+          is_international?: boolean;
+          default_currency?: string;
+          default_incoterms?: string | null;
+          default_port_of_origin?: string | null;
+          payment_terms?: string | null;
+          lead_time_days?: number | null;
+          tax_id?: string | null;
+          bank_details?: Record<string, unknown> | null;
           created_at?: string;
         };
         Update: {
@@ -78,6 +98,16 @@ export interface Database {
           contact_email?: string | null;
           sales_rep_id?: string | null;
           is_active?: boolean;
+          country?: string;
+          country_code?: string;
+          is_international?: boolean;
+          default_currency?: string;
+          default_incoterms?: string | null;
+          default_port_of_origin?: string | null;
+          payment_terms?: string | null;
+          lead_time_days?: number | null;
+          tax_id?: string | null;
+          bank_details?: Record<string, unknown> | null;
           created_at?: string;
         };
         Relationships: [
@@ -260,6 +290,9 @@ export interface Database {
           flash_deal_price: number | null;
           flash_deal_expires_at: string | null;
           location: string | null;
+          last_landed_cost_kes: number | null;
+          cost_currency: string;
+          supplier_cost_foreign: number | null;
           created_at: string;
           updated_at: string;
         };
@@ -281,6 +314,9 @@ export interface Database {
           flash_deal_price?: number | null;
           flash_deal_expires_at?: string | null;
           location?: string | null;
+          last_landed_cost_kes?: number | null;
+          cost_currency?: string;
+          supplier_cost_foreign?: number | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -302,6 +338,9 @@ export interface Database {
           flash_deal_price?: number | null;
           flash_deal_expires_at?: string | null;
           location?: string | null;
+          last_landed_cost_kes?: number | null;
+          cost_currency?: string;
+          supplier_cost_foreign?: number | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -766,6 +805,256 @@ export interface Database {
           },
         ];
       };
+      sambaza_shipments: {
+        Row: {
+          id: string;
+          shipment_number: string;
+          manufacturer_id: string | null;
+          origin_country: string;
+          origin_port: string | null;
+          destination_port: string;
+          destination_warehouse: string | null;
+          shipping_method: "sea" | "air" | "road";
+          container_type: string | null;
+          container_number: string | null;
+          bill_of_lading: string | null;
+          estimated_departure: string | null;
+          actual_departure: string | null;
+          estimated_arrival: string | null;
+          actual_arrival: string | null;
+          customs_clearance_date: string | null;
+          warehouse_receipt_date: string | null;
+          status: "draft" | "booked" | "in_production" | "ready_for_shipping" | "in_transit" | "at_port" | "customs_clearance" | "inland_transit" | "delivered" | "cancelled";
+          currency: string;
+          freight_cost: number;
+          insurance_cost: number;
+          customs_duty: number;
+          excise_duty: number;
+          vat: number;
+          port_charges: number;
+          inland_transport: number;
+          other_charges: number;
+          total_cost_foreign: number;
+          exchange_rate: number | null;
+          total_cost_kes: number;
+          documents: Array<{ name: string; url: string; type: string; uploaded_at: string }>;
+          notes: string | null;
+          created_by: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          shipment_number: string;
+          manufacturer_id?: string | null;
+          origin_country: string;
+          origin_port?: string | null;
+          destination_port?: string;
+          destination_warehouse?: string | null;
+          shipping_method: "sea" | "air" | "road";
+          container_type?: string | null;
+          container_number?: string | null;
+          bill_of_lading?: string | null;
+          estimated_departure?: string | null;
+          actual_departure?: string | null;
+          estimated_arrival?: string | null;
+          actual_arrival?: string | null;
+          customs_clearance_date?: string | null;
+          warehouse_receipt_date?: string | null;
+          status?: string;
+          currency?: string;
+          freight_cost?: number;
+          insurance_cost?: number;
+          customs_duty?: number;
+          excise_duty?: number;
+          vat?: number;
+          port_charges?: number;
+          inland_transport?: number;
+          other_charges?: number;
+          total_cost_foreign?: number;
+          exchange_rate?: number | null;
+          total_cost_kes?: number;
+          documents?: Array<{ name: string; url: string; type: string; uploaded_at: string }>;
+          notes?: string | null;
+          created_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          shipment_number?: string;
+          manufacturer_id?: string | null;
+          origin_country?: string;
+          origin_port?: string | null;
+          destination_port?: string;
+          destination_warehouse?: string | null;
+          shipping_method?: "sea" | "air" | "road";
+          container_type?: string | null;
+          container_number?: string | null;
+          bill_of_lading?: string | null;
+          estimated_departure?: string | null;
+          actual_departure?: string | null;
+          estimated_arrival?: string | null;
+          actual_arrival?: string | null;
+          customs_clearance_date?: string | null;
+          warehouse_receipt_date?: string | null;
+          status?: string;
+          currency?: string;
+          freight_cost?: number;
+          insurance_cost?: number;
+          customs_duty?: number;
+          excise_duty?: number;
+          vat?: number;
+          port_charges?: number;
+          inland_transport?: number;
+          other_charges?: number;
+          total_cost_foreign?: number;
+          exchange_rate?: number | null;
+          total_cost_kes?: number;
+          documents?: Array<{ name: string; url: string; type: string; uploaded_at: string }>;
+          notes?: string | null;
+          created_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "sambaza_shipments_manufacturer_id_fkey";
+            columns: ["manufacturer_id"];
+            isOneToOne: false;
+            referencedRelation: "manufacturers";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      sambaza_shipment_items: {
+        Row: {
+          id: string;
+          shipment_id: string;
+          product_id: string | null;
+          description: string;
+          quantity: number;
+          unit: string | null;
+          unit_cost_foreign: number | null;
+          total_cost_foreign: number | null;
+          landed_cost_per_unit_kes: number | null;
+          hs_code: string | null;
+          country_of_origin: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          shipment_id: string;
+          product_id?: string | null;
+          description: string;
+          quantity: number;
+          unit?: string | null;
+          unit_cost_foreign?: number | null;
+          total_cost_foreign?: number | null;
+          landed_cost_per_unit_kes?: number | null;
+          hs_code?: string | null;
+          country_of_origin?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          shipment_id?: string;
+          product_id?: string | null;
+          description?: string;
+          quantity?: number;
+          unit?: string | null;
+          unit_cost_foreign?: number | null;
+          total_cost_foreign?: number | null;
+          landed_cost_per_unit_kes?: number | null;
+          hs_code?: string | null;
+          country_of_origin?: string | null;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "sambaza_shipment_items_shipment_id_fkey";
+            columns: ["shipment_id"];
+            isOneToOne: false;
+            referencedRelation: "sambaza_shipments";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "sambaza_shipment_items_product_id_fkey";
+            columns: ["product_id"];
+            isOneToOne: false;
+            referencedRelation: "products";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      sambaza_shipment_status_history: {
+        Row: {
+          id: string;
+          shipment_id: string;
+          status: string;
+          location: string | null;
+          notes: string | null;
+          changed_by: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          shipment_id: string;
+          status: string;
+          location?: string | null;
+          notes?: string | null;
+          changed_by?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          shipment_id?: string;
+          status?: string;
+          location?: string | null;
+          notes?: string | null;
+          changed_by?: string | null;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "sambaza_shipment_status_history_shipment_id_fkey";
+            columns: ["shipment_id"];
+            isOneToOne: false;
+            referencedRelation: "sambaza_shipments";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      exchange_rates: {
+        Row: {
+          id: string;
+          from_currency: string;
+          to_currency: string;
+          rate: number;
+          source: string | null;
+          effective_date: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          from_currency: string;
+          to_currency?: string;
+          rate: number;
+          source?: string | null;
+          effective_date: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          from_currency?: string;
+          to_currency?: string;
+          rate?: number;
+          source?: string | null;
+          effective_date?: string;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
       bnpl_installments: {
         Row: {
           id: string;
@@ -852,9 +1141,15 @@ export type OrderStatusHistory = Database["public"]["Tables"]["order_status_hist
 export type PaymentRecord = Database["public"]["Tables"]["payment_records"]["Row"];
 export type BnplPlan = Database["public"]["Tables"]["bnpl_plans"]["Row"];
 export type BnplInstallment = Database["public"]["Tables"]["bnpl_installments"]["Row"];
+export type SambazaShipment = Database["public"]["Tables"]["sambaza_shipments"]["Row"];
+export type SambazaShipmentItem = Database["public"]["Tables"]["sambaza_shipment_items"]["Row"];
+export type ShipmentStatusHistory = Database["public"]["Tables"]["sambaza_shipment_status_history"]["Row"];
+export type ExchangeRate = Database["public"]["Tables"]["exchange_rates"]["Row"];
 
 export type OrderStatus = Order["status"];
 export type PaymentMethod = Order["payment_method"];
 export type PaymentStatus = Order["payment_status"];
+export type ShipmentStatus = SambazaShipment["status"];
+export type ShippingMethod = SambazaShipment["shipping_method"];
 export type AffiliateStatus = Affiliate["status"];
 export type ReferralStatus = Referral["status"];

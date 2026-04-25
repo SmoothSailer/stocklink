@@ -18,6 +18,7 @@ import {
   Ruler,
   Factory,
   Users,
+  Ship,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -31,6 +32,7 @@ const sidebarItems = [
   { href: "/admin/wholesalers", label: "Wholesalers", icon: Store },
   { href: "/admin/categories", label: "Categories", icon: Tag },
   { href: "/admin/manufacturers", label: "Manufacturers", icon: Factory },
+  { href: "/admin/shipments", label: "Shipments", icon: Ship },
   { href: "/admin/units", label: "Units", icon: Ruler },
   { href: "/admin/products", label: "Products", icon: Package },
   { href: "/admin/orders", label: "Orders", icon: ClipboardList },

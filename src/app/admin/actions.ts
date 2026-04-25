@@ -173,6 +173,15 @@ export async function createManufacturer(formData: FormData) {
   const contact_phone = formData.get("contact_phone") as string | null;
   const contact_email = formData.get("contact_email") as string | null;
   const sales_rep_id = formData.get("sales_rep_id") as string | null;
+  const is_international = formData.get("is_international") === "true";
+  const country = formData.get("country") as string | null;
+  const country_code = formData.get("country_code") as string | null;
+  const default_currency = formData.get("default_currency") as string | null;
+  const default_incoterms = formData.get("default_incoterms") as string | null;
+  const default_port_of_origin = formData.get("default_port_of_origin") as string | null;
+  const payment_terms = formData.get("payment_terms") as string | null;
+  const lead_time_days = formData.get("lead_time_days") as string | null;
+  const tax_id = formData.get("tax_id") as string | null;
 
   if (!name?.trim()) {
     return { error: "Manufacturer name is required" };
@@ -194,6 +203,15 @@ export async function createManufacturer(formData: FormData) {
     contact_phone: contact_phone?.trim() || null,
     contact_email: contact_email?.trim() || null,
     sales_rep_id: sales_rep_id || null,
+    is_international,
+    country: country?.trim() || "KE",
+    country_code: country_code?.trim() || "KE",
+    default_currency: default_currency?.trim() || "KES",
+    default_incoterms: default_incoterms?.trim() || null,
+    default_port_of_origin: default_port_of_origin?.trim() || null,
+    payment_terms: payment_terms?.trim() || null,
+    lead_time_days: lead_time_days ? parseInt(lead_time_days) : null,
+    tax_id: tax_id?.trim() || null,
   });
 
   if (error) return { error: error.message };
@@ -212,6 +230,15 @@ export async function updateManufacturer(id: string, formData: FormData) {
   const contact_email = formData.get("contact_email") as string | null;
   const sales_rep_id = formData.get("sales_rep_id") as string | null;
   const is_active = formData.get("is_active") === "true";
+  const is_international = formData.get("is_international") === "true";
+  const country = formData.get("country") as string | null;
+  const country_code = formData.get("country_code") as string | null;
+  const default_currency = formData.get("default_currency") as string | null;
+  const default_incoterms = formData.get("default_incoterms") as string | null;
+  const default_port_of_origin = formData.get("default_port_of_origin") as string | null;
+  const payment_terms = formData.get("payment_terms") as string | null;
+  const lead_time_days = formData.get("lead_time_days") as string | null;
+  const tax_id = formData.get("tax_id") as string | null;
 
   if (!name?.trim()) {
     return { error: "Manufacturer name is required" };
@@ -236,6 +263,15 @@ export async function updateManufacturer(id: string, formData: FormData) {
       contact_email: contact_email?.trim() || null,
       sales_rep_id: sales_rep_id || null,
       is_active,
+      is_international,
+      country: country?.trim() || "KE",
+      country_code: country_code?.trim() || "KE",
+      default_currency: default_currency?.trim() || "KES",
+      default_incoterms: default_incoterms?.trim() || null,
+      default_port_of_origin: default_port_of_origin?.trim() || null,
+      payment_terms: payment_terms?.trim() || null,
+      lead_time_days: lead_time_days ? parseInt(lead_time_days) : null,
+      tax_id: tax_id?.trim() || null,
     })
     .eq("id", id);
 
@@ -491,7 +527,7 @@ export async function getProducts() {
   const supabase = createAdminClient();
   const { data, error } = await supabase
     .from("products")
-    .select("*, wholesalers(name, sales_rep_id, sales_reps(id, name, whatsapp_phone)), manufacturers(name), product_unit_options(*), product_media(*)")
+    .select("*, wholesalers(name, sales_rep_id, sales_reps(id, name, whatsapp_phone)), manufacturers(name, is_international, country_code), product_unit_options(*), product_media(*)")
     .order("created_at", { ascending: false });
   if (error) throw new Error(error.message);
   return data;

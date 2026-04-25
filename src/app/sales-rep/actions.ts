@@ -69,7 +69,7 @@ export async function getRepProducts(repId: string) {
   // Build query with OR conditions for wholesaler_id and manufacturer_id
   let query = supabase
     .from("products")
-    .select("*, wholesalers(id, name, location), manufacturers(id, name), product_unit_options(*)")
+    .select("*, wholesalers(id, name, location), manufacturers(id, name, is_international, country_code), product_unit_options(*)")
     .order("created_at", { ascending: false });
 
   if (wholesalerIds.length > 0 && manufacturerIds.length > 0) {

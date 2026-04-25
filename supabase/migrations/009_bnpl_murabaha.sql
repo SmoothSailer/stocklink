@@ -6,7 +6,7 @@
 
 -- BNPL plan linked to an order
 create table if not exists public.bnpl_plans (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   order_id uuid not null unique references public.orders(id) on delete cascade,
   cost_price numeric not null check (cost_price >= 0),
   markup_amount numeric not null check (markup_amount >= 0),
@@ -20,7 +20,7 @@ create table if not exists public.bnpl_plans (
 
 -- Individual installments with due dates
 create table if not exists public.bnpl_installments (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   plan_id uuid not null references public.bnpl_plans(id) on delete cascade,
   installment_number integer not null,
   amount numeric not null check (amount > 0),

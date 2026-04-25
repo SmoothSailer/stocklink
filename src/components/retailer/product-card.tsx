@@ -8,7 +8,7 @@ import { formatPrice, getStockInfo, getCategoryIcon } from "@/lib/utils";
 
 interface ProductCardProps {
   product: Product & {
-    manufacturers?: { id: string; name: string } | null;
+    manufacturers?: { id: string; name: string; is_international?: boolean; country_code?: string } | null;
     product_unit_options?: ProductUnitOption[];
     product_media?: ProductMedia[];
   };
@@ -100,6 +100,11 @@ export function ProductCard({ product }: ProductCardProps) {
               <span className="truncate text-[10px] text-muted-foreground">
                 {product.manufacturers.name}
               </span>
+              {product.manufacturers.is_international && (
+                <span className="ml-auto rounded bg-blue-50 px-1 py-0.5 text-[8px] font-medium text-blue-700">
+                  🌍 Imported
+                </span>
+              )}
             </div>
           )}
 

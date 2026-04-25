@@ -2,7 +2,7 @@
 -- e.g. "Pembe Flour Co.", "Bidco Africa", "Ketepa Ltd"
 
 create table if not exists public.manufacturers (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   name text not null unique,
   slug text not null unique,
   logo_url text,
