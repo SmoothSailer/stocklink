@@ -23,6 +23,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { QuantitySelector } from "@/components/retailer/quantity-selector";
+import { WaitlistCard } from "@/components/retailer/waitlist-card";
 import { formatPrice, getStockInfo, buildWhatsAppLink, getCategoryIcon } from "@/lib/utils";
 import { useAuth } from "@/hooks/use-auth";
 import type { Product, ProductUnitOption, ProductMedia } from "@/types/database";
@@ -51,6 +52,13 @@ interface ProductDetailClientProps {
     product_unit_options?: ProductUnitOption[];
     product_media?: ProductMedia[];
   };
+  waitlistStatus?: {
+    isOnWaitlist: boolean;
+    totalWaiters: number;
+    totalQuantityDemand: number;
+    position: number | null;
+    myEntry: { quantity_interested: number; notes: string | null; created_at: string } | null;
+  } | null;
 }
 
 interface UnitChoice {
@@ -61,7 +69,7 @@ interface UnitChoice {
   piecesPerUnit?: number | null;
 }
 
-export default function ProductDetailClient({ product }: ProductDetailClientProps) {
+export default function ProductDetailClient({ product, waitlistStatus }: ProductDetailClientProps) {
   const router = useRouter();
   const { user } = useAuth();
 
@@ -207,12 +215,17 @@ export default function ProductDetailClient({ product }: ProductDetailClientProp
           </div>
         )}
 
-        {product.is_flash_deal && (
+        {product.is_coming_soon && (
+          <Badge className="absolute left-4 top-4 bg-amber-500 text-white">
+            🕐 Coming Soon
+          </Badge>
+        )}
+        {product.is_flash_deal && !product.is_coming_soon && (
           <Badge className="absolute left-4 top-4 bg-accent text-accent-foreground">
             ⚡ Bulk Deal
           </Badge>
         )}
-        {product.is_trending && !product.is_flash_deal && (
+        {product.is_trending && !product.is_flash_deal && !product.is_coming_soon && (
           <Badge className="absolute left-4 top-4 bg-primary text-primary-foreground">
             🔥 Trending
           </Badge>
@@ -374,44 +387,61 @@ export default function ProductDetailClient({ product }: ProductDetailClientProp
 
         <Separator />
 
-        {/* Quantity selector */}
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-sm font-semibold">Quantity ({activeUnit.slug}s)</p>
-            <p className="text-xs text-muted-foreground">
-              Total: {formatPrice(totalPrice)}
-            </p>
-            <p className="text-[10px] text-muted-foreground">
-              Minimum order: {moq} {activeUnit.slug}s
-            </p>
-          </div>
-          <QuantitySelector
-            value={quantity}
-            onChange={setQuantity}
-            min={moq}
-            max={activeUnit.stock > 0 ? activeUnit.stock : moq}
+        {/* Coming Soon: Waitlist CTA */}
+        {product.is_coming_soon && waitlistStatus ? (
+          <WaitlistCard
+            productId={product.id}
+            productName={product.name}
+            expectedArrivalDate={product.expected_arrival_date}
+            minOrderQty={product.min_order_qty}
+            isOnWaitlist={waitlistStatus.isOnWaitlist}
+            totalWaiters={waitlistStatus.totalWaiters}
+            totalQuantityDemand={waitlistStatus.totalQuantityDemand}
+            position={waitlistStatus.position}
+            myEntry={waitlistStatus.myEntry}
           />
-        </div>
-
-        {/* CTA */}
-        <div className="fixed bottom-16 left-0 right-0 z-30 border-t border-border bg-card p-4 shadow-lg md:static md:border-0 md:bg-transparent md:p-0 md:shadow-none">
-          <div className="mx-auto flex max-w-3xl items-center gap-3">
-            <div className="flex-1">
-              <p className="text-xs text-muted-foreground">Total</p>
-              <p className="text-lg font-bold text-primary">
-                {formatPrice(totalPrice)}
-              </p>
+        ) : (
+          <>
+            {/* Quantity selector */}
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-semibold">Quantity ({activeUnit.slug}s)</p>
+                <p className="text-xs text-muted-foreground">
+                  Total: {formatPrice(totalPrice)}
+                </p>
+                <p className="text-[10px] text-muted-foreground">
+                  Minimum order: {moq} {activeUnit.slug}s
+                </p>
+              </div>
+              <QuantitySelector
+                value={quantity}
+                onChange={setQuantity}
+                min={moq}
+                max={activeUnit.stock > 0 ? activeUnit.stock : moq}
+              />
             </div>
-            <Button
-              size="lg"
-              className="flex-1 gap-2 bg-[#25D366] font-semibold text-white shadow-md hover:bg-[#128C7E]"
-              onClick={handleOrderClick}
-            >
-              <MessageCircle className="h-5 w-5" />
-              {salesRep ? `Order with ${salesRep.name.split(" ")[0]}` : "Order via WhatsApp"}
-            </Button>
-          </div>
-        </div>
+
+            {/* CTA */}
+            <div className="fixed bottom-16 left-0 right-0 z-30 border-t border-border bg-card p-4 shadow-lg md:static md:border-0 md:bg-transparent md:p-0 md:shadow-none">
+              <div className="mx-auto flex max-w-3xl items-center gap-3">
+                <div className="flex-1">
+                  <p className="text-xs text-muted-foreground">Total</p>
+                  <p className="text-lg font-bold text-primary">
+                    {formatPrice(totalPrice)}
+                  </p>
+                </div>
+                <Button
+                  size="lg"
+                  className="flex-1 gap-2 bg-[#25D366] font-semibold text-white shadow-md hover:bg-[#128C7E]"
+                  onClick={handleOrderClick}
+                >
+                  <MessageCircle className="h-5 w-5" />
+                  {salesRep ? `Order with ${salesRep.name.split(" ")[0]}` : "Order via WhatsApp"}
+                </Button>
+              </div>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

@@ -87,6 +87,8 @@ interface ProductWithWholesaler {
   manufacturer_id: string | null;
   is_trending: boolean;
   is_flash_deal: boolean;
+  is_coming_soon: boolean;
+  expected_arrival_date: string | null;
   flash_deal_price: number | null;
   flash_deal_expires_at: string | null;
   location: string | null;
@@ -115,6 +117,8 @@ export default function ProductsPage() {
   const [saving, setSaving] = useState(false);
   const [mediaItems, setMediaItems] = useState<MediaItem[]>([]);
   const [unitOptions, setUnitOptions] = useState<UnitOptionRow[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState<string>("");
+  const [selectedUnit, setSelectedUnit] = useState<string>("bag");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const loadData = useCallback(async () => {
@@ -207,6 +211,8 @@ export default function ProductsPage() {
       const manufacturer_id = formData.get("manufacturer_id") as string;
       const is_trending = formData.get("is_trending") === "on";
       const is_flash_deal = formData.get("is_flash_deal") === "on";
+      const is_coming_soon = formData.get("is_coming_soon") === "on";
+      const expected_arrival_date = formData.get("expected_arrival_date") as string || undefined;
       const flash_deal_price = formData.get("flash_deal_price")
         ? parseFloat(formData.get("flash_deal_price") as string)
         : undefined;
@@ -265,6 +271,8 @@ export default function ProductsPage() {
         manufacturer_id: manufacturer_id || undefined,
         is_trending,
         is_flash_deal,
+        is_coming_soon,
+        expected_arrival_date: is_coming_soon ? expected_arrival_date : undefined,
         flash_deal_price: is_flash_deal ? flash_deal_price : undefined,
         flash_deal_expires_at: is_flash_deal && flash_deal_expires_at
           ? new Date(flash_deal_expires_at).toISOString()
@@ -354,6 +362,8 @@ export default function ProductsPage() {
         pieces_per_unit: o.pieces_per_unit ?? undefined,
       }))
     );
+    setSelectedCategory(product.category);
+    setSelectedUnit(product.unit);
     setDialogOpen(true);
   }
 
@@ -362,6 +372,8 @@ export default function ProductsPage() {
     setFormError(null);
     clearAllMedia();
     setUnitOptions([]);
+    setSelectedCategory("");
+    setSelectedUnit("bag");
     setDialogOpen(true);
   }
 
@@ -834,33 +846,42 @@ export default function ProductsPage() {
                 <label className="text-sm font-medium">
                   Category <span className="text-destructive">*</span>
                 </label>
-                <select
-                  name="category"
-                  className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                  defaultValue={editingProduct?.category ?? ""}
+                <input type="hidden" name="category" value={selectedCategory} />
+                <Select
+                  value={selectedCategory}
+                  onValueChange={(v) => setSelectedCategory(v ?? "")}
                   required
                 >
-                  <option value="">Select category...</option>
-                  {categories.filter((c) => c.is_active).map((cat) => (
-                    <option key={cat.slug} value={cat.slug}>
-                      {cat.icon} {cat.name}
-                    </option>
-                  ))}
-                </select>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select category..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {categories.filter((c) => c.is_active).map((cat) => (
+                      <SelectItem key={cat.slug} value={cat.slug}>
+                        {cat.icon} {cat.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-medium">Unit</label>
-                <select
-                  name="unit"
-                  className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                  defaultValue={editingProduct?.unit ?? "bag"}
+                <input type="hidden" name="unit" value={selectedUnit} />
+                <Select
+                  value={selectedUnit}
+                  onValueChange={(v) => setSelectedUnit(v ?? "bag")}
                 >
-                  {units.filter((u) => u.is_active).map((u) => (
-                    <option key={u.slug} value={u.slug}>
-                      {u.name} ({u.plural_name})
-                    </option>
-                  ))}
-                </select>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select unit..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {units.filter((u) => u.is_active).map((u) => (
+                      <SelectItem key={u.slug} value={u.slug}>
+                        {u.name} ({u.plural_name})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 
@@ -875,16 +896,18 @@ export default function ProductsPage() {
                   defaultValue={editingProduct?.min_order_qty ?? 5}
                 />
               </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Pieces per Unit</label>
-                <Input
-                  name="pieces_per_unit"
-                  type="number"
-                  min="1"
-                  placeholder="e.g. 12 pieces per box"
-                  defaultValue={editingProduct?.pieces_per_unit ?? ""}
-                />
-              </div>
+              {selectedCategory !== "lpg" && (
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Pieces per Unit</label>
+                  <Input
+                    name="pieces_per_unit"
+                    type="number"
+                    min="1"
+                    placeholder="e.g. 12 pieces per box"
+                    defaultValue={editingProduct?.pieces_per_unit ?? ""}
+                  />
+                </div>
+              )}
             </div>
 
             <div className="grid grid-cols-2 gap-4">
@@ -1063,6 +1086,29 @@ export default function ProductsPage() {
                 />
                 Flash Deal ⚡
               </label>
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  name="is_coming_soon"
+                  defaultChecked={editingProduct?.is_coming_soon ?? false}
+                  className="h-4 w-4 rounded border-input"
+                />
+                Coming Soon 🕐
+              </label>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium">
+                Expected Arrival Date (optional)
+              </label>
+              <Input
+                name="expected_arrival_date"
+                type="date"
+                defaultValue={editingProduct?.expected_arrival_date ?? ""}
+              />
+              <p className="text-xs text-muted-foreground">
+                Retailers can join a waitlist for Coming Soon products.
+              </p>
             </div>
 
             <div className="space-y-2">

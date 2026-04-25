@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { getProductById } from "../../actions";
+import { getProductById, getWaitlistStatus } from "../../actions";
 import ProductDetailClient from "./product-detail-client";
 import { ProductJsonLd, BreadcrumbJsonLd } from "@/components/seo/json-ld";
 
@@ -62,6 +62,10 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
     );
   }
 
+  const waitlistStatus = product.is_coming_soon
+    ? await getWaitlistStatus(product.id)
+    : null;
+
   return (
     <>
       <ProductJsonLd product={product} />
@@ -72,7 +76,7 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
           { name: product.name, url: `${siteUrl}/products/${product.id}` },
         ]}
       />
-      <ProductDetailClient product={product} />
+      <ProductDetailClient product={product} waitlistStatus={waitlistStatus} />
     </>
   );
 }

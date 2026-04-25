@@ -463,3 +463,115 @@ export async function getAffiliateReferrals(affiliateId: string) {
   if (error) throw new Error(error.message);
   return data;
 }
+
+// ── Waitlist ────────────────────────────────────────────────────
+
+export async function joinWaitlist(
+  productId: string,
+  quantityInterested: number,
+  notes?: string
+): Promise<{ error: string | null }> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Not authenticated" };
+
+  const { data: retailer } = await supabase
+    .from("retailers")
+    .select("id")
+    .eq("user_id", user.id)
+    .single();
+  if (!retailer) return { error: "Retailer profile not found" };
+
+  const { error } = await supabase
+    .from("product_waitlist")
+    .upsert(
+      {
+        product_id: productId,
+        retailer_id: retailer.id,
+        quantity_interested: quantityInterested,
+        notes: notes ?? null,
+      },
+      { onConflict: "product_id,retailer_id" }
+    );
+
+  if (error) return { error: error.message };
+  revalidatePath(`/products/${productId}`);
+  return { error: null };
+}
+
+export async function leaveWaitlist(
+  productId: string
+): Promise<{ error: string | null }> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Not authenticated" };
+
+  const { data: retailer } = await supabase
+    .from("retailers")
+    .select("id")
+    .eq("user_id", user.id)
+    .single();
+  if (!retailer) return { error: "Retailer profile not found" };
+
+  const { error } = await supabase
+    .from("product_waitlist")
+    .delete()
+    .eq("product_id", productId)
+    .eq("retailer_id", retailer.id);
+
+  if (error) return { error: error.message };
+  revalidatePath(`/products/${productId}`);
+  return { error: null };
+}
+
+export async function getWaitlistStatus(productId: string): Promise<{
+  isOnWaitlist: boolean;
+  totalWaiters: number;
+  totalQuantityDemand: number;
+  position: number | null;
+  myEntry: { quantity_interested: number; notes: string | null; created_at: string } | null;
+}> {
+  const supabase = await createClient();
+
+  // Get total waiters count and total demand
+  const { data: allEntries } = await supabase
+    .from("product_waitlist")
+    .select("id, quantity_interested, created_at, retailer_id")
+    .eq("product_id", productId)
+    .order("created_at", { ascending: true });
+
+  const totalWaiters = allEntries?.length ?? 0;
+  const totalQuantityDemand = allEntries?.reduce((sum, e) => sum + e.quantity_interested, 0) ?? 0;
+
+  // Check if current user is on the waitlist
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { isOnWaitlist: false, totalWaiters, totalQuantityDemand, position: null, myEntry: null };
+
+  const { data: retailer } = await supabase
+    .from("retailers")
+    .select("id")
+    .eq("user_id", user.id)
+    .single();
+
+  if (!retailer) return { isOnWaitlist: false, totalWaiters, totalQuantityDemand, position: null, myEntry: null };
+
+  const { data: entry } = await supabase
+    .from("product_waitlist")
+    .select("quantity_interested, notes, created_at")
+    .eq("product_id", productId)
+    .eq("retailer_id", retailer.id)
+    .maybeSingle();
+
+  // Calculate position (1-based)
+  const position = entry && allEntries
+    ? allEntries.findIndex((e) => e.retailer_id === retailer.id) + 1
+    : null;
+
+  return {
+    isOnWaitlist: !!entry,
+    totalWaiters,
+    totalQuantityDemand,
+    position,
+    myEntry: entry,
+  };
+}
