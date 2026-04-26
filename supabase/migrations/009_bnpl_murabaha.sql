@@ -44,15 +44,18 @@ alter table public.bnpl_plans enable row level security;
 alter table public.bnpl_installments enable row level security;
 
 -- Admin/service role full access
+drop policy if exists "bnpl_plans_admin_all" on public.bnpl_plans;
 create policy "bnpl_plans_admin_all"
   on public.bnpl_plans for all
   using (true) with check (true);
 
+drop policy if exists "bnpl_installments_admin_all" on public.bnpl_installments;
 create policy "bnpl_installments_admin_all"
   on public.bnpl_installments for all
   using (true) with check (true);
 
 -- Retailers can view their own BNPL plans
+drop policy if exists "bnpl_plans_retailer_select" on public.bnpl_plans;
 create policy "bnpl_plans_retailer_select"
   on public.bnpl_plans for select
   using (
@@ -64,6 +67,7 @@ create policy "bnpl_plans_retailer_select"
     )
   );
 
+drop policy if exists "bnpl_installments_retailer_select" on public.bnpl_installments;
 create policy "bnpl_installments_retailer_select"
   on public.bnpl_installments for select
   using (

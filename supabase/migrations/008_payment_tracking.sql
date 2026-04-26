@@ -39,12 +39,14 @@ create index if not exists idx_orders_payment_status on public.orders(payment_st
 alter table public.payment_records enable row level security;
 
 -- Admins and service role can do everything
+drop policy if exists "payment_records_admin_all" on public.payment_records;
 create policy "payment_records_admin_all"
   on public.payment_records for all
   using (true)
   with check (true);
 
 -- Retailers can view their own order payments
+drop policy if exists "payment_records_retailer_select" on public.payment_records;
 create policy "payment_records_retailer_select"
   on public.payment_records for select
   using (
