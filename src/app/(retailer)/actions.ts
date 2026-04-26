@@ -102,7 +102,7 @@ export async function getPublicProducts() {
   const { data, error } = await supabase
     .from("products")
     .select(
-      "*, wholesalers(id, name, location, phone, sales_rep_id, sales_reps(id, name, phone, whatsapp_phone, bio, avatar_url)), manufacturers(id, name), product_unit_options(*), product_media(*)"
+      "*, wholesalers(id, name, location, phone, sales_rep_id, sales_reps(id, name, phone, whatsapp_phone, bio, avatar_url)), manufacturers(id, name), product_unit_options(*), product_media(*), product_waitlist(count)"
     )
     .order("created_at", { ascending: false });
   if (error) throw new Error(error.message);
@@ -126,7 +126,7 @@ export async function getTrendingProducts() {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("products")
-    .select("*, wholesalers(id, name, location), manufacturers(id, name), product_unit_options(*), product_media(*)")
+    .select("*, wholesalers(id, name, location), manufacturers(id, name), product_unit_options(*), product_media(*), product_waitlist(count)")
     .eq("is_trending", true)
     .order("created_at", { ascending: false });
   if (error) throw new Error(error.message);
@@ -137,7 +137,7 @@ export async function getFlashDeals() {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("products")
-    .select("*, wholesalers(id, name, location), manufacturers(id, name), product_unit_options(*), product_media(*)")
+    .select("*, wholesalers(id, name, location), manufacturers(id, name), product_unit_options(*), product_media(*), product_waitlist(count)")
     .eq("is_flash_deal", true)
     .order("created_at", { ascending: false });
   if (error) throw new Error(error.message);
@@ -148,7 +148,7 @@ export async function getBulkStockProducts(limit = 4) {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("products")
-    .select("*, wholesalers(id, name, location), manufacturers(id, name), product_unit_options(*), product_media(*)")
+    .select("*, wholesalers(id, name, location), manufacturers(id, name), product_unit_options(*), product_media(*), product_waitlist(count)")
     .gt("stock", 0)
     .order("stock", { ascending: false })
     .limit(limit);
