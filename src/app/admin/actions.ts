@@ -792,3 +792,71 @@ export async function updateRetailerCredit(
   revalidatePath("/admin/retailers");
   return { error: null };
 }
+
+// ── Waitlist Actions ────────────────────────────────────────────
+
+export async function getWaitlistEntries() {
+  const supabase = createAdminClient();
+  const { data, error } = await supabase
+    .from("product_waitlist")
+    .select("*, products(id, name, category, image_url, is_coming_soon, expected_arrival_date), retailers(id, name, phone, business_name)")
+    .order("created_at", { ascending: false });
+  if (error) throw new Error(error.message);
+  return data;
+}
+
+export async function getWaitlistSummary() {
+  const supabase = createAdminClient();
+  const { data, error } = await supabase
+    .from("products")
+    .select("id, name, category, image_url, is_coming_soon, expected_arrival_date, product_waitlist(count)")
+    .eq("is_coming_soon", true)
+    .order("created_at", { ascending: false });
+  if (error) throw new Error(error.message);
+  return data;
+}
+
+export async function notifyWaitlistEntry(entryId: string) {
+  const supabase = createAdminClient();
+  const { error } = await supabase
+    .from("product_waitlist")
+    .update({ notified: true, notified_at: new Date().toISOString() })
+    .eq("id", entryId);
+  if (error) return { error: error.message };
+  revalidatePath("/admin/waitlist");
+  return { error: null };
+}
+
+export async function notifyAllWaitlist(productId: string) {
+  const supabase = createAdminClient();
+  const { error } = await supabase
+    .from("product_waitlist")
+    .update({ notified: true, notified_at: new Date().toISOString() })
+    .eq("product_id", productId)
+    .eq("notified", false);
+  if (error) return { error: error.message };
+  revalidatePath("/admin/waitlist");
+  return { error: null };
+}
+
+export async function removeWaitlistEntry(entryId: string) {
+  const supabase = createAdminClient();
+  const { error } = await supabase
+    .from("product_waitlist")
+    .delete()
+    .eq("id", entryId);
+  if (error) return { error: error.message };
+  revalidatePath("/admin/waitlist");
+  return { error: null };
+}
+
+export async function clearProductWaitlist(productId: string) {
+  const supabase = createAdminClient();
+  const { error } = await supabase
+    .from("product_waitlist")
+    .delete()
+    .eq("product_id", productId);
+  if (error) return { error: error.message };
+  revalidatePath("/admin/waitlist");
+  return { error: null };
+}

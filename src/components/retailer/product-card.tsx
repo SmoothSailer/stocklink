@@ -1,6 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
-import { MapPin, Package, Factory, Layers } from "lucide-react";
+import { MapPin, Package, Factory, Layers, Users } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import type { Product, ProductUnitOption, ProductMedia } from "@/types/database";
@@ -11,11 +11,13 @@ interface ProductCardProps {
     manufacturers?: { id: string; name: string } | null;
     product_unit_options?: ProductUnitOption[];
     product_media?: ProductMedia[];
+    product_waitlist?: { count: number }[];
   };
 }
 
 export function ProductCard({ product }: ProductCardProps) {
   const stockInfo = getStockInfo(product.stock, product.unit);
+  const waitlistCount = product.product_waitlist?.[0]?.count ?? 0;
   const displayPrice = product.is_flash_deal && product.flash_deal_price
     ? product.flash_deal_price
     : product.price;
@@ -113,9 +115,17 @@ export function ProductCard({ product }: ProductCardProps) {
           {/* Stock badge + location */}
           <div className="mt-2 flex items-center justify-between">
             {product.is_coming_soon ? (
-              <Badge variant="outline" className="text-[10px] px-1.5 py-0.5 border-amber-400 text-amber-600">
-                Join Waitlist
-              </Badge>
+              <div className="flex items-center gap-1.5">
+                <Badge variant="outline" className="text-[10px] px-1.5 py-0.5 border-amber-400 text-amber-600">
+                  Join Waitlist
+                </Badge>
+                {waitlistCount > 0 && (
+                  <span className="flex items-center gap-0.5 text-[10px] text-muted-foreground">
+                    <Users className="h-3 w-3" />
+                    {waitlistCount} waiting
+                  </span>
+                )}
+              </div>
             ) : (
               <Badge variant={stockInfo.variant} className="text-[10px] px-1.5 py-0.5">
                 {stockInfo.label}

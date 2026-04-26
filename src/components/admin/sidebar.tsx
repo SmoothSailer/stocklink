@@ -18,6 +18,7 @@ import {
   Ruler,
   Factory,
   Users,
+  Bell,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -34,6 +35,7 @@ const sidebarItems = [
   { href: "/admin/units", label: "Units", icon: Ruler },
   { href: "/admin/products", label: "Products", icon: Package },
   { href: "/admin/orders", label: "Orders", icon: ClipboardList },
+  { href: "/admin/waitlist", label: "Waitlist", icon: Bell },
   { href: "/admin/retailers", label: "Retailers", icon: Users },
   { href: "/admin/insights", label: "Insights", icon: BarChart3 },
 ];
