@@ -43,15 +43,22 @@ export function ProductCard({ product }: ProductCardProps) {
             </div>
           )}
 
+          {/* Coming Soon badge */}
+          {product.is_coming_soon && (
+            <Badge className="absolute left-2 top-2 bg-amber-500 text-white shadow-sm">
+              🕐 Coming Soon
+            </Badge>
+          )}
+
           {/* Flash deal badge */}
-          {product.is_flash_deal && (
+          {product.is_flash_deal && !product.is_coming_soon && (
             <Badge className="absolute left-2 top-2 bg-accent text-accent-foreground shadow-sm">
               ⚡ Bulk Deal
             </Badge>
           )}
 
           {/* Trending badge */}
-          {product.is_trending && !product.is_flash_deal && (
+          {product.is_trending && !product.is_flash_deal && !product.is_coming_soon && (
             <Badge className="absolute left-2 top-2 bg-primary text-primary-foreground shadow-sm">
               🔥 Trending
             </Badge>
@@ -105,9 +112,15 @@ export function ProductCard({ product }: ProductCardProps) {
 
           {/* Stock badge + location */}
           <div className="mt-2 flex items-center justify-between">
-            <Badge variant={stockInfo.variant} className="text-[10px] px-1.5 py-0.5">
-              {stockInfo.label}
-            </Badge>
+            {product.is_coming_soon ? (
+              <Badge variant="outline" className="text-[10px] px-1.5 py-0.5 border-amber-400 text-amber-600">
+                Join Waitlist
+              </Badge>
+            ) : (
+              <Badge variant={stockInfo.variant} className="text-[10px] px-1.5 py-0.5">
+                {stockInfo.label}
+              </Badge>
+            )}
             {product.location && (
               <span className="flex items-center gap-0.5 text-[10px] text-muted-foreground">
                 <MapPin className="h-3 w-3" />

@@ -260,6 +260,8 @@ export interface Database {
           flash_deal_price: number | null;
           flash_deal_expires_at: string | null;
           location: string | null;
+          is_coming_soon: boolean;
+          expected_arrival_date: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -281,6 +283,8 @@ export interface Database {
           flash_deal_price?: number | null;
           flash_deal_expires_at?: string | null;
           location?: string | null;
+          is_coming_soon?: boolean;
+          expected_arrival_date?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -302,6 +306,8 @@ export interface Database {
           flash_deal_price?: number | null;
           flash_deal_expires_at?: string | null;
           location?: string | null;
+          is_coming_soon?: boolean;
+          expected_arrival_date?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -810,6 +816,54 @@ export interface Database {
           },
         ];
       };
+      product_waitlist: {
+        Row: {
+          id: string;
+          product_id: string;
+          retailer_id: string;
+          quantity_interested: number;
+          notes: string | null;
+          notified: boolean;
+          notified_at: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          product_id: string;
+          retailer_id: string;
+          quantity_interested?: number;
+          notes?: string | null;
+          notified?: boolean;
+          notified_at?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          product_id?: string;
+          retailer_id?: string;
+          quantity_interested?: number;
+          notes?: string | null;
+          notified?: boolean;
+          notified_at?: string | null;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "product_waitlist_product_id_fkey";
+            columns: ["product_id"];
+            isOneToOne: false;
+            referencedRelation: "products";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "product_waitlist_retailer_id_fkey";
+            columns: ["retailer_id"];
+            isOneToOne: false;
+            referencedRelation: "retailers";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
     };
     Views: {
       [_ in never]: never;
@@ -852,6 +906,7 @@ export type OrderStatusHistory = Database["public"]["Tables"]["order_status_hist
 export type PaymentRecord = Database["public"]["Tables"]["payment_records"]["Row"];
 export type BnplPlan = Database["public"]["Tables"]["bnpl_plans"]["Row"];
 export type BnplInstallment = Database["public"]["Tables"]["bnpl_installments"]["Row"];
+export type ProductWaitlist = Database["public"]["Tables"]["product_waitlist"]["Row"];
 
 export type OrderStatus = Order["status"];
 export type PaymentMethod = Order["payment_method"];
