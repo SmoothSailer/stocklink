@@ -21,12 +21,14 @@ create index if not exists idx_order_status_history_created
 alter table public.order_status_history enable row level security;
 
 -- Authenticated users can read status history for orders they can see
+drop policy if exists "Authenticated users can read order status history" on public.order_status_history;
 create policy "Authenticated users can read order status history"
   on public.order_status_history for select
   to authenticated
   using (true);
 
 -- Only authenticated users can insert history entries
+drop policy if exists "Authenticated users can insert order status history" on public.order_status_history;
 create policy "Authenticated users can insert order status history"
   on public.order_status_history for insert
   to authenticated

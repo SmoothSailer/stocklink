@@ -27,6 +27,7 @@ CREATE INDEX IF NOT EXISTS idx_product_waitlist_retailer ON product_waitlist(ret
 ALTER TABLE product_waitlist ENABLE ROW LEVEL SECURITY;
 
 -- Retailers can view their own waitlist entries
+DROP POLICY IF EXISTS "Retailers can view own waitlist entries" ON product_waitlist;
 CREATE POLICY "Retailers can view own waitlist entries"
   ON product_waitlist FOR SELECT
   USING (retailer_id IN (
@@ -34,6 +35,7 @@ CREATE POLICY "Retailers can view own waitlist entries"
   ));
 
 -- Retailers can insert their own waitlist entries
+DROP POLICY IF EXISTS "Retailers can join waitlist" ON product_waitlist;
 CREATE POLICY "Retailers can join waitlist"
   ON product_waitlist FOR INSERT
   WITH CHECK (retailer_id IN (
@@ -41,6 +43,7 @@ CREATE POLICY "Retailers can join waitlist"
   ));
 
 -- Retailers can delete their own waitlist entries
+DROP POLICY IF EXISTS "Retailers can leave waitlist" ON product_waitlist;
 CREATE POLICY "Retailers can leave waitlist"
   ON product_waitlist FOR DELETE
   USING (retailer_id IN (

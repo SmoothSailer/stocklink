@@ -511,6 +511,8 @@ export async function createProduct(data: {
   manufacturer_id?: string;
   is_trending?: boolean;
   is_flash_deal?: boolean;
+  is_coming_soon?: boolean;
+  expected_arrival_date?: string;
   flash_deal_price?: number;
   flash_deal_expires_at?: string;
 }) {
@@ -530,6 +532,8 @@ export async function createProduct(data: {
     manufacturer_id: data.manufacturer_id || null,
     is_trending: data.is_trending ?? false,
     is_flash_deal: data.is_flash_deal ?? false,
+    is_coming_soon: data.is_coming_soon ?? false,
+    expected_arrival_date: data.expected_arrival_date || null,
     flash_deal_price: data.flash_deal_price ?? null,
     flash_deal_expires_at: data.flash_deal_expires_at || null,
   }).select("id").single();
@@ -556,6 +560,8 @@ export async function updateProduct(
     manufacturer_id?: string | null;
     is_trending?: boolean;
     is_flash_deal?: boolean;
+    is_coming_soon?: boolean;
+    expected_arrival_date?: string | null;
     flash_deal_price?: number | null;
     flash_deal_expires_at?: string | null;
   }
