@@ -116,6 +116,7 @@ export default function ProductsPage() {
   const [formError, setFormError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [mediaItems, setMediaItems] = useState<MediaItem[]>([]);
+  const [removedMediaUrls, setRemovedMediaUrls] = useState<string[]>([]);
   const [unitOptions, setUnitOptions] = useState<UnitOptionRow[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>("");
   const [selectedUnit, setSelectedUnit] = useState<string>("bag");
@@ -175,7 +176,12 @@ export default function ProductsPage() {
   function removeMediaItem(index: number) {
     setMediaItems((prev) => {
       const item = prev[index];
-      if (item.preview && item.file) URL.revokeObjectURL(item.preview);
+      if (item.preview && item.file) {
+        URL.revokeObjectURL(item.preview);
+      } else if (item.url) {
+        // Track existing (already-uploaded) media for deletion from storage
+        setRemovedMediaUrls((urls) => [...urls, item.url]);
+      }
       return prev.filter((_, i) => i !== index);
     });
   }
@@ -185,6 +191,7 @@ export default function ProductsPage() {
       if (item.preview && item.file) URL.revokeObjectURL(item.preview);
     });
     setMediaItems([]);
+    setRemovedMediaUrls([]);
     if (fileInputRef.current) fileInputRef.current.value = "";
   }
 
@@ -310,6 +317,17 @@ export default function ProductsPage() {
         }
       }
 
+      // Delete removed media files from storage
+      if (removedMediaUrls.length > 0) {
+        for (const url of removedMediaUrls) {
+          try {
+            await deleteProductMedia(url);
+          } catch {
+            // Storage cleanup is best-effort
+          }
+        }
+      }
+
       setDialogOpen(false);
       setEditingProduct(null);
       clearAllMedia();
@@ -337,6 +355,7 @@ export default function ProductsPage() {
     setEditingProduct(product);
     setFormError(null);
     clearAllMedia();
+    setRemovedMediaUrls([]);
     // Load existing media
     const existingMedia: MediaItem[] = (product.product_media ?? [])
       .sort((a, b) => a.sort_order - b.sort_order)
