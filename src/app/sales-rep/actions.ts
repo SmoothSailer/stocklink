@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { sendRetailerOnboardingEmail } from "@/lib/emails";
 
 /**
  * Get the current sales rep's profile from the authenticated session.
@@ -1195,4 +1196,450 @@ export async function repPayBnplInstallment(
 
   revalidatePath("/sales-rep/dashboard");
   return { error: null };
+}
+
+// ── Retailer Management Actions ─────────────────────────────────
+
+/**
+ * Get retailers assigned to this sales rep.
+ */
+export async function getRepRetailers(repId: string) {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("retailers")
+    .select("*")
+    .eq("sales_rep_id", repId)
+    .order("created_at", { ascending: false });
+
+  return data ?? [];
+}
+
+/**
+ * Get retailers with their last order date and total spent.
+ */
+export async function getRepRetailersWithStats(repId: string) {
+  const supabase = await createClient();
+
+  const { data: retailers } = await supabase
+    .from("retailers")
+    .select("*")
+    .eq("sales_rep_id", repId)
+    .order("name", { ascending: true });
+
+  if (!retailers || retailers.length === 0) return [];
+
+  const retailerIds = retailers.map((r) => r.id);
+
+  // Get order stats per retailer
+  const { data: orders } = await supabase
+    .from("orders")
+    .select("retailer_id, total, created_at, status")
+    .in("retailer_id", retailerIds)
+    .neq("status", "cancelled")
+    .order("created_at", { ascending: false });
+
+  const statsMap = new Map<string, { lastOrder: string | null; totalSpent: number; orderCount: number }>();
+
+  for (const order of orders ?? []) {
+    if (!order.retailer_id) continue;
+    const existing = statsMap.get(order.retailer_id);
+    if (!existing) {
+      statsMap.set(order.retailer_id, {
+        lastOrder: order.created_at,
+        totalSpent: order.total,
+        orderCount: 1,
+      });
+    } else {
+      existing.totalSpent += order.total;
+      existing.orderCount += 1;
+    }
+  }
+
+  return retailers.map((r) => ({
+    ...r,
+    lastOrder: statsMap.get(r.id)?.lastOrder ?? null,
+    totalSpent: statsMap.get(r.id)?.totalSpent ?? 0,
+    orderCount: statsMap.get(r.id)?.orderCount ?? 0,
+  }));
+}
+
+/**
+ * Onboard (register) a new retailer assigned to the calling rep.
+ */
+export async function repOnboardRetailer(repId: string, formData: FormData) {
+  if (!(await verifyRepOwnership(repId))) {
+    return { error: "Unauthorized", data: null };
+  }
+
+  const supabase = await createClient();
+  const name = formData.get("name") as string;
+  const business_name = formData.get("business_name") as string | null;
+  const phone = formData.get("phone") as string;
+  const email = formData.get("email") as string | null;
+  const location = formData.get("location") as string | null;
+
+  if (!name?.trim()) return { error: "Name is required", data: null };
+  if (!phone?.trim()) return { error: "Phone is required", data: null };
+
+  const { data, error } = await supabase
+    .from("retailers")
+    .insert({
+      name: name.trim(),
+      business_name: business_name?.trim() || null,
+      phone: phone.trim(),
+      email: email?.trim() || null,
+      location: location?.trim() || null,
+      sales_rep_id: repId,
+      verification_status: "unverified" as const,
+    })
+    .select()
+    .single();
+
+  if (error) return { error: error.message, data: null };
+
+  // Log the activity
+  await supabase.from("rep_activities").insert({
+    sales_rep_id: repId,
+    retailer_id: data.id,
+    type: "onboarding",
+    notes: `Onboarded retailer: ${data.name}`,
+  });
+
+  // Send onboarding email if retailer provided an email
+  if (data.email) {
+    const rep = await getCurrentSalesRep();
+    await sendRetailerOnboardingEmail({
+      to: data.email,
+      name: data.name,
+      businessName: data.business_name,
+      phone: data.phone,
+      location: data.location,
+      repName: rep?.name ?? "Your sales representative",
+      retailerId: data.id,
+    });
+  }
+
+  revalidatePath("/sales-rep/dashboard");
+  return { error: null, data };
+}
+
+/**
+ * Update a retailer assigned to this rep.
+ */
+export async function repUpdateRetailer(
+  repId: string,
+  retailerId: string,
+  formData: FormData
+) {
+  if (!(await verifyRepOwnership(repId))) {
+    return { error: "Unauthorized" };
+  }
+
+  const supabase = await createClient();
+
+  // Confirm retailer belongs to the rep
+  const { data: existing } = await supabase
+    .from("retailers")
+    .select("id")
+    .eq("id", retailerId)
+    .eq("sales_rep_id", repId)
+    .single();
+
+  if (!existing) return { error: "Retailer not found or not assigned to you" };
+
+  const name = formData.get("name") as string;
+  const business_name = formData.get("business_name") as string | null;
+  const phone = formData.get("phone") as string | null;
+  const email = formData.get("email") as string | null;
+  const location = formData.get("location") as string | null;
+
+  if (!name?.trim()) return { error: "Name is required" };
+
+  const { error } = await supabase
+    .from("retailers")
+    .update({
+      name: name.trim(),
+      business_name: business_name?.trim() || null,
+      phone: phone?.trim() || undefined,
+      email: email?.trim() || null,
+      location: location?.trim() || null,
+    })
+    .eq("id", retailerId);
+
+  if (error) return { error: error.message };
+  revalidatePath("/sales-rep/dashboard");
+  return { error: null };
+}
+
+// ── Lead Management Actions ──────────────────────────────────────
+
+/**
+ * Get all leads for a sales rep.
+ */
+export async function getRepLeads(repId: string) {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("leads")
+    .select("*")
+    .eq("sales_rep_id", repId)
+    .order("created_at", { ascending: false });
+
+  return data ?? [];
+}
+
+/**
+ * Create a new lead for a sales rep.
+ */
+export async function repCreateLead(repId: string, formData: FormData) {
+  if (!(await verifyRepOwnership(repId))) {
+    return { error: "Unauthorized", data: null };
+  }
+
+  const supabase = await createClient();
+  const name = formData.get("name") as string;
+  const business_name = formData.get("business_name") as string | null;
+  const phone = formData.get("phone") as string;
+  const location = formData.get("location") as string | null;
+  const notes = formData.get("notes") as string | null;
+  const source = (formData.get("source") as string) || "field_visit";
+  const follow_up_date = formData.get("follow_up_date") as string | null;
+
+  if (!name?.trim()) return { error: "Name is required", data: null };
+  if (!phone?.trim()) return { error: "Phone is required", data: null };
+
+  const { data, error } = await supabase
+    .from("leads")
+    .insert({
+      sales_rep_id: repId,
+      name: name.trim(),
+      business_name: business_name?.trim() || null,
+      phone: phone.trim(),
+      location: location?.trim() || null,
+      notes: notes?.trim() || null,
+      source: source as "field_visit" | "referral" | "whatsapp" | "walk_in" | "other",
+      follow_up_date: follow_up_date || null,
+    })
+    .select()
+    .single();
+
+  if (error) return { error: error.message, data: null };
+  revalidatePath("/sales-rep/dashboard");
+  return { error: null, data };
+}
+
+/**
+ * Update a lead's status or details.
+ */
+export async function repUpdateLead(
+  repId: string,
+  leadId: string,
+  formData: FormData
+) {
+  if (!(await verifyRepOwnership(repId))) {
+    return { error: "Unauthorized" };
+  }
+
+  const supabase = await createClient();
+
+  // Confirm lead belongs to rep
+  const { data: existing } = await supabase
+    .from("leads")
+    .select("id")
+    .eq("id", leadId)
+    .eq("sales_rep_id", repId)
+    .single();
+
+  if (!existing) return { error: "Lead not found" };
+
+  const name = formData.get("name") as string | null;
+  const business_name = formData.get("business_name") as string | null;
+  const phone = formData.get("phone") as string | null;
+  const location = formData.get("location") as string | null;
+  const notes = formData.get("notes") as string | null;
+  const status = formData.get("status") as string | null;
+  const follow_up_date = formData.get("follow_up_date") as string | null;
+
+  const updateData: Record<string, unknown> = { updated_at: new Date().toISOString() };
+  if (name?.trim()) updateData.name = name.trim();
+  if (business_name !== null) updateData.business_name = business_name?.trim() || null;
+  if (phone?.trim()) updateData.phone = phone.trim();
+  if (location !== null) updateData.location = location?.trim() || null;
+  if (notes !== null) updateData.notes = notes?.trim() || null;
+  if (status) updateData.status = status;
+  if (follow_up_date !== null) updateData.follow_up_date = follow_up_date || null;
+
+  const { error } = await supabase
+    .from("leads")
+    .update(updateData)
+    .eq("id", leadId);
+
+  if (error) return { error: error.message };
+  revalidatePath("/sales-rep/dashboard");
+  return { error: null };
+}
+
+/**
+ * Convert a lead to a retailer. Creates the retailer, updates the lead status,
+ * and links the converted_retailer_id.
+ */
+export async function repConvertLead(repId: string, leadId: string) {
+  if (!(await verifyRepOwnership(repId))) {
+    return { error: "Unauthorized" };
+  }
+
+  const supabase = await createClient();
+
+  const { data: lead } = await supabase
+    .from("leads")
+    .select("*")
+    .eq("id", leadId)
+    .eq("sales_rep_id", repId)
+    .single();
+
+  if (!lead) return { error: "Lead not found" };
+  if (lead.status === "converted") return { error: "Lead already converted" };
+
+  // Create the retailer
+  const { data: retailer, error: retailerError } = await supabase
+    .from("retailers")
+    .insert({
+      name: lead.name,
+      business_name: lead.business_name,
+      phone: lead.phone,
+      location: lead.location,
+      sales_rep_id: repId,
+      verification_status: "unverified" as const,
+    })
+    .select()
+    .single();
+
+  if (retailerError) return { error: retailerError.message };
+
+  // Update lead status
+  await supabase
+    .from("leads")
+    .update({
+      status: "converted",
+      converted_retailer_id: retailer.id,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", leadId);
+
+  // Log activity
+  await supabase.from("rep_activities").insert({
+    sales_rep_id: repId,
+    retailer_id: retailer.id,
+    lead_id: leadId,
+    type: "onboarding",
+    notes: `Converted lead "${lead.name}" to retailer`,
+  });
+
+  revalidatePath("/sales-rep/dashboard");
+  return { error: null, retailer };
+}
+
+// ── Restock Alerts Actions ───────────────────────────────────────
+
+/**
+ * Get retailers who are likely running low on products based on order frequency.
+ * Uses the database function get_restock_alerts.
+ */
+export async function getRestockAlerts(repId: string) {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .rpc("get_restock_alerts", { p_sales_rep_id: repId });
+
+  if (error) {
+    console.error("Restock alerts error:", error);
+    return [];
+  }
+
+  return data ?? [];
+}
+
+// ── Activity Logging Actions ─────────────────────────────────────
+
+/**
+ * Get recent activities for a sales rep.
+ */
+export async function getRepActivities(repId: string, limit = 20) {
+  const supabase = await createClient();
+
+  const { data } = await supabase
+    .from("rep_activities")
+    .select("*, retailers(id, name), leads(id, name)")
+    .eq("sales_rep_id", repId)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  return data ?? [];
+}
+
+/**
+ * Log a new activity for a sales rep.
+ */
+export async function repLogActivity(
+  repId: string,
+  activity: {
+    type: "visit" | "call" | "whatsapp" | "order_follow_up" | "payment_collection" | "onboarding" | "note";
+    retailer_id?: string | null;
+    lead_id?: string | null;
+    notes?: string | null;
+    outcome?: string | null;
+  }
+) {
+  if (!(await verifyRepOwnership(repId))) {
+    return { error: "Unauthorized" };
+  }
+
+  const supabase = await createClient();
+
+  const { error } = await supabase.from("rep_activities").insert({
+    sales_rep_id: repId,
+    type: activity.type,
+    retailer_id: activity.retailer_id || null,
+    lead_id: activity.lead_id || null,
+    notes: activity.notes || null,
+    outcome: activity.outcome || null,
+  });
+
+  if (error) return { error: error.message };
+  revalidatePath("/sales-rep/dashboard");
+  return { error: null };
+}
+
+// ── WhatsApp Product Catalog Sharing ─────────────────────────────
+
+/**
+ * Generate a formatted product catalog message for WhatsApp sharing.
+ */
+export async function generateProductCatalogMessage(repId: string) {
+  const products = await getRepProducts(repId);
+
+  if (products.length === 0) return "";
+
+  // Group by category
+  const byCategory = new Map<string, typeof products>();
+  for (const p of products) {
+    const cat = p.category || "Other";
+    if (!byCategory.has(cat)) byCategory.set(cat, []);
+    byCategory.get(cat)!.push(p);
+  }
+
+  let message = "📦 *Product Catalog*\n\n";
+
+  for (const [category, items] of byCategory) {
+    message += `*${category}*\n`;
+    for (const item of items) {
+      const stockBadge = item.stock <= 5 ? "⚠️" : "✅";
+      message += `${stockBadge} ${item.name} — KSh ${item.price.toLocaleString()}/${item.unit}`;
+      if (item.stock <= 0) message += " (Out of stock)";
+      message += "\n";
+    }
+    message += "\n";
+  }
+
+  message += "📞 Contact me to order!";
+  return message;
 }

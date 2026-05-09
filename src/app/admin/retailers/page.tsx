@@ -15,6 +15,8 @@ import {
   ChevronUp,
   FileText,
   ExternalLink,
+  UserCheck,
+  Edit,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -34,13 +36,27 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Separator } from "@/components/ui/separator";
 import {
   getRetailers,
   verifyRetailer,
   updateRetailerCredit,
+  updateRetailer,
+  getAllSalesReps,
 } from "@/app/admin/actions";
 import { formatPrice } from "@/lib/utils";
 import type { Retailer } from "@/types/database";
+
+type SalesRepOption = {
+  id: string;
+  name: string;
+  phone: string;
+  whatsapp_phone: string;
+};
+
+type RetailerWithSalesRep = Retailer & {
+  sales_rep?: { id: string; name: string; user_id: string } | null;
+};
 
 const VERIFICATION_BADGES: Record<string, { label: string; className: string; icon: typeof ShieldCheck }> = {
   unverified: { label: "Unverified", className: "bg-gray-100 text-gray-800", icon: ShieldAlert },
@@ -50,12 +66,15 @@ const VERIFICATION_BADGES: Record<string, { label: string; className: string; ic
 };
 
 export default function RetailersPage() {
-  const [retailers, setRetailers] = useState<Retailer[]>([]);
+  const [retailers, setRetailers] = useState<RetailerWithSalesRep[]>([]);
+  const [salesReps, setSalesReps] = useState<SalesRepOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [selectedRetailer, setSelectedRetailer] = useState<Retailer | null>(null);
+  const [sourceFilter, setSourceFilter] = useState<string>("all"); // all, sales-rep, self-registered
+  const [selectedRetailer, setSelectedRetailer] = useState<RetailerWithSalesRep | null>(null);
   const [showVerifyDialog, setShowVerifyDialog] = useState(false);
+  const [showEditDialog, setShowEditDialog] = useState(false);
 
   // Verify dialog state
   const [verifyAction, setVerifyAction] = useState<"verify" | "reject">("verify");
@@ -64,16 +83,33 @@ export default function RetailersPage() {
   const [verificationNotes, setVerificationNotes] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
-  // Credit edit state
-  const [editingCredit, setEditingCredit] = useState<string | null>(null);
+  // Edit retailer dialog state
+  const [editName, setEditName] = useState("");
+  const [editBusinessName, setEditBusinessName] = useState("");
+  const [editPhone, setEditPhone] = useState("");
+  const [editEmail, setEditEmail] = useState("");
+  const [editLocation, setEditLocation] = useState("");
+  const [editIdNumber, setEditIdNumber] = useState("");
+  const [editBusinessRegNumber, setEditBusinessRegNumber] = useState("");
   const [editCreditLimit, setEditCreditLimit] = useState("");
   const [editBnplEnabled, setEditBnplEnabled] = useState(false);
+  const [editSalesRepId, setEditSalesRepId] = useState<string>("");
+  const [savingEdit, setSavingEdit] = useState(false);
+
+  // Credit edit state (quick inline edit)
+  const [editingCredit, setEditingCredit] = useState<string | null>(null);
+  const [editCreditLimitInline, setEditCreditLimitInline] = useState("");
+  const [editBnplEnabledInline, setEditBnplEnabledInline] = useState(false);
   const [savingCredit, setSavingCredit] = useState(false);
 
   const loadRetailers = useCallback(async () => {
     setLoading(true);
-    const data = await getRetailers();
-    setRetailers(data);
+    const [retailersData, salesRepsData] = await Promise.all([
+      getRetailers(),
+      getAllSalesReps(),
+    ]);
+    setRetailers(retailersData);
+    setSalesReps(salesRepsData);
     setLoading(false);
   }, []);
 
@@ -86,7 +122,11 @@ export default function RetailersPage() {
       r.business_name?.toLowerCase().includes(search.toLowerCase()) ||
       r.phone.includes(search);
     const matchesStatus = statusFilter === "all" || r.verification_status === statusFilter;
-    return matchesSearch && matchesStatus;
+    const matchesSource =
+      sourceFilter === "all" ||
+      (sourceFilter === "sales-rep" && r.sales_rep_id) ||
+      (sourceFilter === "self-registered" && !r.sales_rep_id);
+    return matchesSearch && matchesStatus && matchesSource;
   });
 
   const counts = {
@@ -97,13 +137,52 @@ export default function RetailersPage() {
     rejected: retailers.filter((r) => r.verification_status === "rejected").length,
   };
 
-  function openVerifyDialog(retailer: Retailer, action: "verify" | "reject") {
+  function openVerifyDialog(retailer: RetailerWithSalesRep, action: "verify" | "reject") {
     setSelectedRetailer(retailer);
     setVerifyAction(action);
     setCreditLimit(action === "verify" ? "50000" : "");
     setBnplEnabled(action === "verify");
     setVerificationNotes("");
     setShowVerifyDialog(true);
+  }
+
+  function openEditDialog(retailer: RetailerWithSalesRep) {
+    setSelectedRetailer(retailer);
+    setEditName(retailer.name);
+    setEditBusinessName(retailer.business_name || "");
+    setEditPhone(retailer.phone);
+    setEditEmail(retailer.email || "");
+    setEditLocation(retailer.location || "");
+    setEditIdNumber(retailer.id_number || "");
+    setEditBusinessRegNumber(retailer.business_reg_number || "");
+    setEditCreditLimit(String(retailer.credit_limit));
+    setEditBnplEnabled(retailer.bnpl_enabled);
+    setEditSalesRepId(retailer.sales_rep_id || "");
+    setShowEditDialog(true);
+  }
+
+  async function handleSaveEdit() {
+    if (!selectedRetailer) return;
+    setSavingEdit(true);
+    const result = await updateRetailer(selectedRetailer.id, {
+      name: editName.trim(),
+      business_name: editBusinessName.trim() || null,
+      phone: editPhone.trim(),
+      email: editEmail.trim() || null,
+      location: editLocation.trim() || null,
+      id_number: editIdNumber.trim() || null,
+      business_reg_number: editBusinessRegNumber.trim() || null,
+      credit_limit: parseFloat(editCreditLimit) || 0,
+      bnpl_enabled: editBnplEnabled,
+      sales_rep_id: editSalesRepId || null,
+    });
+    if (result.error) {
+      alert(result.error);
+    } else {
+      setShowEditDialog(false);
+      loadRetailers();
+    }
+    setSavingEdit(false);
   }
 
   async function handleVerify() {
@@ -127,8 +206,8 @@ export default function RetailersPage() {
     setSavingCredit(true);
     const result = await updateRetailerCredit(
       retailerId,
-      parseFloat(editCreditLimit) || 0,
-      editBnplEnabled
+      parseFloat(editCreditLimitInline) || 0,
+      editBnplEnabledInline
     );
     if (result.error) {
       alert(result.error);
@@ -169,6 +248,27 @@ export default function RetailersPage() {
         ))}
       </div>
 
+      {/* Onboarding Source Filter */}
+      <div className="flex gap-2">
+        {[
+          { value: "all", label: "All Retailers" },
+          { value: "sales-rep", label: "Sales Rep Onboarded" },
+          { value: "self-registered", label: "Self-Registered" },
+        ].map((option) => (
+          <button
+            key={option.value}
+            onClick={() => setSourceFilter(option.value)}
+            className={`rounded-lg border px-4 py-2 text-sm transition-colors ${
+              sourceFilter === option.value
+                ? "border-primary bg-primary text-white"
+                : "hover:bg-muted/50"
+            }`}
+          >
+            {option.label}
+          </button>
+        ))}
+      </div>
+
       {/* Search */}
       <div className="relative">
         <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -199,6 +299,12 @@ export default function RetailersPage() {
                     <div>
                       <p className="font-semibold text-sm">{r.business_name || r.name}</p>
                       <p className="text-xs text-muted-foreground">{r.name}</p>
+                      {r.sales_rep && (
+                        <Badge className="mt-1 text-[10px] bg-blue-100 text-blue-800">
+                          <UserCheck className="h-3 w-3 mr-1" />
+                          Rep: {r.sales_rep.name}
+                        </Badge>
+                      )}
                     </div>
                     {badge(r.verification_status)}
                   </div>
@@ -226,28 +332,38 @@ export default function RetailersPage() {
                       </Button>
                     )}
                     {r.verification_status === "verified" && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="h-7 text-xs gap-1 flex-1"
-                        onClick={() => {
-                          setEditingCredit(editingCredit === r.id ? null : r.id);
-                          setEditCreditLimit(String(r.credit_limit));
-                          setEditBnplEnabled(r.bnpl_enabled);
-                        }}
-                      >
-                        <CreditCard className="h-3 w-3" /> Edit Credit
-                      </Button>
+                      <>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 text-xs gap-1 flex-1"
+                          onClick={() => openEditDialog(r)}
+                        >
+                          <Edit className="h-3 w-3" /> Edit
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 text-xs gap-1 flex-1"
+                          onClick={() => {
+                            setEditingCredit(editingCredit === r.id ? null : r.id);
+                            setEditCreditLimitInline(String(r.credit_limit));
+                            setEditBnplEnabledInline(r.bnpl_enabled);
+                          }}
+                        >
+                          <CreditCard className="h-3 w-3" /> Credit
+                        </Button>
+                      </>
                     )}
                   </div>
                   {editingCredit === r.id && (
                     <div className="space-y-2 border-t pt-2">
                       <div>
                         <label className="text-xs text-muted-foreground">Credit Limit (KSh)</label>
-                        <Input className="h-8 text-xs" type="number" value={editCreditLimit} onChange={(e) => setEditCreditLimit(e.target.value)} min={0} />
+                        <Input className="h-8 text-xs" type="number" value={editCreditLimitInline} onChange={(e) => setEditCreditLimitInline(e.target.value)} min={0} />
                       </div>
                       <label className="flex items-center gap-2 text-xs">
-                        <input type="checkbox" checked={editBnplEnabled} onChange={(e) => setEditBnplEnabled(e.target.checked)} />
+                        <input type="checkbox" checked={editBnplEnabledInline} onChange={(e) => setEditBnplEnabledInline(e.target.checked)} />
                         BNPL Enabled
                       </label>
                       <div className="flex gap-2">
@@ -271,6 +387,7 @@ export default function RetailersPage() {
                   <TableHead>Retailer</TableHead>
                   <TableHead>Phone</TableHead>
                   <TableHead>Location</TableHead>
+                  <TableHead>Source</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Credit Limit</TableHead>
                   <TableHead>BNPL</TableHead>
@@ -289,14 +406,24 @@ export default function RetailersPage() {
                     </TableCell>
                     <TableCell className="text-sm">{r.phone}</TableCell>
                     <TableCell className="text-sm text-muted-foreground">{r.location || "—"}</TableCell>
+                    <TableCell>
+                      {r.sales_rep ? (
+                        <Badge className="text-[10px] bg-blue-100 text-blue-800">
+                          <UserCheck className="h-3 w-3 mr-1" />
+                          {r.sales_rep.name}
+                        </Badge>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">Self</span>
+                      )}
+                    </TableCell>
                     <TableCell>{badge(r.verification_status)}</TableCell>
                     <TableCell>
                       {r.verification_status === "verified" ? (
                         editingCredit === r.id ? (
                           <div className="space-y-1">
-                            <Input className="h-7 w-28 text-xs" type="number" value={editCreditLimit} onChange={(e) => setEditCreditLimit(e.target.value)} min={0} />
+                            <Input className="h-7 w-28 text-xs" type="number" value={editCreditLimitInline} onChange={(e) => setEditCreditLimitInline(e.target.value)} min={0} />
                             <label className="flex items-center gap-1 text-[10px]">
-                              <input type="checkbox" checked={editBnplEnabled} onChange={(e) => setEditBnplEnabled(e.target.checked)} />
+                              <input type="checkbox" checked={editBnplEnabledInline} onChange={(e) => setEditBnplEnabledInline(e.target.checked)} />
                               BNPL
                             </label>
                             <div className="flex gap-1">
@@ -311,8 +438,8 @@ export default function RetailersPage() {
                             className="text-sm font-medium hover:underline"
                             onClick={() => {
                               setEditingCredit(r.id);
-                              setEditCreditLimit(String(r.credit_limit));
-                              setEditBnplEnabled(r.bnpl_enabled);
+                              setEditCreditLimitInline(String(r.credit_limit));
+                              setEditBnplEnabledInline(r.bnpl_enabled);
                             }}
                           >
                             {formatPrice(r.credit_limit)}
@@ -344,6 +471,11 @@ export default function RetailersPage() {
                         {r.verification_status !== "rejected" && r.verification_status !== "verified" && (
                           <Button size="sm" variant="destructive" className="h-7 text-xs gap-1" onClick={() => openVerifyDialog(r, "reject")}>
                             <ShieldX className="h-3 w-3" /> Reject
+                          </Button>
+                        )}
+                        {r.verification_status === "verified" && (
+                          <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={() => openEditDialog(r)}>
+                            <Edit className="h-3 w-3" /> Edit
                           </Button>
                         )}
                       </div>
@@ -476,6 +608,152 @@ export default function RetailersPage() {
                   {verifyAction === "verify" ? "Verify & Set Credit" : "Reject Retailer"}
                 </Button>
                 <Button variant="outline" onClick={() => setShowVerifyDialog(false)}>
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Retailer Dialog */}
+      <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Edit Retailer</DialogTitle>
+          </DialogHeader>
+
+          {selectedRetailer && (
+            <div className="space-y-4">
+              <div className="rounded-lg bg-muted/50 p-3">
+                <p className="font-semibold text-sm">{selectedRetailer.business_name || selectedRetailer.name}</p>
+                <p className="text-xs text-muted-foreground">ID: {selectedRetailer.id.slice(0, 8)}...</p>
+                {selectedRetailer.sales_rep && (
+                  <Badge className="mt-1 text-[10px] bg-blue-100 text-blue-800">
+                    <UserCheck className="h-3 w-3 mr-1" />
+                    Rep: {selectedRetailer.sales_rep.name}
+                  </Badge>
+                )}
+              </div>
+
+              <div>
+                <label className="text-sm font-medium">Contact Person Name *</label>
+                <Input
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  placeholder="e.g., Jane Doe"
+                />
+              </div>
+
+              <div>
+                <label className="text-sm font-medium">Business Name</label>
+                <Input
+                  value={editBusinessName}
+                  onChange={(e) => setEditBusinessName(e.target.value)}
+                  placeholder="e.g., Jane's Shop"
+                />
+              </div>
+
+              <div>
+                <label className="text-sm font-medium">Phone *</label>
+                <Input
+                  value={editPhone}
+                  onChange={(e) => setEditPhone(e.target.value)}
+                  placeholder="e.g., 0712345678"
+                />
+              </div>
+
+              <div>
+                <label className="text-sm font-medium">Email</label>
+                <Input
+                  type="email"
+                  value={editEmail}
+                  onChange={(e) => setEditEmail(e.target.value)}
+                  placeholder="e.g., jane@example.com"
+                />
+              </div>
+
+              <div>
+                <label className="text-sm font-medium">Location</label>
+                <Input
+                  value={editLocation}
+                  onChange={(e) => setEditLocation(e.target.value)}
+                  placeholder="e.g., Nairobi, Westlands"
+                />
+              </div>
+
+              <div>
+                <label className="text-sm font-medium">ID Number</label>
+                <Input
+                  value={editIdNumber}
+                  onChange={(e) => setEditIdNumber(e.target.value)}
+                  placeholder="e.g., 12345678"
+                />
+              </div>
+
+              <div>
+                <label className="text-sm font-medium">Business Registration Number</label>
+                <Input
+                  value={editBusinessRegNumber}
+                  onChange={(e) => setEditBusinessRegNumber(e.target.value)}
+                  placeholder="e.g., BN/2023/12345"
+                />
+              </div>
+
+              <Separator />
+
+              <div>
+                <label className="text-sm font-medium">Credit Limit (KSh)</label>
+                <Input
+                  type="number"
+                  value={editCreditLimit}
+                  onChange={(e) => setEditCreditLimit(e.target.value)}
+                  min={0}
+                  placeholder="e.g., 50000"
+                />
+                <p className="text-xs text-muted-foreground mt-1">Maximum outstanding BNPL balance</p>
+              </div>
+
+              <div>
+                <label className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={editBnplEnabled}
+                    onChange={(e) => setEditBnplEnabled(e.target.checked)}
+                  />
+                  Enable BNPL (Murabaha)
+                </label>
+              </div>
+
+              <div>
+                <label className="text-sm font-medium">Assigned Sales Rep</label>
+                <select
+                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  value={editSalesRepId}
+                  onChange={(e) => setEditSalesRepId(e.target.value)}
+                >
+                  <option value="">No sales rep (self-registered)</option>
+                  {salesReps.map((rep) => (
+                    <option key={rep.id} value={rep.id}>
+                      {rep.name} ({rep.phone})
+                    </option>
+                  ))}
+                </select>
+                <p className="text-xs text-muted-foreground mt-1">
+                  WhatsApp orders will be routed to this rep
+                </p>
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                <Button
+                  className="flex-1"
+                  disabled={savingEdit || !editName.trim() || !editPhone.trim()}
+                  onClick={handleSaveEdit}
+                >
+                  {savingEdit && <Loader2 className="h-4 w-4 animate-spin mr-1" />}
+                  Save Changes
+                </Button>
+                <Button variant="outline" onClick={() => setShowEditDialog(false)}>
                   Cancel
                 </Button>
               </div>

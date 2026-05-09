@@ -19,6 +19,50 @@ export async function getRetailerProfile() {
   return data;
 }
 
+/**
+ * Get the retailer's assigned sales rep phone for WhatsApp orders.
+ * If no sales rep is assigned, returns Farhan A Ahmed's phone.
+ */
+export async function getRetailerSalesRep() {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return null;
+
+  // Get retailer with their assigned sales rep
+  const { data: retailer } = await supabase
+    .from("retailers")
+    .select(`
+      id,
+      sales_rep_id,
+      sales_rep:sales_reps(
+        id,
+        name,
+        phone,
+        whatsapp_phone,
+        bio,
+        avatar_url
+      )
+    `)
+    .eq("user_id", user.id)
+    .single();
+
+  if (!retailer) return null;
+
+  // If retailer has assigned sales rep, return it
+  if (retailer.sales_rep) {
+    return retailer.sales_rep as any;
+  }
+
+  // Otherwise, fetch Farhan A Ahmed as default
+  const { data: defaultRep } = await supabase
+    .from("sales_reps")
+    .select("id, name, phone, whatsapp_phone, bio, avatar_url")
+    .eq("phone", "254720971904")
+    .single();
+
+  return defaultRep;
+}
+
 export async function updateRetailerProfile(updates: {
   name?: string;
   business_name?: string;
