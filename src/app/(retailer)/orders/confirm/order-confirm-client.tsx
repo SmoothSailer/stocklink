@@ -44,6 +44,14 @@ interface OrderConfirmClientProps {
   unit: string;
   unitPrice: number;
   bnplEligibility: BnplEligibility;
+  salesRep: {
+    id: string;
+    name: string;
+    phone: string;
+    whatsapp_phone: string;
+    bio: string | null;
+    avatar_url: string | null;
+  } | null;
 }
 
 export default function OrderConfirmClient({
@@ -52,6 +60,7 @@ export default function OrderConfirmClient({
   unit,
   unitPrice,
   bnplEligibility,
+  salesRep,
 }: OrderConfirmClientProps) {
   const router = useRouter();
   const [selectedPayment, setSelectedPayment] = useState<"mpesa" | "cash" | "card" | "bnpl">("mpesa");
@@ -62,7 +71,6 @@ export default function OrderConfirmClient({
   const [confirmedOrder, setConfirmedOrder] = useState<{ id: string } | null>(null);
 
   const wholesaler = product.wholesalers;
-  const salesRep = wholesaler?.sales_reps ?? null;
   const moq = product.min_order_qty ?? 1;
   const quantity = initialQty ?? moq;
   const totalPrice = unitPrice * quantity;

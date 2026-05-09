@@ -26,6 +26,12 @@ import {
   Loader2,
   Banknote,
   Calendar,
+  Users,
+  UserPlus,
+  Target,
+  Activity,
+  Clock,
+  RefreshCw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -56,8 +62,15 @@ import {
   getOrderBnplPlan,
   repPayBnplInstallment,
   repRecordDownPayment,
+  repOnboardRetailer,
+  repUpdateRetailer,
+  repCreateLead,
+  repUpdateLead,
+  repConvertLead,
+  repLogActivity,
+  generateProductCatalogMessage,
 } from "@/app/sales-rep/actions";
-import type { SalesRep, Wholesaler, Order, OrderStatus, Manufacturer, PaymentRecord, BnplPlan, BnplInstallment } from "@/types/database";
+import type { SalesRep, Wholesaler, Order, OrderStatus, Manufacturer, PaymentRecord, BnplPlan, BnplInstallment, Lead, Retailer, RepActivity } from "@/types/database";
 
 interface UnitOptionRow {
   unit_slug: string;
@@ -126,6 +139,29 @@ interface UnitOption {
   abbreviation: string | null;
 }
 
+interface RetailerWithStats extends Retailer {
+  lastOrder: string | null;
+  totalSpent: number;
+  orderCount: number;
+}
+
+interface RestockAlert {
+  retailer_id: string;
+  retailer_name: string;
+  retailer_phone: string;
+  retailer_location: string | null;
+  product_id: string;
+  product_name: string;
+  avg_interval_days: number;
+  days_since_last: number;
+  urgency: number;
+}
+
+interface ActivityWithRelations extends RepActivity {
+  retailers: { id: string; name: string } | null;
+  leads: { id: string; name: string } | null;
+}
+
 interface Props {
   rep: SalesRep;
   wholesalers: Wholesaler[];
@@ -135,9 +171,13 @@ interface Props {
   manufacturers: Manufacturer[];
   categories: CategoryOption[];
   units: UnitOption[];
+  retailers: RetailerWithStats[];
+  leads: Lead[];
+  restockAlerts: RestockAlert[];
+  activities: ActivityWithRelations[];
 }
 
-type Tab = "overview" | "wholesalers" | "manufacturers" | "orders" | "products";
+type Tab = "overview" | "retailers" | "leads" | "wholesalers" | "manufacturers" | "orders" | "products";
 
 export default function SalesRepDashboardClient({
   rep,
@@ -148,6 +188,10 @@ export default function SalesRepDashboardClient({
   manufacturers,
   categories,
   units,
+  retailers,
+  leads,
+  restockAlerts,
+  activities,
 }: Props) {
   const [activeTab, setActiveTab] = useState<Tab>("overview");
 
@@ -192,9 +236,21 @@ export default function SalesRepDashboardClient({
           onValueChange={(v) => setActiveTab(v as Tab)}
           className="mb-4"
         >
-          <TabsList className="h-10 w-full">
+          <TabsList className="h-10 w-full overflow-x-auto">
             <TabsTrigger value="overview" className="flex-1 text-xs sm:text-sm">
               Overview
+            </TabsTrigger>
+            <TabsTrigger
+              value="retailers"
+              className="flex-1 text-xs sm:text-sm"
+            >
+              Retailers
+            </TabsTrigger>
+            <TabsTrigger
+              value="leads"
+              className="flex-1 text-xs sm:text-sm"
+            >
+              Leads
             </TabsTrigger>
             <TabsTrigger
               value="wholesalers"
@@ -224,8 +280,17 @@ export default function SalesRepDashboardClient({
             orders={orders}
             wholesalers={wholesalers}
             products={products}
+            retailers={retailers}
+            restockAlerts={restockAlerts}
+            activities={activities}
             rep={rep}
           />
+        )}
+        {activeTab === "retailers" && (
+          <RetailersTab retailers={retailers} rep={rep} />
+        )}
+        {activeTab === "leads" && (
+          <LeadsTab leads={leads} rep={rep} />
         )}
         {activeTab === "wholesalers" && (
           <WholesalersTab wholesalers={wholesalers} rep={rep} />
@@ -258,12 +323,18 @@ function OverviewTab({
   orders,
   wholesalers,
   products,
+  retailers,
+  restockAlerts,
+  activities,
   rep,
 }: {
   stats: DashboardStats;
   orders: OrderWithItems[];
   wholesalers: Wholesaler[];
   products: ProductWithWholesaler[];
+  retailers: RetailerWithStats[];
+  restockAlerts: RestockAlert[];
+  activities: ActivityWithRelations[];
   rep: SalesRep;
 }) {
   const recentOrders = orders.slice(0, 5);
@@ -315,6 +386,12 @@ function OverviewTab({
           value={stats.lowStockProducts}
           bgColor="bg-red-100"
         />
+        <StatCard
+          icon={<Users className="h-4 w-4 text-indigo-600" />}
+          label="Retailers"
+          value={retailers.length}
+          bgColor="bg-indigo-100"
+        />
       </div>
 
       {/* Low Stock Alert */}
@@ -363,7 +440,7 @@ function OverviewTab({
               <a
                 key={w.id}
                 href={buildWhatsAppLink(
-                  `Hi ${rep.name} here from Ristoka — checking in on ${w.name} 👋`,
+                  `Hello, this is ${rep.name} from Ristoka. I'd like to check in regarding ${w.name}'s inventory and see if there's anything you need.`,
                   rep.whatsapp_phone
                 )}
                 target="_blank"
@@ -378,6 +455,80 @@ function OverviewTab({
         </CardContent>
       </Card>
 
+      {/* Restock Alerts */}
+      {restockAlerts.length > 0 && (
+        <Card className="border-amber-200 bg-amber-50/50">
+          <CardContent className="p-4">
+            <div className="mb-2 flex items-center gap-2">
+              <RefreshCw className="h-4 w-4 text-amber-600" />
+              <p className="text-sm font-semibold text-amber-800">
+                Retailers Running Low ({restockAlerts.length})
+              </p>
+            </div>
+            <div className="space-y-2">
+              {restockAlerts.slice(0, 5).map((alert, i) => (
+                <div
+                  key={`${alert.retailer_id}-${alert.product_id}-${i}`}
+                  className="flex items-center justify-between rounded-lg border border-amber-100 bg-white p-2"
+                >
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-medium">{alert.retailer_name}</p>
+                    <p className="text-[10px] text-muted-foreground">
+                      {alert.product_name} — {Math.round(alert.days_since_last)} days since last order
+                    </p>
+                  </div>
+                  <a
+                    href={buildWhatsAppLink(
+                      `Hello ${alert.retailer_name}, this is ${rep.name} from Ristoka. I noticed it's been about ${Math.round(alert.days_since_last)} days since your last ${alert.product_name} order. Would you like me to arrange a restock for you?`,
+                      alert.retailer_phone
+                    )}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="ml-2 shrink-0"
+                  >
+                    <Button size="sm" variant="outline" className="h-7 gap-1 text-[10px]">
+                      <MessageCircle className="h-3 w-3 text-[#25D366]" />
+                      Remind
+                    </Button>
+                  </a>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Recent Activity */}
+      {activities.length > 0 && (
+        <Card>
+          <CardContent className="p-4">
+            <p className="mb-3 text-sm font-semibold">Recent Activity</p>
+            <div className="space-y-2">
+              {activities.slice(0, 5).map((act) => (
+                <div key={act.id} className="flex items-start gap-2 text-xs">
+                  <Activity className="mt-0.5 h-3 w-3 shrink-0 text-muted-foreground" />
+                  <div className="min-w-0 flex-1">
+                    <span className="font-medium capitalize">{act.type.replace(/_/g, " ")}</span>
+                    {act.retailers && (
+                      <span className="text-muted-foreground"> — {act.retailers.name}</span>
+                    )}
+                    {act.leads && (
+                      <span className="text-muted-foreground"> — {act.leads.name}</span>
+                    )}
+                    {act.notes && (
+                      <p className="mt-0.5 text-muted-foreground">{act.notes}</p>
+                    )}
+                  </div>
+                  <span className="shrink-0 text-[10px] text-muted-foreground">
+                    {timeAgo(act.created_at)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Recent Orders */}
       {recentOrders.length > 0 && (
         <Card>
@@ -391,6 +542,474 @@ function OverviewTab({
           </CardContent>
         </Card>
       )}
+    </div>
+  );
+}
+
+/* ════════════════════════════════════════════════════════════════
+   Retailers Tab
+   ════════════════════════════════════════════════════════════════ */
+
+function RetailersTab({
+  retailers,
+  rep,
+}: {
+  retailers: RetailerWithStats[];
+  rep: SalesRep;
+}) {
+  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editing, setEditing] = useState<RetailerWithStats | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
+  const [filter, setFilter] = useState<"all" | "active" | "dormant" | "unverified">("all");
+
+  const now = Date.now();
+  const thirtyDaysAgo = now - 30 * 24 * 60 * 60 * 1000;
+
+  const filteredRetailers = retailers.filter((r) => {
+    if (filter === "all") return true;
+    if (filter === "active") return r.lastOrder && new Date(r.lastOrder).getTime() > thirtyDaysAgo;
+    if (filter === "dormant") return !r.lastOrder || new Date(r.lastOrder).getTime() <= thirtyDaysAgo;
+    if (filter === "unverified") return r.verification_status !== "verified";
+    return true;
+  });
+
+  function openAdd() {
+    setEditing(null);
+    setFormError(null);
+    setDialogOpen(true);
+  }
+
+  function openEdit(r: RetailerWithStats) {
+    setEditing(r);
+    setFormError(null);
+    setDialogOpen(true);
+  }
+
+  async function handleSubmit(formData: FormData) {
+    setFormError(null);
+    startTransition(async () => {
+      const result = editing
+        ? await repUpdateRetailer(rep.id, editing.id, formData)
+        : await repOnboardRetailer(rep.id, formData);
+      if (result.error) {
+        setFormError(result.error);
+        return;
+      }
+      setDialogOpen(false);
+      setEditing(null);
+      router.refresh();
+    });
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center gap-2">
+        <Button className="gap-2" onClick={openAdd}>
+          <UserPlus className="h-4 w-4" />
+          Onboard Retailer
+        </Button>
+      </div>
+
+      {/* Filters */}
+      <div className="flex flex-wrap gap-1">
+        {(["all", "active", "dormant", "unverified"] as const).map((f) => (
+          <Button
+            key={f}
+            variant={filter === f ? "default" : "outline"}
+            size="sm"
+            className="h-7 text-xs capitalize"
+            onClick={() => setFilter(f)}
+          >
+            {f} {f === "all" ? `(${retailers.length})` : `(${retailers.filter((r) => {
+              if (f === "active") return r.lastOrder && new Date(r.lastOrder).getTime() > thirtyDaysAgo;
+              if (f === "dormant") return !r.lastOrder || new Date(r.lastOrder).getTime() <= thirtyDaysAgo;
+              if (f === "unverified") return r.verification_status !== "verified";
+              return true;
+            }).length})`}
+          </Button>
+        ))}
+      </div>
+
+      {/* Retailer List */}
+      {filteredRetailers.length === 0 ? (
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-10">
+            <Users className="h-10 w-10 text-muted-foreground/50" />
+            <p className="mt-2 text-sm text-muted-foreground">
+              {filter === "all" ? "No retailers yet — onboard your first one!" : `No ${filter} retailers`}
+            </p>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="space-y-2">
+          {filteredRetailers.map((r) => (
+            <Card key={r.id} className="overflow-hidden">
+              <CardContent className="p-3">
+                <div className="flex items-start justify-between">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-semibold">{r.name}</p>
+                      <Badge
+                        variant="outline"
+                        className={
+                          r.verification_status === "verified"
+                            ? "border-green-200 bg-green-50 text-green-700 text-[10px]"
+                            : r.verification_status === "pending"
+                            ? "border-yellow-200 bg-yellow-50 text-yellow-700 text-[10px]"
+                            : "border-gray-200 text-[10px]"
+                        }
+                      >
+                        {r.verification_status}
+                      </Badge>
+                    </div>
+                    {r.business_name && (
+                      <p className="text-xs text-muted-foreground">{r.business_name}</p>
+                    )}
+                    <div className="mt-1 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+                      <span className="flex items-center gap-1">
+                        <Phone className="h-3 w-3" />
+                        {r.phone}
+                      </span>
+                      {r.location && (
+                        <span className="flex items-center gap-1">
+                          <MapPin className="h-3 w-3" />
+                          {r.location}
+                        </span>
+                      )}
+                    </div>
+                    <div className="mt-1 flex flex-wrap gap-3 text-[10px] text-muted-foreground">
+                      <span>Orders: {r.orderCount}</span>
+                      <span>Spent: {formatPrice(r.totalSpent)}</span>
+                      {r.lastOrder && <span>Last: {timeAgo(r.lastOrder)}</span>}
+                    </div>
+                  </div>
+                  <div className="flex shrink-0 gap-1">
+                    <a
+                      href={buildWhatsAppLink(
+                        r.orderCount > 0
+                          ? `Hello ${r.business_name || r.name}, this is ${rep.name} from Ristoka. Just checking in — how is your stock looking? Let me know if you'd like to place a reorder.`
+                          : `Hello ${r.business_name || r.name}, this is ${rep.name} from Ristoka. Welcome aboard! I'm your dedicated sales rep and I'm here to help you access quality wholesale products at the best prices. Feel free to reach out anytime you need to place an order or have questions about our catalog. You can also browse our products at https://ristoka.com/`,
+                        r.phone
+                      )}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      <Button size="icon" variant="ghost" className="h-8 w-8">
+                        <MessageCircle className="h-4 w-4 text-[#25D366]" />
+                      </Button>
+                    </a>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-8 w-8"
+                      onClick={() => openEdit(r)}
+                    >
+                      <Edit className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      {/* Add/Edit Dialog */}
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>{editing ? "Edit Retailer" : "Onboard New Retailer"}</DialogTitle>
+          </DialogHeader>
+          <form action={handleSubmit} className="space-y-3">
+            <Input name="name" placeholder="Name *" defaultValue={editing?.name ?? ""} required />
+            <Input name="business_name" placeholder="Business name" defaultValue={editing?.business_name ?? ""} />
+            <Input name="phone" placeholder="Phone *" defaultValue={editing?.phone ?? ""} required />
+            <Input name="email" placeholder="Email" defaultValue={editing?.email ?? ""} />
+            <Input name="location" placeholder="Location" defaultValue={editing?.location ?? ""} />
+            {formError && (
+              <p className="text-xs text-destructive">{formError}</p>
+            )}
+            <Button type="submit" disabled={isPending} className="w-full">
+              {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : editing ? "Update" : "Onboard"}
+            </Button>
+          </form>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+/* ════════════════════════════════════════════════════════════════
+   Leads Tab
+   ════════════════════════════════════════════════════════════════ */
+
+const LEAD_STATUS_COLORS: Record<string, string> = {
+  new: "bg-blue-100 text-blue-800",
+  contacted: "bg-yellow-100 text-yellow-800",
+  interested: "bg-purple-100 text-purple-800",
+  converted: "bg-green-100 text-green-800",
+  lost: "bg-gray-100 text-gray-800",
+};
+
+const LEAD_SOURCES = [
+  { value: "field_visit", label: "Field Visit" },
+  { value: "referral", label: "Referral" },
+  { value: "whatsapp", label: "WhatsApp" },
+  { value: "walk_in", label: "Walk In" },
+  { value: "other", label: "Other" },
+];
+
+function LeadsTab({
+  leads,
+  rep,
+}: {
+  leads: Lead[];
+  rep: SalesRep;
+}) {
+  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editing, setEditing] = useState<Lead | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+
+  const filteredLeads = statusFilter === "all"
+    ? leads
+    : leads.filter((l) => l.status === statusFilter);
+
+  function openAdd() {
+    setEditing(null);
+    setFormError(null);
+    setDialogOpen(true);
+  }
+
+  function openEdit(l: Lead) {
+    setEditing(l);
+    setFormError(null);
+    setDialogOpen(true);
+  }
+
+  async function handleSubmit(formData: FormData) {
+    setFormError(null);
+    startTransition(async () => {
+      const result = editing
+        ? await repUpdateLead(rep.id, editing.id, formData)
+        : await repCreateLead(rep.id, formData);
+      if (result.error) {
+        setFormError(result.error);
+        return;
+      }
+      setDialogOpen(false);
+      setEditing(null);
+      router.refresh();
+    });
+  }
+
+  async function handleConvert(leadId: string) {
+    startTransition(async () => {
+      const result = await repConvertLead(rep.id, leadId);
+      if (result.error) {
+        alert(result.error);
+        return;
+      }
+      router.refresh();
+    });
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center gap-2">
+        <Button className="gap-2" onClick={openAdd}>
+          <Plus className="h-4 w-4" />
+          Add Lead
+        </Button>
+      </div>
+
+      {/* Status Filters */}
+      <div className="flex flex-wrap gap-1">
+        {["all", "new", "contacted", "interested", "converted", "lost"].map((s) => (
+          <Button
+            key={s}
+            variant={statusFilter === s ? "default" : "outline"}
+            size="sm"
+            className="h-7 text-xs capitalize"
+            onClick={() => setStatusFilter(s)}
+          >
+            {s} ({s === "all" ? leads.length : leads.filter((l) => l.status === s).length})
+          </Button>
+        ))}
+      </div>
+
+      {/* Follow-up due today/overdue */}
+      {(() => {
+        const today = new Date().toISOString().split("T")[0];
+        const followUps = leads.filter(
+          (l) => l.follow_up_date && l.follow_up_date <= today && l.status !== "converted" && l.status !== "lost"
+        );
+        if (followUps.length === 0) return null;
+        return (
+          <Card className="border-blue-200 bg-blue-50/50">
+            <CardContent className="p-3">
+              <div className="mb-1 flex items-center gap-2">
+                <Clock className="h-3.5 w-3.5 text-blue-600" />
+                <p className="text-xs font-semibold text-blue-800">
+                  Follow-ups due ({followUps.length})
+                </p>
+              </div>
+              <div className="space-y-1">
+                {followUps.slice(0, 3).map((l) => (
+                  <div key={l.id} className="flex items-center justify-between text-xs">
+                    <span className="font-medium">{l.name}</span>
+                    <span className="text-muted-foreground">{l.follow_up_date}</span>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        );
+      })()}
+
+      {/* Lead List */}
+      {filteredLeads.length === 0 ? (
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-10">
+            <Target className="h-10 w-10 text-muted-foreground/50" />
+            <p className="mt-2 text-sm text-muted-foreground">
+              {statusFilter === "all" ? "No leads yet — add your first one!" : `No ${statusFilter} leads`}
+            </p>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="space-y-2">
+          {filteredLeads.map((l) => (
+            <Card key={l.id} className="overflow-hidden">
+              <CardContent className="p-3">
+                <div className="flex items-start justify-between">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-semibold">{l.name}</p>
+                      <Badge
+                        variant="outline"
+                        className={`text-[10px] ${LEAD_STATUS_COLORS[l.status] ?? ""}`}
+                      >
+                        {l.status}
+                      </Badge>
+                    </div>
+                    {l.business_name && (
+                      <p className="text-xs text-muted-foreground">{l.business_name}</p>
+                    )}
+                    <div className="mt-1 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+                      <span className="flex items-center gap-1">
+                        <Phone className="h-3 w-3" />
+                        {l.phone}
+                      </span>
+                      {l.location && (
+                        <span className="flex items-center gap-1">
+                          <MapPin className="h-3 w-3" />
+                          {l.location}
+                        </span>
+                      )}
+                    </div>
+                    {l.notes && (
+                      <p className="mt-1 text-[10px] text-muted-foreground">{l.notes}</p>
+                    )}
+                    <div className="mt-1 flex gap-2 text-[10px] text-muted-foreground">
+                      <span className="capitalize">{l.source.replace(/_/g, " ")}</span>
+                      {l.follow_up_date && <span>Follow-up: {l.follow_up_date}</span>}
+                    </div>
+                  </div>
+                  <div className="flex shrink-0 flex-col gap-1">
+                    <a
+                      href={buildWhatsAppLink(`Hello ${l.name}, this is ${rep.name} from Ristoka. I'd like to discuss how we can help supply your business with quality wholesale products at great prices. Would you have a moment to chat?`, l.phone)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      <Button size="icon" variant="ghost" className="h-7 w-7">
+                        <MessageCircle className="h-3.5 w-3.5 text-[#25D366]" />
+                      </Button>
+                    </a>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-7 w-7"
+                      onClick={() => openEdit(l)}
+                    >
+                      <Edit className="h-3 w-3" />
+                    </Button>
+                    {l.status !== "converted" && l.status !== "lost" && (
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-7 w-7"
+                        onClick={() => handleConvert(l.id)}
+                        disabled={isPending}
+                        title="Convert to retailer"
+                      >
+                        <UserPlus className="h-3 w-3 text-primary" />
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      {/* Add/Edit Dialog */}
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>{editing ? "Edit Lead" : "Add New Lead"}</DialogTitle>
+          </DialogHeader>
+          <form action={handleSubmit} className="space-y-3">
+            <Input name="name" placeholder="Name *" defaultValue={editing?.name ?? ""} required />
+            <Input name="business_name" placeholder="Business name" defaultValue={editing?.business_name ?? ""} />
+            <Input name="phone" placeholder="Phone *" defaultValue={editing?.phone ?? ""} required />
+            <Input name="location" placeholder="Location" defaultValue={editing?.location ?? ""} />
+            <select
+              name="source"
+              defaultValue={editing?.source ?? "field_visit"}
+              className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+            >
+              {LEAD_SOURCES.map((s) => (
+                <option key={s.value} value={s.value}>{s.label}</option>
+              ))}
+            </select>
+            {editing && (
+              <select
+                name="status"
+                defaultValue={editing.status}
+                className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+              >
+                {["new", "contacted", "interested", "converted", "lost"].map((s) => (
+                  <option key={s} value={s} className="capitalize">{s}</option>
+                ))}
+              </select>
+            )}
+            <Input
+              name="follow_up_date"
+              type="date"
+              placeholder="Follow-up date"
+              defaultValue={editing?.follow_up_date ?? ""}
+            />
+            <textarea
+              name="notes"
+              placeholder="Notes"
+              defaultValue={editing?.notes ?? ""}
+              className="min-h-[60px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+            />
+            {formError && (
+              <p className="text-xs text-destructive">{formError}</p>
+            )}
+            <Button type="submit" disabled={isPending} className="w-full">
+              {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : editing ? "Update" : "Add Lead"}
+            </Button>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

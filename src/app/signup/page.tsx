@@ -1,8 +1,9 @@
 "use client";
 
-import { useActionState } from "react";
+import { Suspense, useActionState } from "react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { Mail, Lock, User, UserPlus, Loader2, Store, Phone } from "lucide-react";
+import { Mail, Lock, User, UserPlus, Loader2, Store, Phone, MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,7 +13,27 @@ import { signUp, type AuthState } from "@/app/auth/actions";
 const initialState: AuthState = { error: null };
 
 export default function SignUpPage() {
+  return (
+    <Suspense>
+      <SignUpForm />
+    </Suspense>
+  );
+}
+
+function SignUpForm() {
   const [state, formAction, isPending] = useActionState(signUp, initialState);
+  const searchParams = useSearchParams();
+
+  // Pre-fill from sales rep onboarding link
+  const prefill = {
+    retailerId: searchParams.get("retailer_id") ?? "",
+    name: searchParams.get("name") ?? "",
+    businessName: searchParams.get("business_name") ?? "",
+    phone: searchParams.get("phone") ?? "",
+    email: searchParams.get("email") ?? "",
+    location: searchParams.get("location") ?? "",
+  };
+  const isInvited = !!prefill.retailerId;
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-background px-4">
@@ -29,14 +50,23 @@ export default function SignUpPage() {
 
       <Card className="w-full max-w-sm">
         <CardHeader className="text-center">
-          <CardTitle className="text-lg">Create your account</CardTitle>
+          <CardTitle className="text-lg">
+            {isInvited ? "Complete your registration" : "Create your account"}
+          </CardTitle>
           <p className="text-sm text-muted-foreground">
-            Start ordering wholesale in minutes
+            {isInvited
+              ? "Your details are pre-filled — just set a password"
+              : "Start ordering wholesale in minutes"}
           </p>
         </CardHeader>
 
         <CardContent>
           <form action={formAction} className="space-y-4">
+            {/* Hidden field for linking to existing retailer */}
+            {prefill.retailerId && (
+              <input type="hidden" name="retailerId" value={prefill.retailerId} />
+            )}
+
             <div className="space-y-2">
               <label htmlFor="name" className="text-sm font-medium">
                 Full Name
@@ -50,6 +80,8 @@ export default function SignUpPage() {
                   placeholder="John Doe"
                   className="pl-10"
                   autoComplete="name"
+                  defaultValue={prefill.name}
+                  readOnly={isInvited && !!prefill.name}
                   disabled={isPending}
                 />
               </div>
@@ -67,6 +99,8 @@ export default function SignUpPage() {
                   type="text"
                   placeholder="Mama Mboga Store"
                   className="pl-10"
+                  defaultValue={prefill.businessName}
+                  readOnly={isInvited && !!prefill.businessName}
                   disabled={isPending}
                 />
               </div>
@@ -85,6 +119,8 @@ export default function SignUpPage() {
                   placeholder="0712 345 678"
                   className="pl-10"
                   autoComplete="tel"
+                  defaultValue={prefill.phone}
+                  readOnly={isInvited && !!prefill.phone}
                   disabled={isPending}
                 />
               </div>
@@ -104,10 +140,32 @@ export default function SignUpPage() {
                   className="pl-10"
                   autoComplete="email"
                   required
+                  defaultValue={prefill.email}
+                  readOnly={isInvited && !!prefill.email}
                   disabled={isPending}
                 />
               </div>
             </div>
+
+            {isInvited && prefill.location && (
+              <div className="space-y-2">
+                <label htmlFor="location" className="text-sm font-medium">
+                  Location
+                </label>
+                <div className="relative">
+                  <MapPin className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    id="location"
+                    name="location"
+                    type="text"
+                    className="pl-10"
+                    defaultValue={prefill.location}
+                    readOnly
+                    disabled={isPending}
+                  />
+                </div>
+              </div>
+            )}
 
             <div className="space-y-2">
               <label htmlFor="password" className="text-sm font-medium">
@@ -124,6 +182,7 @@ export default function SignUpPage() {
                   autoComplete="new-password"
                   required
                   minLength={6}
+                  autoFocus={isInvited}
                   disabled={isPending}
                 />
               </div>

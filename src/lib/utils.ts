@@ -17,9 +17,13 @@ export function formatPrice(price: number): string {
 /** Build a WhatsApp deep link with pre-filled message */
 export function buildWhatsAppLink(message: string, phone?: string): string {
   const encodedMessage = encodeURIComponent(message);
-  // Strip anything that isn't a digit so wa.me/api work correctly
-  const target = (phone ?? WHATSAPP_PHONE).replace(/\D/g, "");
-  return `https://api.whatsapp.com/send?phone=${target}&text=${encodedMessage}`;
+  // Strip anything that isn't a digit
+  let target = (phone ?? WHATSAPP_PHONE).replace(/\D/g, "");
+  // Convert local Kenyan format (07xx) to international (2547xx)
+  if (target.startsWith("0") && target.length === 10) {
+    target = "254" + target.slice(1);
+  }
+  return `https://wa.me/${target}?text=${encodedMessage}`;
 }
 
 /** Get a human-readable relative time string */

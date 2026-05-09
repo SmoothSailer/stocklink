@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { getProductById, checkBnplEligibility } from "../../actions";
+import { getProductById, checkBnplEligibility, getRetailerSalesRep } from "../../actions";
 import OrderConfirmClient from "./order-confirm-client";
 
 export const dynamic = "force-dynamic";
@@ -49,6 +49,9 @@ export default async function OrderConfirmPage({ searchParams }: OrderConfirmPag
   // Check BNPL eligibility for the current retailer
   const bnplEligibility = await checkBnplEligibility();
 
+  // Get the retailer's assigned sales rep (or default to Farhan)
+  const salesRep = await getRetailerSalesRep();
+
   return (
     <OrderConfirmClient
       product={product}
@@ -56,6 +59,7 @@ export default async function OrderConfirmPage({ searchParams }: OrderConfirmPag
       unit={unit || product.unit}
       unitPrice={parsedUnitPrice || product.price}
       bnplEligibility={bnplEligibility}
+      salesRep={salesRep}
     />
   );
 }

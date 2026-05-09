@@ -44,6 +44,7 @@ export async function signUp(
   const email = formData.get("email") as string;
   const password = formData.get("password") as string;
   const confirmPassword = formData.get("confirmPassword") as string;
+  const retailerId = (formData.get("retailerId") as string)?.trim() || null;
 
   if (!email || !password) {
     return { error: "Email and password are required" };
@@ -80,22 +81,41 @@ export async function signUp(
     return { error: error.message };
   }
 
-  // Insert into retailers table using admin client (user has no session yet)
   if (data.user) {
     const adminSupabase = createAdminClient();
-    const { error: retailerError } = await adminSupabase
-      .from("retailers")
-      .insert({
-        user_id: data.user.id,
-        name: name || email.split("@")[0],
-        business_name: businessName || null,
-        phone: phone || "",
-        email: email.toLowerCase().trim(),
-      });
 
-    if (retailerError) {
-      console.error("Failed to create retailer profile:", retailerError.message);
-      // Don't block signup — auth user was created successfully
+    if (retailerId) {
+      // Link auth user to the existing retailer created by the sales rep
+      const { error: linkError } = await adminSupabase
+        .from("retailers")
+        .update({
+          user_id: data.user.id,
+          name: name || undefined,
+          business_name: businessName || undefined,
+          phone: phone || undefined,
+          email: email.toLowerCase().trim(),
+        })
+        .eq("id", retailerId)
+        .is("user_id", null);
+
+      if (linkError) {
+        console.error("Failed to link retailer profile:", linkError.message);
+      }
+    } else {
+      // Fresh signup — create a new retailer record
+      const { error: retailerError } = await adminSupabase
+        .from("retailers")
+        .insert({
+          user_id: data.user.id,
+          name: name || email.split("@")[0],
+          business_name: businessName || null,
+          phone: phone || "",
+          email: email.toLowerCase().trim(),
+        });
+
+      if (retailerError) {
+        console.error("Failed to create retailer profile:", retailerError.message);
+      }
     }
   }
 

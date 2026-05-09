@@ -68,3 +68,23 @@ export const ADMIN_EMAILS: string[] = [
   "farhan@stocklink.co",
   // Add authorized admin emails here
 ];
+
+// Lead statuses
+export const LEAD_STATUSES = {
+  new: { label: "New", color: "bg-blue-100 text-blue-800" },
+  contacted: { label: "Contacted", color: "bg-yellow-100 text-yellow-800" },
+  interested: { label: "Interested", color: "bg-purple-100 text-purple-800" },
+  converted: { label: "Converted", color: "bg-green-100 text-green-800" },
+  lost: { label: "Lost", color: "bg-gray-100 text-gray-800" },
+} as const;
+
+// Activity types
+export const ACTIVITY_TYPES = {
+  visit: { label: "Visit", icon: "🚶" },
+  call: { label: "Call", icon: "📞" },
+  whatsapp: { label: "WhatsApp", icon: "💬" },
+  order_follow_up: { label: "Order Follow-up", icon: "📋" },
+  payment_collection: { label: "Payment", icon: "💰" },
+  onboarding: { label: "Onboarding", icon: "👋" },
+  note: { label: "Note", icon: "📝" },
+} as const;

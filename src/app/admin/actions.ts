@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { sendWelcomeEmail } from "@/lib/emails";
 
 // ── Category Actions ────────────────────────────────────────────
 
@@ -728,8 +729,21 @@ export async function getRetailers() {
   const supabase = createAdminClient();
   const { data, error } = await supabase
     .from("retailers")
-    .select("*")
+    .select(`
+      *,
+      sales_rep:sales_reps(id, name, user_id)
+    `)
     .order("created_at", { ascending: false });
+  if (error) throw new Error(error.message);
+  return data as any[];
+}
+
+export async function getAllSalesReps() {
+  const supabase = createAdminClient();
+  const { data, error } = await supabase
+    .from("sales_reps")
+    .select("id, name, phone, whatsapp_phone")
+    .order("name");
   if (error) throw new Error(error.message);
   return data;
 }
@@ -747,6 +761,17 @@ export async function verifyRetailer(
 
   const { data: { user } } = await supabase.auth.getUser();
 
+  // First, get retailer details
+  const { data: retailer, error: fetchError } = await supabase
+    .from("retailers")
+    .select("id, email, phone, name, user_id")
+    .eq("id", retailerId)
+    .single();
+
+  if (fetchError || !retailer) {
+    return { error: fetchError?.message || "Retailer not found" };
+  }
+
   const updateData: Record<string, unknown> = {
     verification_status: action === "verify" ? "verified" : "rejected",
     verified_at: new Date().toISOString(),
@@ -760,6 +785,44 @@ export async function verifyRetailer(
     }
     if (options.bnpl_enabled !== undefined) {
       updateData.bnpl_enabled = options.bnpl_enabled;
+    }
+
+    // Create auth account if not exists and email is provided
+    if (!retailer.user_id && retailer.email) {
+      try {
+        // Generate temporary password
+        const tempPassword = Math.random().toString(36).slice(-12) + "A1!";
+        
+        const { data: authUser, error: authError } = await supabase.auth.admin.createUser({
+          email: retailer.email,
+          password: tempPassword,
+          email_confirm: true,
+          user_metadata: {
+            name: retailer.name,
+            phone: retailer.phone,
+            role: "retailer",
+          },
+        });
+
+        if (authError) {
+          console.error("Auth user creation failed:", authError);
+          // Continue without blocking verification
+        } else if (authUser.user) {
+          updateData.user_id = authUser.user.id;
+          
+          // Send welcome email with login credentials via Resend
+          const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://ristoka.com";
+          await sendWelcomeEmail({
+            to: retailer.email,
+            name: retailer.name,
+            loginUrl: `${appUrl}/login`,
+            tempPassword,
+          });
+        }
+      } catch (authErr) {
+        console.error("Error creating auth user:", authErr);
+        // Continue without blocking verification
+      }
     }
   }
 
@@ -858,5 +921,41 @@ export async function clearProductWaitlist(productId: string) {
     .eq("product_id", productId);
   if (error) return { error: error.message };
   revalidatePath("/admin/waitlist");
+  return { error: null };
+}
+
+/**
+ * Update retailer details (admin can edit any field)
+ */
+export async function updateRetailer(
+  retailerId: string,
+  updates: {
+    name?: string;
+    business_name?: string | null;
+    phone?: string;
+    email?: string | null;
+    location?: string | null;
+    id_number?: string | null;
+    business_reg_number?: string | null;
+    credit_limit?: number;
+    bnpl_enabled?: boolean;
+    sales_rep_id?: string | null;
+    verification_notes?: string | null;
+  }
+) {
+  const supabase = createAdminClient();
+
+  // Filter out undefined values
+  const updateData = Object.fromEntries(
+    Object.entries(updates).filter(([_, v]) => v !== undefined)
+  );
+
+  const { error } = await supabase
+    .from("retailers")
+    .update(updateData)
+    .eq("id", retailerId);
+
+  if (error) return { error: error.message };
+  revalidatePath("/admin/retailers");
   return { error: null };
 }
