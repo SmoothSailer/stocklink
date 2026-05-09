@@ -1016,6 +1016,124 @@ export interface Database {
           },
         ];
       };
+      leads: {
+        Row: {
+          id: string;
+          sales_rep_id: string;
+          name: string;
+          business_name: string | null;
+          phone: string;
+          location: string | null;
+          notes: string | null;
+          status: "new" | "contacted" | "interested" | "converted" | "lost";
+          source: "field_visit" | "referral" | "whatsapp" | "walk_in" | "other";
+          converted_retailer_id: string | null;
+          follow_up_date: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          sales_rep_id: string;
+          name: string;
+          business_name?: string | null;
+          phone: string;
+          location?: string | null;
+          notes?: string | null;
+          status?: "new" | "contacted" | "interested" | "converted" | "lost";
+          source?: "field_visit" | "referral" | "whatsapp" | "walk_in" | "other";
+          converted_retailer_id?: string | null;
+          follow_up_date?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          sales_rep_id?: string;
+          name?: string;
+          business_name?: string | null;
+          phone?: string;
+          location?: string | null;
+          notes?: string | null;
+          status?: "new" | "contacted" | "interested" | "converted" | "lost";
+          source?: "field_visit" | "referral" | "whatsapp" | "walk_in" | "other";
+          converted_retailer_id?: string | null;
+          follow_up_date?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "leads_sales_rep_id_fkey";
+            columns: ["sales_rep_id"];
+            isOneToOne: false;
+            referencedRelation: "sales_reps";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "leads_converted_retailer_id_fkey";
+            columns: ["converted_retailer_id"];
+            isOneToOne: false;
+            referencedRelation: "retailers";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      rep_activities: {
+        Row: {
+          id: string;
+          sales_rep_id: string;
+          retailer_id: string | null;
+          lead_id: string | null;
+          type: "visit" | "call" | "whatsapp" | "order_follow_up" | "payment_collection" | "onboarding" | "note";
+          notes: string | null;
+          outcome: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          sales_rep_id: string;
+          retailer_id?: string | null;
+          lead_id?: string | null;
+          type: "visit" | "call" | "whatsapp" | "order_follow_up" | "payment_collection" | "onboarding" | "note";
+          notes?: string | null;
+          outcome?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          sales_rep_id?: string;
+          retailer_id?: string | null;
+          lead_id?: string | null;
+          type?: "visit" | "call" | "whatsapp" | "order_follow_up" | "payment_collection" | "onboarding" | "note";
+          notes?: string | null;
+          outcome?: string | null;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "rep_activities_sales_rep_id_fkey";
+            columns: ["sales_rep_id"];
+            isOneToOne: false;
+            referencedRelation: "sales_reps";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "rep_activities_retailer_id_fkey";
+            columns: ["retailer_id"];
+            isOneToOne: false;
+            referencedRelation: "retailers";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "rep_activities_lead_id_fkey";
+            columns: ["lead_id"];
+            isOneToOne: false;
+            referencedRelation: "leads";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
     };
     Views: {
       [_ in never]: never;
@@ -1076,6 +1194,8 @@ export type ProductWaitlist = Database["public"]["Tables"]["product_waitlist"]["
 export type Lead = Database["public"]["Tables"]["leads"]["Row"];
 export type RepActivity = Database["public"]["Tables"]["rep_activities"]["Row"];
 export type ProductWaitlist = Database["public"]["Tables"]["product_waitlist"]["Row"];
+export type Lead = Database["public"]["Tables"]["leads"]["Row"];
+export type RepActivity = Database["public"]["Tables"]["rep_activities"]["Row"];
 
 export type OrderStatus = Order["status"];
 export type PaymentMethod = Order["payment_method"];

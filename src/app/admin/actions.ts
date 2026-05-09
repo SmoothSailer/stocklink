@@ -1021,3 +1021,39 @@ export async function clearProductWaitlist(productId: string) {
   revalidatePath("/admin/waitlist");
   return { error: null };
 }
+
+/**
+ * Update retailer details (admin can edit any field)
+ */
+export async function updateRetailer(
+  retailerId: string,
+  updates: {
+    name?: string;
+    business_name?: string | null;
+    phone?: string;
+    email?: string | null;
+    location?: string | null;
+    id_number?: string | null;
+    business_reg_number?: string | null;
+    credit_limit?: number;
+    bnpl_enabled?: boolean;
+    sales_rep_id?: string | null;
+    verification_notes?: string | null;
+  }
+) {
+  const supabase = createAdminClient();
+
+  // Filter out undefined values
+  const updateData = Object.fromEntries(
+    Object.entries(updates).filter(([_, v]) => v !== undefined)
+  );
+
+  const { error } = await supabase
+    .from("retailers")
+    .update(updateData)
+    .eq("id", retailerId);
+
+  if (error) return { error: error.message };
+  revalidatePath("/admin/retailers");
+  return { error: null };
+}
