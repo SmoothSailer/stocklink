@@ -869,6 +869,12 @@ export interface Database {
           {
             foreignKeyName: "product_waitlist_retailer_id_fkey";
             columns: ["retailer_id"];
+            isOneToOne: false;
+            referencedRelation: "retailers";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       leads: {
         Row: {
           id: string;
@@ -987,54 +993,6 @@ export interface Database {
           },
         ];
       };
-      product_waitlist: {
-        Row: {
-          id: string;
-          product_id: string;
-          retailer_id: string;
-          quantity_interested: number;
-          notes: string | null;
-          notified: boolean;
-          notified_at: string | null;
-          created_at: string;
-        };
-        Insert: {
-          id?: string;
-          product_id: string;
-          retailer_id: string;
-          quantity_interested?: number;
-          notes?: string | null;
-          notified?: boolean;
-          notified_at?: string | null;
-          created_at?: string;
-        };
-        Update: {
-          id?: string;
-          product_id?: string;
-          retailer_id?: string;
-          quantity_interested?: number;
-          notes?: string | null;
-          notified?: boolean;
-          notified_at?: string | null;
-          created_at?: string;
-        };
-        Relationships: [
-          {
-            foreignKeyName: "product_waitlist_product_id_fkey";
-            columns: ["product_id"];
-            isOneToOne: false;
-            referencedRelation: "products";
-            referencedColumns: ["id"];
-          },
-          {
-            foreignKeyName: "product_waitlist_retailer_id_fkey";
-            columns: ["retailer_id"];
-            isOneToOne: false;
-            referencedRelation: "retailers";
-            referencedColumns: ["id"];
-          },
-        ];
-      };
     };
     Views: {
       [_ in never]: never;
@@ -1094,7 +1052,6 @@ export type BnplInstallment = Database["public"]["Tables"]["bnpl_installments"][
 export type ProductWaitlist = Database["public"]["Tables"]["product_waitlist"]["Row"];
 export type Lead = Database["public"]["Tables"]["leads"]["Row"];
 export type RepActivity = Database["public"]["Tables"]["rep_activities"]["Row"];
-export type ProductWaitlist = Database["public"]["Tables"]["product_waitlist"]["Row"];
 
 export type OrderStatus = Order["status"];
 export type PaymentMethod = Order["payment_method"];
