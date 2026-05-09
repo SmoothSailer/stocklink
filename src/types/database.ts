@@ -993,6 +993,73 @@ export interface Database {
           },
         ];
       };
+      retailer_invites: {
+        Row: {
+          id: string;
+          sales_rep_id: string;
+          name: string;
+          business_name: string | null;
+          phone: string;
+          email: string | null;
+          location: string | null;
+          lead_id: string | null;
+          status: "pending" | "accepted" | "expired" | "cancelled";
+          retailer_id: string | null;
+          created_at: string;
+          accepted_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          sales_rep_id: string;
+          name: string;
+          business_name?: string | null;
+          phone: string;
+          email?: string | null;
+          location?: string | null;
+          lead_id?: string | null;
+          status?: "pending" | "accepted" | "expired" | "cancelled";
+          retailer_id?: string | null;
+          created_at?: string;
+          accepted_at?: string | null;
+        };
+        Update: {
+          id?: string;
+          sales_rep_id?: string;
+          name?: string;
+          business_name?: string | null;
+          phone?: string;
+          email?: string | null;
+          location?: string | null;
+          lead_id?: string | null;
+          status?: "pending" | "accepted" | "expired" | "cancelled";
+          retailer_id?: string | null;
+          created_at?: string;
+          accepted_at?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "retailer_invites_sales_rep_id_fkey";
+            columns: ["sales_rep_id"];
+            isOneToOne: false;
+            referencedRelation: "sales_reps";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "retailer_invites_lead_id_fkey";
+            columns: ["lead_id"];
+            isOneToOne: false;
+            referencedRelation: "leads";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "retailer_invites_retailer_id_fkey";
+            columns: ["retailer_id"];
+            isOneToOne: false;
+            referencedRelation: "retailers";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
     };
     Views: {
       [_ in never]: never;
@@ -1052,6 +1119,7 @@ export type BnplInstallment = Database["public"]["Tables"]["bnpl_installments"][
 export type ProductWaitlist = Database["public"]["Tables"]["product_waitlist"]["Row"];
 export type Lead = Database["public"]["Tables"]["leads"]["Row"];
 export type RepActivity = Database["public"]["Tables"]["rep_activities"]["Row"];
+export type RetailerInvite = Database["public"]["Tables"]["retailer_invites"]["Row"];
 
 export type OrderStatus = Order["status"];
 export type PaymentMethod = Order["payment_method"];

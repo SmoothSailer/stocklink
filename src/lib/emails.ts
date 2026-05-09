@@ -9,27 +9,27 @@ function emailHeader() {
     </div>`;
 }
 
-interface SendRetailerOnboardingEmailParams {
+interface SendRetailerInviteEmailParams {
   to: string;
   name: string;
   businessName?: string | null;
   phone: string;
   location?: string | null;
   repName: string;
-  retailerId: string;
+  inviteId: string;
 }
 
-export async function sendRetailerOnboardingEmail({
+export async function sendRetailerInviteEmail({
   to,
   name,
   businessName,
   phone,
   location,
   repName,
-  retailerId,
-}: SendRetailerOnboardingEmailParams) {
+  inviteId,
+}: SendRetailerInviteEmailParams) {
   const signupParams = new URLSearchParams({
-    retailer_id: retailerId,
+    invite_id: inviteId,
     name,
     email: to,
     phone,

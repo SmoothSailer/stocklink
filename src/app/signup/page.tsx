@@ -24,16 +24,16 @@ function SignUpForm() {
   const [state, formAction, isPending] = useActionState(signUp, initialState);
   const searchParams = useSearchParams();
 
-  // Pre-fill from sales rep onboarding link
+  // Pre-fill from sales rep invite link
   const prefill = {
-    retailerId: searchParams.get("retailer_id") ?? "",
+    inviteId: searchParams.get("invite_id") ?? "",
     name: searchParams.get("name") ?? "",
     businessName: searchParams.get("business_name") ?? "",
     phone: searchParams.get("phone") ?? "",
     email: searchParams.get("email") ?? "",
     location: searchParams.get("location") ?? "",
   };
-  const isInvited = !!prefill.retailerId;
+  const isInvited = !!prefill.inviteId;
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-background px-4">
@@ -62,9 +62,9 @@ function SignUpForm() {
 
         <CardContent>
           <form action={formAction} className="space-y-4">
-            {/* Hidden field for linking to existing retailer */}
-            {prefill.retailerId && (
-              <input type="hidden" name="retailerId" value={prefill.retailerId} />
+            {/* Hidden field for linking to invite */}
+            {prefill.inviteId && (
+              <input type="hidden" name="inviteId" value={prefill.inviteId} />
             )}
 
             <div className="space-y-2">

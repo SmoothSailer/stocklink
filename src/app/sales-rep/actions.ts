@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { sendRetailerOnboardingEmail } from "@/lib/emails";
+import { sendRetailerInviteEmail } from "@/lib/emails";
 
 /**
  * Get the current sales rep's profile from the authenticated session.
@@ -1264,7 +1264,80 @@ export async function getRepRetailersWithStats(repId: string) {
 }
 
 /**
- * Onboard (register) a new retailer assigned to the calling rep.
+ * Get all invites created by this sales rep.
+ */
+export async function getRepInvites(repId: string) {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("retailer_invites")
+    .select("*")
+    .eq("sales_rep_id", repId)
+    .order("created_at", { ascending: false });
+
+  return data ?? [];
+}
+
+/**
+ * Cancel a pending invite.
+ */
+export async function repCancelInvite(repId: string, inviteId: string) {
+  if (!(await verifyRepOwnership(repId))) {
+    return { error: "Unauthorized" };
+  }
+
+  const supabase = await createClient();
+
+  const { error } = await supabase
+    .from("retailer_invites")
+    .update({ status: "cancelled" })
+    .eq("id", inviteId)
+    .eq("sales_rep_id", repId)
+    .eq("status", "pending");
+
+  if (error) return { error: error.message };
+  revalidatePath("/sales-rep/dashboard");
+  return { error: null };
+}
+
+/**
+ * Resend an invite email to a pending invite.
+ */
+export async function repResendInvite(repId: string, inviteId: string) {
+  if (!(await verifyRepOwnership(repId))) {
+    return { error: "Unauthorized" };
+  }
+
+  const supabase = await createClient();
+
+  const { data: invite } = await supabase
+    .from("retailer_invites")
+    .select("*")
+    .eq("id", inviteId)
+    .eq("sales_rep_id", repId)
+    .eq("status", "pending")
+    .single();
+
+  if (!invite) return { error: "Invite not found or already accepted" };
+  if (!invite.email) return { error: "Invite has no email address" };
+
+  const rep = await getCurrentSalesRep();
+  await sendRetailerInviteEmail({
+    to: invite.email,
+    name: invite.name,
+    businessName: invite.business_name,
+    phone: invite.phone,
+    location: invite.location,
+    repName: rep?.name ?? "Your sales representative",
+    inviteId: invite.id,
+  });
+
+  revalidatePath("/sales-rep/dashboard");
+  return { error: null };
+}
+
+/**
+ * Invite a retailer — creates a pending invite (not a retailer row).
+ * The retailer row is only created when the invitee signs up.
  */
 export async function repOnboardRetailer(repId: string, formData: FormData) {
   if (!(await verifyRepOwnership(repId))) {
@@ -1282,7 +1355,7 @@ export async function repOnboardRetailer(repId: string, formData: FormData) {
   if (!phone?.trim()) return { error: "Phone is required", data: null };
 
   const { data, error } = await supabase
-    .from("retailers")
+    .from("retailer_invites")
     .insert({
       name: name.trim(),
       business_name: business_name?.trim() || null,
@@ -1290,7 +1363,6 @@ export async function repOnboardRetailer(repId: string, formData: FormData) {
       email: email?.trim() || null,
       location: location?.trim() || null,
       sales_rep_id: repId,
-      verification_status: "unverified" as const,
     })
     .select()
     .single();
@@ -1300,22 +1372,21 @@ export async function repOnboardRetailer(repId: string, formData: FormData) {
   // Log the activity
   await supabase.from("rep_activities").insert({
     sales_rep_id: repId,
-    retailer_id: data.id,
     type: "onboarding",
-    notes: `Onboarded retailer: ${data.name}`,
+    notes: `Invited retailer: ${data.name}`,
   });
 
-  // Send onboarding email if retailer provided an email
+  // Send invite email if retailer provided an email
   if (data.email) {
     const rep = await getCurrentSalesRep();
-    await sendRetailerOnboardingEmail({
+    await sendRetailerInviteEmail({
       to: data.email,
       name: data.name,
       businessName: data.business_name,
       phone: data.phone,
       location: data.location,
       repName: rep?.name ?? "Your sales representative",
-      retailerId: data.id,
+      inviteId: data.id,
     });
   }
 
@@ -1499,28 +1570,27 @@ export async function repConvertLead(repId: string, leadId: string) {
   if (!lead) return { error: "Lead not found" };
   if (lead.status === "converted") return { error: "Lead already converted" };
 
-  // Create the retailer
-  const { data: retailer, error: retailerError } = await supabase
-    .from("retailers")
+  // Create an invite (not a retailer row)
+  const { data: invite, error: inviteError } = await supabase
+    .from("retailer_invites")
     .insert({
       name: lead.name,
       business_name: lead.business_name,
       phone: lead.phone,
       location: lead.location,
       sales_rep_id: repId,
-      verification_status: "unverified" as const,
+      lead_id: leadId,
     })
     .select()
     .single();
 
-  if (retailerError) return { error: retailerError.message };
+  if (inviteError) return { error: inviteError.message };
 
   // Update lead status
   await supabase
     .from("leads")
     .update({
       status: "converted",
-      converted_retailer_id: retailer.id,
       updated_at: new Date().toISOString(),
     })
     .eq("id", leadId);
@@ -1528,14 +1598,13 @@ export async function repConvertLead(repId: string, leadId: string) {
   // Log activity
   await supabase.from("rep_activities").insert({
     sales_rep_id: repId,
-    retailer_id: retailer.id,
     lead_id: leadId,
     type: "onboarding",
-    notes: `Converted lead "${lead.name}" to retailer`,
+    notes: `Converted lead "${lead.name}" to invite`,
   });
 
   revalidatePath("/sales-rep/dashboard");
-  return { error: null, retailer };
+  return { error: null, invite };
 }
 
 // ── Restock Alerts Actions ───────────────────────────────────────

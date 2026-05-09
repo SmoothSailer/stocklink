@@ -69,8 +69,10 @@ import {
   repConvertLead,
   repLogActivity,
   generateProductCatalogMessage,
+  repCancelInvite,
+  repResendInvite,
 } from "@/app/sales-rep/actions";
-import type { SalesRep, Wholesaler, Order, OrderStatus, Manufacturer, PaymentRecord, BnplPlan, BnplInstallment, Lead, Retailer, RepActivity } from "@/types/database";
+import type { SalesRep, Wholesaler, Order, OrderStatus, Manufacturer, PaymentRecord, BnplPlan, BnplInstallment, Lead, Retailer, RepActivity, RetailerInvite } from "@/types/database";
 
 interface UnitOptionRow {
   unit_slug: string;
@@ -173,6 +175,7 @@ interface Props {
   units: UnitOption[];
   retailers: RetailerWithStats[];
   leads: Lead[];
+  invites: RetailerInvite[];
   restockAlerts: RestockAlert[];
   activities: ActivityWithRelations[];
 }
@@ -190,6 +193,7 @@ export default function SalesRepDashboardClient({
   units,
   retailers,
   leads,
+  invites,
   restockAlerts,
   activities,
 }: Props) {
@@ -287,7 +291,7 @@ export default function SalesRepDashboardClient({
           />
         )}
         {activeTab === "retailers" && (
-          <RetailersTab retailers={retailers} rep={rep} />
+          <RetailersTab retailers={retailers} invites={invites} rep={rep} />
         )}
         {activeTab === "leads" && (
           <LeadsTab leads={leads} rep={rep} />
@@ -552,9 +556,11 @@ function OverviewTab({
 
 function RetailersTab({
   retailers,
+  invites,
   rep,
 }: {
   retailers: RetailerWithStats[];
+  invites: RetailerInvite[];
   rep: SalesRep;
 }) {
   const router = useRouter();
@@ -563,6 +569,8 @@ function RetailersTab({
   const [editing, setEditing] = useState<RetailerWithStats | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [filter, setFilter] = useState<"all" | "active" | "dormant" | "unverified">("all");
+
+  const pendingInvites = invites.filter((i) => i.status === "pending");
 
   const now = Date.now();
   const thirtyDaysAgo = now - 30 * 24 * 60 * 60 * 1000;
@@ -603,14 +611,112 @@ function RetailersTab({
     });
   }
 
+  async function handleCancelInvite(inviteId: string) {
+    startTransition(async () => {
+      const result = await repCancelInvite(rep.id, inviteId);
+      if (result.error) {
+        alert(result.error);
+        return;
+      }
+      router.refresh();
+    });
+  }
+
+  async function handleResendInvite(inviteId: string) {
+    startTransition(async () => {
+      const result = await repResendInvite(rep.id, inviteId);
+      if (result.error) {
+        alert(result.error);
+        return;
+      }
+      alert("Invite email resent!");
+      router.refresh();
+    });
+  }
+
   return (
     <div className="space-y-3">
       <div className="flex items-center gap-2">
         <Button className="gap-2" onClick={openAdd}>
           <UserPlus className="h-4 w-4" />
-          Onboard Retailer
+          Invite Retailer
         </Button>
       </div>
+
+      {/* Pending Invites */}
+      {pendingInvites.length > 0 && (
+        <Card className="border-orange-200 bg-orange-50/50">
+          <CardContent className="p-3">
+            <div className="mb-2 flex items-center gap-2">
+              <Send className="h-3.5 w-3.5 text-orange-600" />
+              <p className="text-xs font-semibold text-orange-800">
+                Pending Invites ({pendingInvites.length})
+              </p>
+            </div>
+            <div className="space-y-2">
+              {pendingInvites.map((inv) => (
+                <div key={inv.id} className="flex items-center justify-between rounded-md border border-orange-200 bg-white p-2">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium">{inv.name}</p>
+                    <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                      <span className="flex items-center gap-1">
+                        <Phone className="h-3 w-3" />
+                        {inv.phone}
+                      </span>
+                      {inv.email && <span>{inv.email}</span>}
+                      {inv.location && (
+                        <span className="flex items-center gap-1">
+                          <MapPin className="h-3 w-3" />
+                          {inv.location}
+                        </span>
+                      )}
+                    </div>
+                    <p className="mt-0.5 text-[10px] text-muted-foreground">
+                      Invited {timeAgo(inv.created_at)}
+                    </p>
+                  </div>
+                  <div className="flex shrink-0 gap-1">
+                    <a
+                      href={buildWhatsAppLink(
+                        `Hello ${inv.business_name || inv.name}, this is ${rep.name} from Ristoka. I've sent you an invite to join our wholesale platform. You can sign up at https://ristoka.com/signup?invite_id=${inv.id} to start placing orders!`,
+                        inv.phone
+                      )}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      <Button size="icon" variant="ghost" className="h-7 w-7">
+                        <MessageCircle className="h-3.5 w-3.5 text-[#25D366]" />
+                      </Button>
+                    </a>
+                    {inv.email && (
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-7 w-7"
+                        disabled={isPending}
+                        onClick={() => handleResendInvite(inv.id)}
+                        title="Resend invite email"
+                      >
+                        <RefreshCw className="h-3.5 w-3.5" />
+                      </Button>
+                    )}
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-7 w-7 text-destructive"
+                      disabled={isPending}
+                      onClick={() => handleCancelInvite(inv.id)}
+                      title="Cancel invite"
+                    >
+                      <XCircle className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Filters */}
       <div className="flex flex-wrap gap-1">
@@ -638,7 +744,7 @@ function RetailersTab({
           <CardContent className="flex flex-col items-center justify-center py-10">
             <Users className="h-10 w-10 text-muted-foreground/50" />
             <p className="mt-2 text-sm text-muted-foreground">
-              {filter === "all" ? "No retailers yet — onboard your first one!" : `No ${filter} retailers`}
+              {filter === "all" ? "No retailers yet — invite your first one!" : `No ${filter} retailers`}
             </p>
           </CardContent>
         </Card>
@@ -720,19 +826,24 @@ function RetailersTab({
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle>{editing ? "Edit Retailer" : "Onboard New Retailer"}</DialogTitle>
+            <DialogTitle>{editing ? "Edit Retailer" : "Invite New Retailer"}</DialogTitle>
           </DialogHeader>
           <form action={handleSubmit} className="space-y-3">
             <Input name="name" placeholder="Name *" defaultValue={editing?.name ?? ""} required />
             <Input name="business_name" placeholder="Business name" defaultValue={editing?.business_name ?? ""} />
             <Input name="phone" placeholder="Phone *" defaultValue={editing?.phone ?? ""} required />
-            <Input name="email" placeholder="Email" defaultValue={editing?.email ?? ""} />
+            <Input name="email" placeholder="Email (for invite link)" defaultValue={editing?.email ?? ""} />
             <Input name="location" placeholder="Location" defaultValue={editing?.location ?? ""} />
+            {!editing && (
+              <p className="text-[10px] text-muted-foreground">
+                An invite will be created. The retailer will be added once they sign up.
+              </p>
+            )}
             {formError && (
               <p className="text-xs text-destructive">{formError}</p>
             )}
             <Button type="submit" disabled={isPending} className="w-full">
-              {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : editing ? "Update" : "Onboard"}
+              {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : editing ? "Update" : "Send Invite"}
             </Button>
           </form>
         </DialogContent>
