@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { Suspense, useActionState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Mail, Lock, User, UserPlus, Loader2, Store, Phone, MapPin } from "lucide-react";
@@ -13,6 +13,14 @@ import { signUp, type AuthState } from "@/app/auth/actions";
 const initialState: AuthState = { error: null };
 
 export default function SignUpPage() {
+  return (
+    <Suspense>
+      <SignUpForm />
+    </Suspense>
+  );
+}
+
+function SignUpForm() {
   const [state, formAction, isPending] = useActionState(signUp, initialState);
   const searchParams = useSearchParams();
 
