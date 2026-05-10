@@ -44,7 +44,7 @@ export async function signUp(
   const email = formData.get("email") as string;
   const password = formData.get("password") as string;
   const confirmPassword = formData.get("confirmPassword") as string;
-  const retailerId = (formData.get("retailerId") as string)?.trim() || null;
+  const inviteId = (formData.get("inviteId") as string)?.trim() || null;
 
   if (!email || !password) {
     return { error: "Email and password are required" };
@@ -84,38 +84,47 @@ export async function signUp(
   if (data.user) {
     const adminSupabase = createAdminClient();
 
-    if (retailerId) {
-      // Link auth user to the existing retailer created by the sales rep
-      const { error: linkError } = await adminSupabase
-        .from("retailers")
+    // Look up the invite if one was provided
+    let invite: { id: string; sales_rep_id: string; name: string; business_name: string | null; phone: string; location: string | null } | null = null;
+    if (inviteId) {
+      const { data: inviteData } = await adminSupabase
+        .from("retailer_invites")
+        .select("id, sales_rep_id, name, business_name, phone, location")
+        .eq("id", inviteId)
+        .eq("status", "pending")
+        .single();
+      invite = inviteData;
+    }
+
+    // Create the retailer record (always — whether invited or fresh)
+    const { data: retailer, error: retailerError } = await adminSupabase
+      .from("retailers")
+      .insert({
+        user_id: data.user.id,
+        name: name || invite?.name || email.split("@")[0],
+        business_name: businessName || invite?.business_name || null,
+        phone: phone || invite?.phone || "",
+        email: email.toLowerCase().trim(),
+        location: invite?.location || null,
+        sales_rep_id: invite?.sales_rep_id || null,
+      })
+      .select("id")
+      .single();
+
+    if (retailerError) {
+      console.error("Failed to create retailer profile:", retailerError.message);
+    }
+
+    // Mark the invite as accepted and link to the new retailer
+    if (invite && retailer) {
+      await adminSupabase
+        .from("retailer_invites")
         .update({
-          user_id: data.user.id,
-          name: name || undefined,
-          business_name: businessName || undefined,
-          phone: phone || undefined,
-          email: email.toLowerCase().trim(),
+          status: "accepted",
+          retailer_id: retailer.id,
+          accepted_at: new Date().toISOString(),
         })
-        .eq("id", retailerId)
-        .is("user_id", null);
-
-      if (linkError) {
-        console.error("Failed to link retailer profile:", linkError.message);
-      }
-    } else {
-      // Fresh signup — create a new retailer record
-      const { error: retailerError } = await adminSupabase
-        .from("retailers")
-        .insert({
-          user_id: data.user.id,
-          name: name || email.split("@")[0],
-          business_name: businessName || null,
-          phone: phone || "",
-          email: email.toLowerCase().trim(),
-        });
-
-      if (retailerError) {
-        console.error("Failed to create retailer profile:", retailerError.message);
-      }
+        .eq("id", invite.id);
     }
   }
 

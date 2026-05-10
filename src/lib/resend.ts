@@ -4,3 +4,6 @@ export const resend = new Resend(process.env.RESEND_API_KEY);
 
 export const EMAIL_FROM =
   process.env.RESEND_FROM_EMAIL ?? "Ristoka <no-reply@ristoka.com>";
+
+export const ORDERS_EMAIL_FROM =
+  process.env.RESEND_ORDERS_FROM_EMAIL ?? "Ristoka Orders <orders@ristoka.com>";
