@@ -959,3 +959,72 @@ export async function updateRetailer(
   revalidatePath("/admin/retailers");
   return { error: null };
 }
+
+// ── BNPL Payment Actions ────────────────────────────────────────
+
+export async function getAdminUpcomingBnplPayments() {
+  const supabase = createAdminClient();
+
+  const { data: plans } = await supabase
+    .from("bnpl_plans")
+    .select("id, order_id, total_with_markup, down_payment, num_installments, installment_amount")
+    .in("status", ["pending", "active"]);
+
+  if (!plans || plans.length === 0) return [];
+
+  const planIds = plans.map((p) => p.id);
+
+  const { data: installments } = await supabase
+    .from("bnpl_installments")
+    .select("*")
+    .in("plan_id", planIds)
+    .in("status", ["upcoming", "due", "overdue"])
+    .order("due_date", { ascending: true });
+
+  if (!installments || installments.length === 0) return [];
+
+  const planOrderIds = [...new Set(plans.map((p) => p.order_id))];
+  const { data: orders } = await supabase
+    .from("orders")
+    .select("id, retailer_id, retailers(id, name, phone, business_name, sales_rep_id, sales_reps(id, name))")
+    .in("id", planOrderIds);
+
+  const planMap = new Map(plans.map((p) => [p.id, p]));
+  const orderMap = new Map((orders ?? []).map((o) => [o.id, o]));
+
+  return installments.map((inst) => {
+    const plan = planMap.get(inst.plan_id);
+    const order = plan ? orderMap.get(plan.order_id) : null;
+    const retailer = order?.retailers as {
+      id: string;
+      name: string;
+      phone: string;
+      business_name: string | null;
+      sales_rep_id: string | null;
+      sales_reps: { id: string; name: string } | null;
+    } | null;
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const dueDate = new Date(inst.due_date + "T00:00:00");
+    let effectiveStatus = inst.status;
+    if (inst.status !== "paid") {
+      if (dueDate.getTime() < today.getTime()) {
+        effectiveStatus = "overdue";
+      } else if (dueDate.getTime() === today.getTime()) {
+        effectiveStatus = "due";
+      }
+    }
+
+    return {
+      ...inst,
+      status: effectiveStatus,
+      order_id: plan?.order_id ?? "",
+      retailer_name: retailer?.name ?? "Unknown",
+      retailer_phone: retailer?.phone ?? "",
+      retailer_business_name: retailer?.business_name ?? null,
+      sales_rep_name: retailer?.sales_reps?.name ?? null,
+      total_with_markup: plan?.total_with_markup ?? 0,
+    };
+  });
+}

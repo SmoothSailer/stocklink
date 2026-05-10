@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   Search,
   Eye,
@@ -69,6 +70,15 @@ interface OrderWithItems {
 }
 
 export default function AdminOrdersPage() {
+  return (
+    <Suspense>
+      <AdminOrdersContent />
+    </Suspense>
+  );
+}
+
+function AdminOrdersContent() {
+  const searchParams = useSearchParams();
   const [orders, setOrders] = useState<OrderWithItems[]>([]);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -89,6 +99,15 @@ export default function AdminOrdersPage() {
   useEffect(() => {
     loadOrders();
   }, [loadOrders]);
+
+  // Auto-open order detail when navigating from payments page
+  useEffect(() => {
+    const orderId = searchParams.get("order");
+    if (orderId && orders.length > 0) {
+      const order = orders.find((o) => o.id === orderId);
+      if (order) setDetailOrder(order);
+    }
+  }, [searchParams, orders]);
 
   const filtered = orders.filter((o) => {
     const matchesSearch =

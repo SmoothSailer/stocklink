@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { sendRetailerInviteEmail } from "@/lib/emails";
+import { sendRetailerInviteEmail, sendBnplInvoiceEmail, sendBnplFollowUpEmail, sendBnplPaymentReceipt } from "@/lib/emails";
 
 /**
  * Get the current sales rep's profile from the authenticated session.
@@ -28,63 +28,6 @@ export async function getCurrentSalesRep() {
 async function verifyRepOwnership(repId: string): Promise<boolean> {
   const rep = await getCurrentSalesRep();
   return rep?.id === repId;
-}
-
-/**
- * Get wholesalers assigned to a sales rep.
- */
-export async function getRepWholesalers(repId: string) {
-  const supabase = await createClient();
-  const { data } = await supabase
-    .from("wholesalers")
-    .select("*")
-    .eq("sales_rep_id", repId)
-    .order("name", { ascending: true });
-
-  return data ?? [];
-}
-
-/**
- * Get products belonging to the rep's assigned wholesalers or manufacturers.
- */
-export async function getRepProducts(repId: string) {
-  const supabase = await createClient();
-
-  // Get wholesaler IDs assigned to this rep
-  const { data: wholesalers } = await supabase
-    .from("wholesalers")
-    .select("id")
-    .eq("sales_rep_id", repId);
-
-  // Get manufacturer IDs assigned to this rep
-  const { data: manufacturers } = await supabase
-    .from("manufacturers")
-    .select("id")
-    .eq("sales_rep_id", repId);
-
-  const wholesalerIds = wholesalers?.map((w) => w.id) ?? [];
-  const manufacturerIds = manufacturers?.map((m) => m.id) ?? [];
-
-  if (wholesalerIds.length === 0 && manufacturerIds.length === 0) return [];
-
-  // Build query with OR conditions for wholesaler_id and manufacturer_id
-  let query = supabase
-    .from("products")
-    .select("*, wholesalers(id, name, location), manufacturers(id, name), product_unit_options(*)")
-    .order("created_at", { ascending: false });
-
-  if (wholesalerIds.length > 0 && manufacturerIds.length > 0) {
-    query = query.or(
-      `wholesaler_id.in.(${wholesalerIds.join(",")}),manufacturer_id.in.(${manufacturerIds.join(",")})`
-    );
-  } else if (wholesalerIds.length > 0) {
-    query = query.in("wholesaler_id", wholesalerIds);
-  } else {
-    query = query.in("manufacturer_id", manufacturerIds);
-  }
-
-  const { data } = await query;
-  return data ?? [];
 }
 
 /**
@@ -316,397 +259,10 @@ export async function getRepDashboardStats(repId: string) {
   }
 
   return {
-    totalWholesalers: wholesalerIds.length,
-    totalManufacturers: manufacturerIds.length,
-    totalProducts: productIds.length,
-    lowStockProducts,
     totalOrders,
     pendingOrders,
     totalRevenue,
   };
-}
-
-// ── Mutation Actions ────────────────────────────────────────────
-
-/**
- * Get categories for product form dropdowns.
- */
-export async function getCategories() {
-  const supabase = await createClient();
-  const { data } = await supabase
-    .from("categories")
-    .select("id, name, slug, icon")
-    .eq("is_active", true)
-    .order("sort_order", { ascending: true });
-  return data ?? [];
-}
-
-/**
- * Get product units for product form dropdowns.
- */
-export async function getProductUnits() {
-  const supabase = await createClient();
-  const { data } = await supabase
-    .from("product_units")
-    .select("id, name, slug, abbreviation")
-    .eq("is_active", true)
-    .order("sort_order", { ascending: true });
-  return data ?? [];
-}
-
-/**
- * Get manufacturers assigned to a sales rep.
- */
-export async function getRepManufacturers(repId: string) {
-  const supabase = await createClient();
-  const { data } = await supabase
-    .from("manufacturers")
-    .select("*")
-    .eq("sales_rep_id", repId)
-    .order("name", { ascending: true });
-  return data ?? [];
-}
-
-/**
- * Create a new manufacturer assigned to the calling rep.
- */
-export async function repCreateManufacturer(repId: string, formData: FormData) {
-  if (!(await verifyRepOwnership(repId))) {
-    return { error: "Unauthorized", data: null };
-  }
-
-  const supabase = await createClient();
-  const name = formData.get("name") as string;
-  const location = formData.get("location") as string | null;
-  const contact_person = formData.get("contact_person") as string | null;
-  const contact_phone = formData.get("contact_phone") as string | null;
-
-  if (!name?.trim()) return { error: "Name is required", data: null };
-
-  const slug = name
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "");
-
-  const { data, error } = await supabase
-    .from("manufacturers")
-    .insert({
-      name: name.trim(),
-      slug,
-      location: location?.trim() || null,
-      contact_person: contact_person?.trim() || null,
-      contact_phone: contact_phone?.trim() || null,
-      sales_rep_id: repId,
-    })
-    .select()
-    .single();
-
-  if (error) return { error: error.message, data: null };
-  revalidatePath("/sales-rep/dashboard");
-  return { error: null, data };
-}
-
-/**
- * Update a manufacturer (must be assigned to the calling rep).
- */
-export async function repUpdateManufacturer(
-  repId: string,
-  manufacturerId: string,
-  formData: FormData
-) {
-  if (!(await verifyRepOwnership(repId))) {
-    return { error: "Unauthorized" };
-  }
-
-  const supabase = await createClient();
-
-  // Confirm this manufacturer belongs to the rep
-  const { data: existing } = await supabase
-    .from("manufacturers")
-    .select("id")
-    .eq("id", manufacturerId)
-    .eq("sales_rep_id", repId)
-    .single();
-
-  if (!existing) return { error: "Manufacturer not found or not assigned to you" };
-
-  const name = formData.get("name") as string;
-  const location = formData.get("location") as string | null;
-  const contact_person = formData.get("contact_person") as string | null;
-  const contact_phone = formData.get("contact_phone") as string | null;
-
-  if (!name?.trim()) return { error: "Name is required" };
-
-  const slug = name
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "");
-
-  const { error } = await supabase
-    .from("manufacturers")
-    .update({
-      name: name.trim(),
-      slug,
-      location: location?.trim() || null,
-      contact_person: contact_person?.trim() || null,
-      contact_phone: contact_phone?.trim() || null,
-    })
-    .eq("id", manufacturerId);
-
-  if (error) return { error: error.message };
-  revalidatePath("/sales-rep/dashboard");
-  return { error: null };
-}
-
-/**
- * Create a new wholesaler assigned to the calling rep.
- */
-export async function repCreateWholesaler(repId: string, formData: FormData) {
-  if (!(await verifyRepOwnership(repId))) {
-    return { error: "Unauthorized", data: null };
-  }
-
-  const supabase = await createClient();
-  const name = formData.get("name") as string;
-  const location = formData.get("location") as string | null;
-  const phone = formData.get("phone") as string | null;
-
-  if (!name?.trim()) return { error: "Name is required", data: null };
-
-  const { data, error } = await supabase
-    .from("wholesalers")
-    .insert({
-      name: name.trim(),
-      location: location?.trim() || null,
-      phone: phone?.trim() || null,
-      sales_rep_id: repId,
-    })
-    .select()
-    .single();
-
-  if (error) return { error: error.message, data: null };
-  revalidatePath("/sales-rep/dashboard");
-  return { error: null, data };
-}
-
-/**
- * Update an existing wholesaler (must be assigned to the calling rep).
- */
-export async function repUpdateWholesaler(
-  repId: string,
-  wholesalerId: string,
-  formData: FormData
-) {
-  if (!(await verifyRepOwnership(repId))) {
-    return { error: "Unauthorized" };
-  }
-
-  const supabase = await createClient();
-
-  // Confirm this wholesaler belongs to the rep
-  const { data: existing } = await supabase
-    .from("wholesalers")
-    .select("id")
-    .eq("id", wholesalerId)
-    .eq("sales_rep_id", repId)
-    .single();
-
-  if (!existing) return { error: "Wholesaler not found or not assigned to you" };
-
-  const name = formData.get("name") as string;
-  const location = formData.get("location") as string | null;
-  const phone = formData.get("phone") as string | null;
-
-  if (!name?.trim()) return { error: "Name is required" };
-
-  const { error } = await supabase
-    .from("wholesalers")
-    .update({
-      name: name.trim(),
-      location: location?.trim() || null,
-      phone: phone?.trim() || null,
-    })
-    .eq("id", wholesalerId);
-
-  if (error) return { error: error.message };
-  revalidatePath("/sales-rep/dashboard");
-  return { error: null };
-}
-
-/**
- * Create a product for one of the rep's assigned wholesalers or manufacturers.
- */
-export async function repCreateProduct(repId: string, formData: FormData) {
-  if (!(await verifyRepOwnership(repId))) {
-    return { error: "Unauthorized" };
-  }
-
-  const supabase = await createClient();
-  const wholesaler_id = formData.get("wholesaler_id") as string;
-  const manufacturer_id = formData.get("manufacturer_id") as string;
-  const name = formData.get("name") as string;
-  const category = formData.get("category") as string;
-  const price = parseFloat(formData.get("price") as string);
-  const unit = formData.get("unit") as string;
-  const stock = parseInt(formData.get("stock") as string, 10);
-  const min_order_qty = parseInt(formData.get("min_order_qty") as string, 10) || 1;
-  const description = formData.get("description") as string | null;
-
-  if (!name?.trim() || !category || isNaN(price) || !unit || isNaN(stock)) {
-    return { error: "Name, category, price, unit, and stock are required" };
-  }
-
-  if (!wholesaler_id && !manufacturer_id) {
-    return { error: "Please assign a wholesaler or manufacturer" };
-  }
-
-  // Confirm wholesaler belongs to the rep (if provided)
-  if (wholesaler_id) {
-    const { data: w } = await supabase
-      .from("wholesalers")
-      .select("id")
-      .eq("id", wholesaler_id)
-      .eq("sales_rep_id", repId)
-      .single();
-
-    if (!w) return { error: "Wholesaler not found or not assigned to you" };
-  }
-
-  // Confirm manufacturer belongs to the rep (if provided)
-  if (manufacturer_id) {
-    const { data: m } = await supabase
-      .from("manufacturers")
-      .select("id")
-      .eq("id", manufacturer_id)
-      .eq("sales_rep_id", repId)
-      .single();
-
-    if (!m) return { error: "Manufacturer not found or not assigned to you" };
-  }
-
-  const { data: inserted, error } = await supabase.from("products").insert({
-    name: name.trim(),
-    description: description?.trim() || null,
-    category,
-    price,
-    unit,
-    stock: Math.max(0, stock),
-    min_order_qty: Math.max(1, min_order_qty),
-    wholesaler_id: wholesaler_id || null,
-    manufacturer_id: manufacturer_id || null,
-  }).select("id").single();
-
-  if (error) return { error: error.message };
-  revalidatePath("/sales-rep/dashboard");
-  revalidatePath("/");
-  return { error: null, id: inserted.id };
-}
-
-/**
- * Save additional unit options for a product (owned by rep's wholesaler/manufacturer).
- */
-export async function repSaveProductUnitOptions(
-  repId: string,
-  productId: string,
-  options: { unit_slug: string; price: number; stock: number; min_order_qty: number }[]
-) {
-  if (!(await verifyRepOwnership(repId))) {
-    return { error: "Unauthorized" };
-  }
-
-  const supabase = await createClient();
-
-  // Delete existing options
-  const { error: deleteError } = await supabase
-    .from("product_unit_options")
-    .delete()
-    .eq("product_id", productId);
-  if (deleteError) return { error: deleteError.message };
-
-  // Insert new options (if any)
-  if (options.length > 0) {
-    const rows = options.map((opt, idx) => ({
-      product_id: productId,
-      unit_slug: opt.unit_slug,
-      price: opt.price,
-      stock: opt.stock,
-      min_order_qty: opt.min_order_qty,
-      sort_order: idx,
-    }));
-    const { error: insertError } = await supabase
-      .from("product_unit_options")
-      .insert(rows);
-    if (insertError) return { error: insertError.message };
-  }
-
-  revalidatePath("/sales-rep/dashboard");
-  revalidatePath("/");
-  return { error: null };
-}
-
-/**
- * Update product stock and/or price (must belong to one of the rep's wholesalers).
- */
-export async function repUpdateProduct(
-  repId: string,
-  productId: string,
-  formData: FormData
-) {
-  if (!(await verifyRepOwnership(repId))) {
-    return { error: "Unauthorized" };
-  }
-
-  const supabase = await createClient();
-
-  // Ensure the product's wholesaler is assigned to the rep
-  const { data: product } = await supabase
-    .from("products")
-    .select("id, wholesaler_id")
-    .eq("id", productId)
-    .single();
-
-  if (!product) return { error: "Product not found" };
-
-  if (product.wholesaler_id) {
-    const { data: w } = await supabase
-      .from("wholesalers")
-      .select("id")
-      .eq("id", product.wholesaler_id)
-      .eq("sales_rep_id", repId)
-      .single();
-
-    if (!w) return { error: "Product not assigned to your wholesalers" };
-  }
-
-  const name = formData.get("name") as string | null;
-  const price = formData.get("price") ? parseFloat(formData.get("price") as string) : undefined;
-  const stock = formData.get("stock") ? parseInt(formData.get("stock") as string, 10) : undefined;
-  const min_order_qty = formData.get("min_order_qty")
-    ? parseInt(formData.get("min_order_qty") as string, 10)
-    : undefined;
-
-  const updateData: Record<string, unknown> = {};
-  if (name?.trim()) updateData.name = name.trim();
-  if (price !== undefined && !isNaN(price)) updateData.price = price;
-  if (stock !== undefined && !isNaN(stock)) updateData.stock = Math.max(0, stock);
-  if (min_order_qty !== undefined && !isNaN(min_order_qty))
-    updateData.min_order_qty = Math.max(1, min_order_qty);
-
-  if (Object.keys(updateData).length === 0) {
-    return { error: "Nothing to update" };
-  }
-
-  const { error } = await supabase
-    .from("products")
-    .update(updateData)
-    .eq("id", productId);
-
-  if (error) return { error: error.message };
-  revalidatePath("/sales-rep/dashboard");
-  revalidatePath("/");
-  return { error: null };
 }
 
 // ── Payment Tracking Actions ────────────────────────────────────
@@ -1020,6 +576,51 @@ export async function repCreateBnplPlan(
     .update({ total: totalWithMarkup })
     .eq("id", orderId);
 
+  // Send BNPL emails (non-blocking)
+  const { data: repProfile } = await supabase
+    .from("sales_reps")
+    .select("name, email, whatsapp_phone")
+    .eq("id", repId)
+    .single();
+
+  const { data: retailerProfile } = await supabase
+    .from("retailers")
+    .select("name, email, phone")
+    .eq("id", order.retailer_id)
+    .single();
+
+  const emailInstallments = installments.map((inst) => ({
+    number: inst.installment_number,
+    amount: inst.amount,
+    dueDate: inst.due_date,
+  }));
+
+  if (retailerProfile?.email) {
+    sendBnplInvoiceEmail({
+      to: retailerProfile.email,
+      retailerName: retailerProfile.name,
+      orderId,
+      totalWithMarkup,
+      downPayment,
+      installments: emailInstallments,
+      repName: repProfile?.name ?? "Your sales rep",
+      repPhone: repProfile?.whatsapp_phone ?? "",
+    }).catch((e) => console.error("BNPL invoice email failed:", e));
+  }
+
+  if (repProfile?.email) {
+    sendBnplFollowUpEmail({
+      to: repProfile.email,
+      repName: repProfile.name,
+      retailerName: retailerProfile?.name ?? "Retailer",
+      retailerPhone: retailerProfile?.phone ?? "",
+      orderId,
+      totalWithMarkup,
+      downPayment,
+      installments: emailInstallments,
+    }).catch((e) => console.error("BNPL follow-up email failed:", e));
+  }
+
   revalidatePath("/sales-rep/dashboard");
   return { error: null };
 }
@@ -1192,10 +793,146 @@ export async function repPayBnplInstallment(
         ...(isPaid ? { paid_at: new Date().toISOString() } : {}),
       })
       .eq("id", plan.order_id);
+
+    // Send payment receipt email to retailer (non-blocking)
+    const { data: orderDetails } = await supabase
+      .from("orders")
+      .select("retailer_id, retailers(name, email)")
+      .eq("id", plan.order_id)
+      .single();
+
+    const retailerData = orderDetails?.retailers as { name: string; email: string | null } | null;
+    if (retailerData?.email) {
+      const { data: planDetails } = await supabase
+        .from("bnpl_plans")
+        .select("num_installments, total_with_markup, down_payment")
+        .eq("order_id", plan.order_id)
+        .single();
+
+      const remainingBalance = Math.max(0, order.total - newAmountPaid);
+      sendBnplPaymentReceipt({
+        to: retailerData.email,
+        retailerName: retailerData.name,
+        orderId: plan.order_id,
+        installmentNumber: installment.installment_number,
+        amount: installment.amount,
+        totalInstallments: planDetails?.num_installments ?? 0,
+        remainingBalance,
+        method: payment.method,
+      }).catch((e) => console.error("BNPL payment receipt email failed:", e));
+    }
   }
 
   revalidatePath("/sales-rep/dashboard");
   return { error: null };
+}
+
+/**
+ * Get upcoming/due/overdue BNPL installments for orders belonging to the rep's wholesalers/manufacturers.
+ */
+export async function getRepUpcomingBnplPayments(repId: string) {
+  const supabase = await createClient();
+
+  // Get wholesaler & manufacturer IDs for this rep
+  const { data: wholesalers } = await supabase
+    .from("wholesalers")
+    .select("id")
+    .eq("sales_rep_id", repId);
+
+  const { data: manufacturers } = await supabase
+    .from("manufacturers")
+    .select("id")
+    .eq("sales_rep_id", repId);
+
+  const wholesalerIds = wholesalers?.map((w) => w.id) ?? [];
+  const manufacturerIds = manufacturers?.map((m) => m.id) ?? [];
+
+  if (wholesalerIds.length === 0 && manufacturerIds.length === 0) return [];
+
+  // Get product IDs
+  let productsQuery = supabase.from("products").select("id");
+  if (wholesalerIds.length > 0 && manufacturerIds.length > 0) {
+    productsQuery = productsQuery.or(
+      `wholesaler_id.in.(${wholesalerIds.join(",")}),manufacturer_id.in.(${manufacturerIds.join(",")})`
+    );
+  } else if (wholesalerIds.length > 0) {
+    productsQuery = productsQuery.in("wholesaler_id", wholesalerIds);
+  } else {
+    productsQuery = productsQuery.in("manufacturer_id", manufacturerIds);
+  }
+  const { data: products } = await productsQuery;
+  if (!products || products.length === 0) return [];
+
+  // Get order IDs from those products
+  const { data: orderItems } = await supabase
+    .from("order_items")
+    .select("order_id")
+    .in("product_id", products.map((p) => p.id));
+
+  if (!orderItems || orderItems.length === 0) return [];
+  const orderIds = [...new Set(orderItems.map((oi) => oi.order_id).filter(Boolean))] as string[];
+  if (orderIds.length === 0) return [];
+
+  // Get BNPL plans for those orders
+  const { data: plans } = await supabase
+    .from("bnpl_plans")
+    .select("id, order_id, total_with_markup, down_payment, down_payment_paid_at, num_installments, installment_amount")
+    .in("order_id", orderIds)
+    .in("status", ["pending", "active"]);
+
+  if (!plans || plans.length === 0) return [];
+
+  const planIds = plans.map((p) => p.id);
+
+  // Get unpaid installments (upcoming, due, overdue) sorted by due_date
+  const { data: installments } = await supabase
+    .from("bnpl_installments")
+    .select("*")
+    .in("plan_id", planIds)
+    .in("status", ["upcoming", "due", "overdue"])
+    .order("due_date", { ascending: true })
+    .limit(20);
+
+  if (!installments || installments.length === 0) return [];
+
+  // Get order + retailer details for each plan
+  const planOrderIds = plans.map((p) => p.order_id);
+  const { data: orders } = await supabase
+    .from("orders")
+    .select("id, retailer_id, retailers(id, name, phone, business_name)")
+    .in("id", planOrderIds);
+
+  // Map plan_id -> order + retailer info
+  const planMap = new Map(plans.map((p) => [p.id, p]));
+  const orderMap = new Map((orders ?? []).map((o) => [o.id, o]));
+
+  return installments.map((inst) => {
+    const plan = planMap.get(inst.plan_id);
+    const order = plan ? orderMap.get(plan.order_id) : null;
+    const retailer = order?.retailers as { id: string; name: string; phone: string; business_name: string | null } | null;
+
+    // Compute effective status from due_date since pg_cron may not be running
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const dueDate = new Date(inst.due_date + "T00:00:00");
+    let effectiveStatus = inst.status;
+    if (inst.status !== "paid") {
+      if (dueDate.getTime() < today.getTime()) {
+        effectiveStatus = "overdue";
+      } else if (dueDate.getTime() === today.getTime()) {
+        effectiveStatus = "due";
+      }
+    }
+
+    return {
+      ...inst,
+      status: effectiveStatus,
+      order_id: plan?.order_id ?? "",
+      retailer_name: retailer?.name ?? "Unknown",
+      retailer_phone: retailer?.phone ?? "",
+      total_with_markup: plan?.total_with_markup ?? 0,
+    };
+  });
 }
 
 // ── Retailer Management Actions ─────────────────────────────────
@@ -1678,37 +1415,3 @@ export async function repLogActivity(
   return { error: null };
 }
 
-// ── WhatsApp Product Catalog Sharing ─────────────────────────────
-
-/**
- * Generate a formatted product catalog message for WhatsApp sharing.
- */
-export async function generateProductCatalogMessage(repId: string) {
-  const products = await getRepProducts(repId);
-
-  if (products.length === 0) return "";
-
-  // Group by category
-  const byCategory = new Map<string, typeof products>();
-  for (const p of products) {
-    const cat = p.category || "Other";
-    if (!byCategory.has(cat)) byCategory.set(cat, []);
-    byCategory.get(cat)!.push(p);
-  }
-
-  let message = "📦 *Product Catalog*\n\n";
-
-  for (const [category, items] of byCategory) {
-    message += `*${category}*\n`;
-    for (const item of items) {
-      const stockBadge = item.stock <= 5 ? "⚠️" : "✅";
-      message += `${stockBadge} ${item.name} — KSh ${item.price.toLocaleString()}/${item.unit}`;
-      if (item.stock <= 0) message += " (Out of stock)";
-      message += "\n";
-    }
-    message += "\n";
-  }
-
-  message += "📞 Contact me to order!";
-  return message;
-}
