@@ -12,6 +12,7 @@ export interface Database {
           icon: string;
           sort_order: number;
           is_active: boolean;
+          odoo_category_id: number | null;
           created_at: string;
         };
         Insert: {
@@ -21,6 +22,7 @@ export interface Database {
           icon?: string;
           sort_order?: number;
           is_active?: boolean;
+          odoo_category_id?: number | null;
           created_at?: string;
         };
         Update: {
@@ -30,6 +32,46 @@ export interface Database {
           icon?: string;
           sort_order?: number;
           is_active?: boolean;
+          odoo_category_id?: number | null;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      odoo_sync_log: {
+        Row: {
+          id: string;
+          entity_type: string;
+          entity_id: string | null;
+          odoo_id: number | null;
+          direction: string;
+          action: string;
+          status: string;
+          error_message: string | null;
+          payload: Record<string, unknown> | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          entity_type: string;
+          entity_id?: string | null;
+          odoo_id?: number | null;
+          direction: string;
+          action: string;
+          status?: string;
+          error_message?: string | null;
+          payload?: Record<string, unknown> | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          entity_type?: string;
+          entity_id?: string | null;
+          odoo_id?: number | null;
+          direction?: string;
+          action?: string;
+          status?: string;
+          error_message?: string | null;
+          payload?: Record<string, unknown> | null;
           created_at?: string;
         };
         Relationships: [];
@@ -48,6 +90,7 @@ export interface Database {
           contact_email: string | null;
           sales_rep_id: string | null;
           is_active: boolean;
+          odoo_partner_id: number | null;
           created_at: string;
         };
         Insert: {
@@ -63,6 +106,7 @@ export interface Database {
           contact_email?: string | null;
           sales_rep_id?: string | null;
           is_active?: boolean;
+          odoo_partner_id?: number | null;
           created_at?: string;
         };
         Update: {
@@ -78,6 +122,7 @@ export interface Database {
           contact_email?: string | null;
           sales_rep_id?: string | null;
           is_active?: boolean;
+          odoo_partner_id?: number | null;
           created_at?: string;
         };
         Relationships: [
@@ -213,6 +258,7 @@ export interface Database {
           location: string | null;
           phone: string | null;
           sales_rep_id: string | null;
+          odoo_partner_id: number | null;
           created_at: string;
         };
         Insert: {
@@ -221,6 +267,7 @@ export interface Database {
           location?: string | null;
           phone?: string | null;
           sales_rep_id?: string | null;
+          odoo_partner_id?: number | null;
           created_at?: string;
         };
         Update: {
@@ -229,6 +276,7 @@ export interface Database {
           location?: string | null;
           phone?: string | null;
           sales_rep_id?: string | null;
+          odoo_partner_id?: number | null;
           created_at?: string;
         };
         Relationships: [
@@ -262,6 +310,8 @@ export interface Database {
           location: string | null;
           is_coming_soon: boolean;
           expected_arrival_date: string | null;
+          odoo_product_id: number | null;
+          odoo_template_id: number | null;
           created_at: string;
           updated_at: string;
         };
@@ -285,6 +335,8 @@ export interface Database {
           location?: string | null;
           is_coming_soon?: boolean;
           expected_arrival_date?: string | null;
+          odoo_product_id?: number | null;
+          odoo_template_id?: number | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -308,6 +360,8 @@ export interface Database {
           location?: string | null;
           is_coming_soon?: boolean;
           expected_arrival_date?: string | null;
+          odoo_product_id?: number | null;
+          odoo_template_id?: number | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -346,6 +400,7 @@ export interface Database {
           credit_limit: number;
           bnpl_enabled: boolean;
           verification_notes: string | null;
+          odoo_partner_id: number | null;
           created_at: string;
         };
         Insert: {
@@ -365,6 +420,7 @@ export interface Database {
           credit_limit?: number;
           bnpl_enabled?: boolean;
           verification_notes?: string | null;
+          odoo_partner_id?: number | null;
           created_at?: string;
         };
         Update: {
@@ -384,6 +440,7 @@ export interface Database {
           credit_limit?: number;
           bnpl_enabled?: boolean;
           verification_notes?: string | null;
+          odoo_partner_id?: number | null;
           created_at?: string;
         };
         Relationships: [
@@ -408,6 +465,7 @@ export interface Database {
           amount_paid: number;
           paid_at: string | null;
           notes: string | null;
+          odoo_order_id: number | null;
           created_at: string;
           updated_at: string;
         };
@@ -422,6 +480,7 @@ export interface Database {
           amount_paid?: number;
           paid_at?: string | null;
           notes?: string | null;
+          odoo_order_id?: number | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -436,6 +495,7 @@ export interface Database {
           amount_paid?: number;
           paid_at?: string | null;
           notes?: string | null;
+          odoo_order_id?: number | null;
           created_at?: string;
           updated_at?: string;
         };
