@@ -18,7 +18,7 @@ interface OrderTimelineProps {
 const steps: {
   status: OrderStatus;
   label: string;
-  icon: React.ElementType;
+  icon: React.ComponentType<{ className?: string }>;
 }[] = [
   { status: "placed", label: "Order Placed", icon: Package },
   { status: "confirmed", label: "Confirmed", icon: CheckCircle2 },

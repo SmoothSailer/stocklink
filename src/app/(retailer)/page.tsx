@@ -15,7 +15,7 @@ function SectionHeader({
   title,
   href,
 }: {
-  icon: React.ElementType;
+  icon: React.ComponentType<{ className?: string }>;
   title: string;
   href: string;
 }) {

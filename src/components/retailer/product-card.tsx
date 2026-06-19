@@ -1,10 +1,14 @@
+"use client";
+
 import Link from "next/link";
 import Image from "next/image";
-import { MapPin, Package, Factory, Layers, Users } from "lucide-react";
+import { MapPin, Package, Factory, Layers, Users, ShoppingCart } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import type { Product, ProductUnitOption, ProductMedia } from "@/types/database";
 import { formatPrice, getStockInfo, getCategoryIcon } from "@/lib/utils";
+import { useCart } from "@/hooks/use-cart";
 
 interface ProductCardProps {
   product: Product & {
@@ -16,17 +20,41 @@ interface ProductCardProps {
 }
 
 export function ProductCard({ product }: ProductCardProps) {
+  const { addItem } = useCart();
   const stockInfo = getStockInfo(product.stock, product.unit);
   const waitlistCount = product.product_waitlist?.[0]?.count ?? 0;
   const displayPrice = product.is_flash_deal && product.flash_deal_price
     ? product.flash_deal_price
     : product.price;
+  const originalPrice = product.is_flash_deal && product.flash_deal_price
+    ? product.price
+    : undefined;
   const coverImage = product.product_media?.sort((a, b) => a.sort_order - b.sort_order).find((m) => m.type === "image")?.url
     ?? product.image_url;
 
+  function handleAddToCart(e: React.MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    addItem({
+      productId: product.id,
+      name: product.name,
+      price: product.price,
+      unit: product.unit,
+      quantity: product.min_order_qty ?? 1,
+      minOrderQty: product.min_order_qty ?? 1,
+      maxStock: product.stock,
+      imageUrl: product.image_url,
+      category: product.category,
+      piecesPerUnit: product.pieces_per_unit,
+      wholesalePrice: product.is_flash_deal && product.flash_deal_price
+        ? product.flash_deal_price
+        : undefined,
+    });
+  }
+
   return (
     <Link href={`/products/${product.id}`}>
-      <Card className="group overflow-hidden border-border/60 transition-all hover:shadow-md">
+      <Card className="group relative overflow-hidden border-border/60 transition-all hover:shadow-md">
         {/* Image area */}
         <div className="relative aspect-[4/3] overflow-hidden bg-muted">
           {coverImage ? (
@@ -65,6 +93,19 @@ export function ProductCard({ product }: ProductCardProps) {
               🔥 Trending
             </Badge>
           )}
+
+          {/* Quick add-to-cart button */}
+          {!product.is_coming_soon && product.stock > 0 && (
+            <Button
+              size="icon"
+              variant="secondary"
+              className="absolute bottom-2 right-2 h-8 w-8 rounded-full opacity-0 shadow-md transition-opacity group-hover:opacity-100"
+              onClick={handleAddToCart}
+              aria-label={`Add ${product.name} to cart`}
+            >
+              <ShoppingCart className="h-4 w-4" />
+            </Button>
+          )}
         </div>
 
         <CardContent className="p-3">
@@ -83,7 +124,7 @@ export function ProductCard({ product }: ProductCardProps) {
             </span>
             {product.is_flash_deal && product.flash_deal_price && (
               <span className="text-xs text-muted-foreground line-through">
-                {formatPrice(product.price)}
+                {formatPrice(originalPrice ?? 0)}
               </span>
             )}
           </div>

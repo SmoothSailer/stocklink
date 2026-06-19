@@ -1,13 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { ShoppingBag, LogOut, User, Users, UserCircle } from "lucide-react";
+import { ShoppingBag, LogOut, User, Users, UserCircle, ShoppingCart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { APP_NAME } from "@/lib/constants";
 import { useAuth } from "@/hooks/use-auth";
+import { useCart } from "@/hooks/use-cart";
 
 export function Navbar() {
   const { user, signOut, email } = useAuth();
+  const { itemCount } = useCart();
 
   return (
     <header className="sticky top-0 z-40 border-b border-border bg-card/95 backdrop-blur-sm supports-[backdrop-filter]:bg-card/80">
@@ -34,6 +36,17 @@ export function Navbar() {
             className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
           >
             Deals
+          </Link>
+          <Link
+            href="/cart"
+            className="relative text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+          >
+            <ShoppingCart className="h-4 w-4" />
+            {itemCount > 0 && (
+              <span className="absolute -right-3 -top-2 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-primary px-1 text-[10px] font-bold text-primary-foreground">
+                {itemCount > 99 ? "99+" : itemCount}
+              </span>
+            )}
           </Link>
           <Link
             href="/orders"

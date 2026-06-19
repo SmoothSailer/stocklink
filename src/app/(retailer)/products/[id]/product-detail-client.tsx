@@ -17,6 +17,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Play,
+  ShoppingCart,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -26,6 +27,7 @@ import { QuantitySelector } from "@/components/retailer/quantity-selector";
 import { WaitlistCard } from "@/components/retailer/waitlist-card";
 import { formatPrice, getStockInfo, buildWhatsAppLink, getCategoryIcon } from "@/lib/utils";
 import { useAuth } from "@/hooks/use-auth";
+import { useCart } from "@/hooks/use-cart";
 import type { Product, ProductUnitOption, ProductMedia } from "@/types/database";
 
 interface ProductDetailClientProps {
@@ -72,6 +74,7 @@ interface UnitChoice {
 export default function ProductDetailClient({ product, waitlistStatus }: ProductDetailClientProps) {
   const router = useRouter();
   const { user } = useAuth();
+  const { addItem } = useCart();
 
   // Build media gallery from product_media or fallback to image_url
   const mediaList = (product.product_media ?? [])
@@ -430,6 +433,31 @@ export default function ProductDetailClient({ product, waitlistStatus }: Product
                     {formatPrice(totalPrice)}
                   </p>
                 </div>
+                <Button
+                  variant="outline"
+                  size="lg"
+                  className="gap-2"
+                  onClick={() => {
+                    addItem({
+                      productId: product.id,
+                      name: product.name,
+                      price: product.price,
+                      unit: activeUnit.slug,
+                      quantity,
+                      minOrderQty: moq,
+                      maxStock: activeUnit.stock,
+                      imageUrl: product.image_url,
+                      category: product.category,
+                      piecesPerUnit: activeUnit.piecesPerUnit,
+                      wholesalePrice: product.is_flash_deal && product.flash_deal_price && selectedUnitIdx === 0
+                        ? product.flash_deal_price
+                        : undefined,
+                    });
+                  }}
+                >
+                  <ShoppingCart className="h-5 w-5" />
+                  Cart
+                </Button>
                 <Button
                   size="lg"
                   className="flex-1 gap-2 bg-[#25D366] font-semibold text-white shadow-md hover:bg-[#128C7E]"
